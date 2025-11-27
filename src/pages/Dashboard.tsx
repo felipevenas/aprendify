@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Calendar, CheckSquare, LogOut, PlusCircle } from "lucide-react";
+import { BookOpen, Calendar, CheckSquare, LogOut, PlusCircle, FileText, HelpCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -74,6 +74,20 @@ const Dashboard = () => {
       icon: BookOpen,
       path: "/subjects",
       color: "bg-primary-light/10 text-primary-light",
+    },
+    {
+      title: "Anotações",
+      description: "Faça anotações organizadas por matéria",
+      icon: FileText,
+      path: "/notes",
+      color: "bg-secondary/10 text-secondary",
+    },
+    {
+      title: "Banco de Questões",
+      description: "Resolva questões de concursos e vestibulares",
+      icon: HelpCircle,
+      path: "/questions",
+      color: "bg-primary/10 text-primary",
     },
   ];
 
