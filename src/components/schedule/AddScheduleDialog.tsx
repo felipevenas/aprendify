@@ -19,9 +19,20 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
+interface ScheduleItem {
+  id: string;
+  title: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  notes?: string;
+  subject_id?: string;
+}
+
 interface AddScheduleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  editItem?: ScheduleItem | null;
 }
 
 interface Subject {
@@ -37,7 +48,7 @@ const DAYS = [
   { value: "5", label: "Sexta-feira" },
 ];
 
-const AddScheduleDialog = ({ open, onOpenChange }: AddScheduleDialogProps) => {
+const AddScheduleDialog = ({ open, onOpenChange, editItem }: AddScheduleDialogProps) => {
   const [title, setTitle] = useState("");
   const [dayOfWeek, setDayOfWeek] = useState("");
   const [startTime, setStartTime] = useState("");
@@ -50,8 +61,19 @@ const AddScheduleDialog = ({ open, onOpenChange }: AddScheduleDialogProps) => {
   useEffect(() => {
     if (open) {
       fetchSubjects();
+      // Preenche os campos se estiver editando
+      if (editItem) {
+        setTitle(editItem.title);
+        setDayOfWeek(editItem.day_of_week.toString());
+        setStartTime(editItem.start_time);
+        setEndTime(editItem.end_time);
+        setSubjectId(editItem.subject_id || "");
+        setNotes(editItem.notes || "");
+      } else {
+        resetForm();
+      }
     }
-  }, [open]);
+  }, [open, editItem]);
 
   const fetchSubjects = async () => {
     try {
@@ -78,23 +100,39 @@ const AddScheduleDialog = ({ open, onOpenChange }: AddScheduleDialogProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      const { error } = await supabase.from("schedule_items").insert({
-        user_id: user.id,
+      const scheduleData = {
         title,
         day_of_week: parseInt(dayOfWeek),
         start_time: startTime,
         end_time: endTime,
         subject_id: subjectId || null,
         notes: notes || null,
-      });
+      };
 
-      if (error) throw error;
+      if (editItem) {
+        // Atualiza item existente
+        const { error } = await supabase
+          .from("schedule_items")
+          .update(scheduleData)
+          .eq("id", editItem.id);
 
-      toast.success("Horário adicionado!");
+        if (error) throw error;
+        toast.success("Horário atualizado!");
+      } else {
+        // Cria novo item
+        const { error } = await supabase.from("schedule_items").insert({
+          ...scheduleData,
+          user_id: user.id,
+        });
+
+        if (error) throw error;
+        toast.success("Horário adicionado!");
+      }
+
       onOpenChange(false);
       resetForm();
     } catch (error: any) {
-      toast.error(error.message || "Erro ao adicionar horário");
+      toast.error(error.message || `Erro ao ${editItem ? "atualizar" : "adicionar"} horário`);
     } finally {
       setLoading(false);
     }
@@ -113,7 +151,7 @@ const AddScheduleDialog = ({ open, onOpenChange }: AddScheduleDialogProps) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Adicionar Horário</DialogTitle>
+          <DialogTitle>{editItem ? "Editar Horário" : "Adicionar Horário"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -194,7 +232,7 @@ const AddScheduleDialog = ({ open, onOpenChange }: AddScheduleDialogProps) => {
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Salvando..." : "Adicionar"}
+            {loading ? "Salvando..." : editItem ? "Atualizar" : "Adicionar"}
           </Button>
         </form>
       </DialogContent>
