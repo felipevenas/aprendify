@@ -19,9 +19,19 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  due_date?: string;
+  priority?: string;
+  subject_id?: string;
+}
+
 interface AddTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  editTask?: Task | null;
 }
 
 interface Subject {
@@ -29,7 +39,7 @@ interface Subject {
   name: string;
 }
 
-const AddTaskDialog = ({ open, onOpenChange }: AddTaskDialogProps) => {
+const AddTaskDialog = ({ open, onOpenChange, editTask }: AddTaskDialogProps) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -41,8 +51,18 @@ const AddTaskDialog = ({ open, onOpenChange }: AddTaskDialogProps) => {
   useEffect(() => {
     if (open) {
       fetchSubjects();
+      // Preenche os campos se estiver editando
+      if (editTask) {
+        setTitle(editTask.title);
+        setDescription(editTask.description || "");
+        setDueDate(editTask.due_date || "");
+        setPriority(editTask.priority || "");
+        setSubjectId(editTask.subject_id || "");
+      } else {
+        resetForm();
+      }
     }
-  }, [open]);
+  }, [open, editTask]);
 
   const fetchSubjects = async () => {
     try {
@@ -69,22 +89,38 @@ const AddTaskDialog = ({ open, onOpenChange }: AddTaskDialogProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      const { error } = await supabase.from("tasks").insert({
-        user_id: user.id,
+      const taskData = {
         title,
         description: description || null,
         due_date: dueDate || null,
         priority: priority || null,
         subject_id: subjectId || null,
-      });
+      };
 
-      if (error) throw error;
+      if (editTask) {
+        // Atualiza tarefa existente
+        const { error } = await supabase
+          .from("tasks")
+          .update(taskData)
+          .eq("id", editTask.id);
 
-      toast.success("Tarefa adicionada!");
+        if (error) throw error;
+        toast.success("Tarefa atualizada!");
+      } else {
+        // Cria nova tarefa
+        const { error } = await supabase.from("tasks").insert({
+          ...taskData,
+          user_id: user.id,
+        });
+
+        if (error) throw error;
+        toast.success("Tarefa adicionada!");
+      }
+
       onOpenChange(false);
       resetForm();
     } catch (error: any) {
-      toast.error(error.message || "Erro ao adicionar tarefa");
+      toast.error(error.message || `Erro ao ${editTask ? "atualizar" : "adicionar"} tarefa`);
     } finally {
       setLoading(false);
     }
@@ -102,7 +138,7 @@ const AddTaskDialog = ({ open, onOpenChange }: AddTaskDialogProps) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Nova Tarefa</DialogTitle>
+          <DialogTitle>{editTask ? "Editar Tarefa" : "Nova Tarefa"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -168,7 +204,7 @@ const AddTaskDialog = ({ open, onOpenChange }: AddTaskDialogProps) => {
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Salvando..." : "Adicionar"}
+            {loading ? "Salvando..." : editTask ? "Atualizar" : "Adicionar"}
           </Button>
         </form>
       </DialogContent>

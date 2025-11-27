@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Trash2, CheckCircle2, Circle, GraduationCap } from "lucide-react";
+import { Trash2, CheckCircle2, Circle, GraduationCap, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import AddQuestionDialog from "./AddQuestionDialog";
 
 interface Question {
   id: string;
@@ -28,6 +29,8 @@ const QuestionsList = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "concurso" | "vestibular">("all");
+  const [editQuestion, setEditQuestion] = useState<Question | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   // Busca as questões do usuário
   const fetchQuestions = async () => {
@@ -130,7 +133,16 @@ const QuestionsList = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      <AddQuestionDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditQuestion(null);
+        }}
+        editQuestion={editQuestion}
+      />
+      <div className="space-y-6">
       <Tabs defaultValue="all" className="w-full" onValueChange={(value) => setFilter(value as any)}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="all">Todas</TabsTrigger>
@@ -203,14 +215,27 @@ const QuestionsList = () => {
                         )}
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(question.id)}
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setEditQuestion(question);
+                          setDialogOpen(true);
+                        }}
+                        className="hover:bg-accent"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(question.id)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Adicionada em{" "}
@@ -226,7 +251,8 @@ const QuestionsList = () => {
           )}
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </>
   );
 };
 
