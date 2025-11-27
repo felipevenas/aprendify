@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -12,9 +12,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
+interface Subject {
+  id: string;
+  name: string;
+  description?: string;
+  color: string;
+}
+
 interface AddSubjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  editSubject?: Subject | null;
 }
 
 const PRESET_COLORS = [
@@ -28,34 +36,68 @@ const PRESET_COLORS = [
   "#F97316", // Orange
 ];
 
-const AddSubjectDialog = ({ open, onOpenChange }: AddSubjectDialogProps) => {
+const AddSubjectDialog = ({ open, onOpenChange, editSubject }: AddSubjectDialogProps) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState(PRESET_COLORS[0]);
   const [loading, setLoading] = useState(false);
 
+  // Preenche os campos ao editar
+  useEffect(() => {
+    if (open && editSubject) {
+      setName(editSubject.name);
+      setDescription(editSubject.description || "");
+      setColor(editSubject.color);
+    } else if (open && !editSubject) {
+      resetForm();
+    }
+  }, [open, editSubject]);
+
+  // Salva ou atualiza a matéria no banco
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!name.trim()) {
+      toast.error("Digite o nome da matéria");
+      return;
+    }
+
     setLoading(true);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      const { error } = await supabase.from("subjects").insert({
-        user_id: user.id,
-        name,
-        description: description || null,
+      const subjectData = {
+        name: name.trim(),
+        description: description.trim() || null,
         color,
-      });
+      };
 
-      if (error) throw error;
+      if (editSubject) {
+        // Atualiza matéria existente
+        const { error } = await supabase
+          .from("subjects")
+          .update(subjectData)
+          .eq("id", editSubject.id);
 
-      toast.success("Matéria adicionada!");
-      onOpenChange(false);
+        if (error) throw error;
+        toast.success("Matéria atualizada com sucesso!");
+      } else {
+        // Cria nova matéria
+        const { error } = await supabase.from("subjects").insert({
+          ...subjectData,
+          user_id: user.id,
+        });
+
+        if (error) throw error;
+        toast.success("Matéria criada com sucesso!");
+      }
+
       resetForm();
+      onOpenChange(false);
     } catch (error: any) {
-      toast.error(error.message || "Erro ao adicionar matéria");
+      toast.error(`Erro ao ${editSubject ? "atualizar" : "criar"} matéria: ` + error.message);
     } finally {
       setLoading(false);
     }
@@ -71,7 +113,7 @@ const AddSubjectDialog = ({ open, onOpenChange }: AddSubjectDialogProps) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Nova Matéria</DialogTitle>
+          <DialogTitle>{editSubject ? "Editar Matéria" : "Nova Matéria"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -114,7 +156,7 @@ const AddSubjectDialog = ({ open, onOpenChange }: AddSubjectDialogProps) => {
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Salvando..." : "Adicionar"}
+            {loading ? "Salvando..." : editSubject ? "Atualizar" : "Adicionar"}
           </Button>
         </form>
       </DialogContent>

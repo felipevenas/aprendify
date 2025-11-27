@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import AddSubjectDialog from "./AddSubjectDialog";
 
 interface Subject {
   id: string;
@@ -14,6 +15,8 @@ interface Subject {
 const SubjectsList = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editSubject, setEditSubject] = useState<Subject | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const fetchSubjects = async () => {
     try {
@@ -88,7 +91,16 @@ const SubjectsList = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <>
+      <AddSubjectDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditSubject(null);
+        }}
+        editSubject={editSubject}
+      />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {subjects.map((subject) => (
         <div
           key={subject.id}
@@ -106,18 +118,32 @@ const SubjectsList = () => {
                 <p className="text-sm text-muted-foreground">{subject.description}</p>
               )}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={() => handleDelete(subject.id)}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => {
+                  setEditSubject(subject);
+                  setDialogOpen(true);
+                }}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => handleDelete(subject.id)}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
           </div>
         </div>
       ))}
-    </div>
+      </div>
+    </>
   );
 };
 

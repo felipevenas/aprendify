@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import AddScheduleDialog from "./AddScheduleDialog";
 
 interface ScheduleItem {
   id: string;
@@ -23,6 +24,8 @@ const DAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sáb
 const ScheduleGrid = () => {
   const [items, setItems] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editItem, setEditItem] = useState<ScheduleItem | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const fetchSchedule = async () => {
     try {
@@ -87,7 +90,16 @@ const ScheduleGrid = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <>
+      <AddScheduleDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditItem(null);
+        }}
+        editItem={editItem}
+      />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {DAYS.slice(1, 6).map((day, index) => {
         const dayItems = items.filter((item) => item.day_of_week === index + 1);
         
@@ -111,14 +123,27 @@ const ScheduleGrid = () => {
                   >
                     <div className="flex justify-between items-start mb-1">
                       <h4 className="font-medium text-sm">{item.title}</h4>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => handleDelete(item.id)}
-                      >
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => {
+                            setEditItem(item);
+                            setDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleDelete(item.id)}
+                        >
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      </div>
                     </div>
                     {item.subjects && (
                       <p className="text-xs text-muted-foreground mb-1">
@@ -140,7 +165,8 @@ const ScheduleGrid = () => {
           </div>
         );
       })}
-    </div>
+      </div>
+    </>
   );
 };
 

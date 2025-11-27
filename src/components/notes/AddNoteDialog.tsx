@@ -20,9 +20,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+interface Note {
+  id: string;
+  title: string;
+  content: string;
+  subject_id: string;
+}
+
 interface AddNoteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  editNote?: Note | null;
 }
 
 interface Subject {
@@ -31,14 +39,14 @@ interface Subject {
   color: string;
 }
 
-const AddNoteDialog = ({ open, onOpenChange }: AddNoteDialogProps) => {
+const AddNoteDialog = ({ open, onOpenChange, editNote }: AddNoteDialogProps) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Carrega as matérias disponíveis
+  // Carrega as matérias disponíveis e preenche campos ao editar
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
@@ -60,10 +68,18 @@ const AddNoteDialog = ({ open, onOpenChange }: AddNoteDialogProps) => {
 
     if (open) {
       fetchSubjects();
+      // Preenche os campos se estiver editando
+      if (editNote) {
+        setTitle(editNote.title);
+        setContent(editNote.content);
+        setSubjectId(editNote.subject_id);
+      } else {
+        resetForm();
+      }
     }
-  }, [open]);
+  }, [open, editNote]);
 
-  // Salva a nova anotação no banco
+  // Salva ou atualiza a anotação no banco
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -78,20 +94,36 @@ const AddNoteDialog = ({ open, onOpenChange }: AddNoteDialogProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      const { error } = await supabase.from("notes").insert({
-        user_id: user.id,
+      const noteData = {
         subject_id: subjectId,
         title: title.trim(),
         content: content.trim(),
-      });
+      };
 
-      if (error) throw error;
+      if (editNote) {
+        // Atualiza anotação existente
+        const { error } = await supabase
+          .from("notes")
+          .update(noteData)
+          .eq("id", editNote.id);
 
-      toast.success("Anotação criada com sucesso!");
+        if (error) throw error;
+        toast.success("Anotação atualizada com sucesso!");
+      } else {
+        // Cria nova anotação
+        const { error } = await supabase.from("notes").insert({
+          ...noteData,
+          user_id: user.id,
+        });
+
+        if (error) throw error;
+        toast.success("Anotação criada com sucesso!");
+      }
+
       resetForm();
       onOpenChange(false);
     } catch (error: any) {
-      toast.error("Erro ao criar anotação: " + error.message);
+      toast.error(`Erro ao ${editNote ? "atualizar" : "criar"} anotação: ` + error.message);
     } finally {
       setLoading(false);
     }
@@ -107,9 +139,9 @@ const AddNoteDialog = ({ open, onOpenChange }: AddNoteDialogProps) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Nova Anotação</DialogTitle>
+          <DialogTitle>{editNote ? "Editar Anotação" : "Nova Anotação"}</DialogTitle>
           <DialogDescription>
-            Crie uma anotação e organize por matéria
+            {editNote ? "Edite sua anotação" : "Crie uma anotação e organize por matéria"}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -169,7 +201,7 @@ const AddNoteDialog = ({ open, onOpenChange }: AddNoteDialogProps) => {
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Salvando..." : "Salvar anotação"}
+              {loading ? "Salvando..." : editNote ? "Atualizar anotação" : "Salvar anotação"}
             </Button>
           </div>
         </form>
