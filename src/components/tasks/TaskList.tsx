@@ -3,10 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import AddTaskDialog from "./AddTaskDialog";
 
 interface Task {
   id: string;
@@ -24,6 +25,8 @@ interface Task {
 const TaskList = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editTask, setEditTask] = useState<Task | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const fetchTasks = async () => {
     try {
@@ -138,7 +141,16 @@ const TaskList = () => {
   }
 
   return (
-    <div className="space-y-3">
+    <>
+      <AddTaskDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditTask(null);
+        }}
+        editTask={editTask}
+      />
+      <div className="space-y-3">
       {tasks.map((task) => (
         <div
           key={task.id}
@@ -161,14 +173,27 @@ const TaskList = () => {
                 >
                   {task.title}
                 </h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => handleDelete(task.id)}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => {
+                      setEditTask(task);
+                      setDialogOpen(true);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => handleDelete(task.id)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
               </div>
               
               {task.description && (
@@ -204,7 +229,8 @@ const TaskList = () => {
           </div>
         </div>
       ))}
-    </div>
+      </div>
+    </>
   );
 };
 

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Trash2, BookOpen } from "lucide-react";
+import { Trash2, BookOpen, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import AddNoteDialog from "./AddNoteDialog";
 
 interface Note {
   id: string;
@@ -20,6 +21,8 @@ interface Note {
 const NotesList = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editNote, setEditNote] = useState<Note | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   // Busca as anotações do usuário com dados da matéria
   const fetchNotes = async () => {
@@ -100,7 +103,16 @@ const NotesList = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <>
+      <AddNoteDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditNote(null);
+        }}
+        editNote={editNote}
+      />
+      <div className="space-y-4">
       {notes.map((note) => (
         <div
           key={note.id}
@@ -123,14 +135,27 @@ const NotesList = () => {
               </div>
               <p className="text-muted-foreground whitespace-pre-wrap">{note.content}</p>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleDelete(note.id)}
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setEditNote(note);
+                  setDialogOpen(true);
+                }}
+                className="hover:bg-accent"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleDelete(note.id)}
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
           <p className="text-sm text-muted-foreground">
             {new Date(note.created_at).toLocaleDateString("pt-BR", {
@@ -143,7 +168,8 @@ const NotesList = () => {
           </p>
         </div>
       ))}
-    </div>
+      </div>
+    </>
   );
 };
 

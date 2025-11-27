@@ -21,9 +21,21 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
+interface Question {
+  id: string;
+  title: string;
+  statement: string;
+  answer?: string;
+  difficulty?: string;
+  question_type: string;
+  subject_id?: string;
+  notes?: string;
+}
+
 interface AddQuestionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  editQuestion?: Question | null;
 }
 
 interface Subject {
@@ -32,7 +44,7 @@ interface Subject {
   color: string;
 }
 
-const AddQuestionDialog = ({ open, onOpenChange }: AddQuestionDialogProps) => {
+const AddQuestionDialog = ({ open, onOpenChange, editQuestion }: AddQuestionDialogProps) => {
   const [title, setTitle] = useState("");
   const [statement, setStatement] = useState("");
   const [answer, setAnswer] = useState("");
@@ -43,7 +55,7 @@ const AddQuestionDialog = ({ open, onOpenChange }: AddQuestionDialogProps) => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Carrega as matérias disponíveis
+  // Carrega as matérias disponíveis e preenche campos ao editar
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
@@ -65,10 +77,22 @@ const AddQuestionDialog = ({ open, onOpenChange }: AddQuestionDialogProps) => {
 
     if (open) {
       fetchSubjects();
+      // Preenche os campos se estiver editando
+      if (editQuestion) {
+        setTitle(editQuestion.title);
+        setStatement(editQuestion.statement);
+        setAnswer(editQuestion.answer || "");
+        setDifficulty(editQuestion.difficulty || "medium");
+        setQuestionType(editQuestion.question_type as "concurso" | "vestibular");
+        setSubjectId(editQuestion.subject_id || "");
+        setNotes(editQuestion.notes || "");
+      } else {
+        resetForm();
+      }
     }
-  }, [open]);
+  }, [open, editQuestion]);
 
-  // Salva a nova questão no banco
+  // Salva ou atualiza a questão no banco
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -83,25 +107,41 @@ const AddQuestionDialog = ({ open, onOpenChange }: AddQuestionDialogProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      const { error } = await supabase.from("questions").insert({
-        user_id: user.id,
-        subject_id: subjectId || null,
+      const questionData = {
         title: title.trim(),
         statement: statement.trim(),
         answer: answer.trim() || null,
-        notes: notes.trim() || null,
-        difficulty,
+        difficulty: difficulty || null,
         question_type: questionType,
-        solved: false,
-      });
+        subject_id: subjectId || null,
+        notes: notes.trim() || null,
+      };
 
-      if (error) throw error;
+      if (editQuestion) {
+        // Atualiza questão existente
+        const { error } = await supabase
+          .from("questions")
+          .update(questionData)
+          .eq("id", editQuestion.id);
 
-      toast.success("Questão adicionada com sucesso!");
+        if (error) throw error;
+        toast.success("Questão atualizada com sucesso!");
+      } else {
+        // Cria nova questão
+        const { error } = await supabase.from("questions").insert({
+          ...questionData,
+          user_id: user.id,
+          solved: false,
+        });
+
+        if (error) throw error;
+        toast.success("Questão criada com sucesso!");
+      }
+
       resetForm();
       onOpenChange(false);
     } catch (error: any) {
-      toast.error("Erro ao adicionar questão: " + error.message);
+      toast.error(`Erro ao ${editQuestion ? "atualizar" : "criar"} questão: ` + error.message);
     } finally {
       setLoading(false);
     }
@@ -121,9 +161,9 @@ const AddQuestionDialog = ({ open, onOpenChange }: AddQuestionDialogProps) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nova Questão</DialogTitle>
+          <DialogTitle>{editQuestion ? "Editar Questão" : "Nova Questão"}</DialogTitle>
           <DialogDescription>
-            Adicione uma questão de concurso ou vestibular para praticar
+            {editQuestion ? "Edite sua questão" : "Adicione uma questão de concurso ou vestibular para praticar"}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -242,7 +282,7 @@ const AddQuestionDialog = ({ open, onOpenChange }: AddQuestionDialogProps) => {
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Salvando..." : "Adicionar questão"}
+              {loading ? "Salvando..." : editQuestion ? "Atualizar questão" : "Adicionar questão"}
             </Button>
           </div>
         </form>
