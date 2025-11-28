@@ -45,21 +45,28 @@ const Questions = () => {
   const fetchQuestion = async (random: boolean = false) => {
     setLoadingQuestion(true);
     try {
-      // Monta a URL base
+      // Monta a URL base com o ano selecionado
       let url = `https://api.enem.dev/v1/exams/${selectedYear}/questions`;
       const params = new URLSearchParams();
 
-      // Adiciona parâmetros de filtro
+      // Adiciona filtro de disciplina se selecionado
+      if (selectedDiscipline !== "all") {
+        params.append("discipline", selectedDiscipline);
+      }
+
+      // Adiciona filtro de idioma se selecionado
       if (selectedLanguage !== "all") {
         params.append("language", selectedLanguage);
       }
 
-      // Se for aleatória, busca uma questão aleatória
+      // Define limite e offset para buscar questões
       if (random) {
+        // Busca uma questão aleatória dentro dos filtros
         params.append("limit", "1");
-        const randomOffset = Math.floor(Math.random() * 180); // ENEM tem ~180 questões
+        const randomOffset = Math.floor(Math.random() * 100); // Offset aleatório
         params.append("offset", randomOffset.toString());
       } else {
+        // Busca a primeira questão com os filtros aplicados
         params.append("limit", "1");
         params.append("offset", "0");
       }
@@ -74,22 +81,15 @@ const Questions = () => {
       const data = await response.json();
       
       if (data.questions && data.questions.length > 0) {
-        let question = data.questions[0];
-        
-        // Filtra por disciplina se necessário
-        if (selectedDiscipline !== "all" && question.discipline !== selectedDiscipline) {
-          // Tenta buscar outra questão
-          await fetchQuestion(true);
-          return;
-        }
-        
-        setCurrentQuestion(question);
+        setCurrentQuestion(data.questions[0]);
       } else {
         toast.error("Nenhuma questão encontrada com os filtros selecionados");
+        setCurrentQuestion(null);
       }
     } catch (error) {
       console.error("Erro ao buscar questão:", error);
       toast.error("Erro ao carregar questão. Tente novamente.");
+      setCurrentQuestion(null);
     } finally {
       setLoadingQuestion(false);
     }
