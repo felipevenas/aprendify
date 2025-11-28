@@ -3,15 +3,30 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, BookOpen, Plus } from "lucide-react";
+import { ArrowLeft, BookOpen, Shuffle, Filter } from "lucide-react";
 import { motion } from "framer-motion";
-import QuestionsList from "@/components/questions/QuestionsList";
-import AddQuestionDialog from "@/components/questions/AddQuestionDialog";
+import { toast } from "sonner";
+import QuestionPractice from "@/components/questions/QuestionPractice";
+import QuestionFilters from "@/components/questions/QuestionFilters";
 
+/**
+ * Página de prática de questões do ENEM
+ * Integra com a API do ENEM para buscar questões reais
+ * Permite filtrar por ano, disciplina e idioma
+ */
 const Questions = () => {
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const navigate = useNavigate();
+
+  // Filtros
+  const [selectedYear, setSelectedYear] = useState<string>("2023");
+  const [selectedDiscipline, setSelectedDiscipline] = useState<string>("all");
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("all");
+
+  // Estado da questão atual
+  const [currentQuestion, setCurrentQuestion] = useState<any>(null);
+  const [loadingQuestion, setLoadingQuestion] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -26,59 +41,202 @@ const Questions = () => {
     checkAuth();
   }, [navigate]);
 
+  // Busca questão da API do ENEM
+  const fetchQuestion = async (random: boolean = false) => {
+    setLoadingQuestion(true);
+    try {
+      // Monta a URL base
+      let url = `https://api.enem.dev/v1/exams/${selectedYear}/questions`;
+      const params = new URLSearchParams();
+
+      // Adiciona parâmetros de filtro
+      if (selectedLanguage !== "all") {
+        params.append("language", selectedLanguage);
+      }
+
+      // Se for aleatória, busca uma questão aleatória
+      if (random) {
+        params.append("limit", "1");
+        const randomOffset = Math.floor(Math.random() * 180); // ENEM tem ~180 questões
+        params.append("offset", randomOffset.toString());
+      } else {
+        params.append("limit", "1");
+        params.append("offset", "0");
+      }
+
+      const fullUrl = params.toString() ? `${url}?${params.toString()}` : url;
+      
+      const response = await fetch(fullUrl);
+      if (!response.ok) {
+        throw new Error("Erro ao buscar questão");
+      }
+
+      const data = await response.json();
+      
+      if (data.questions && data.questions.length > 0) {
+        let question = data.questions[0];
+        
+        // Filtra por disciplina se necessário
+        if (selectedDiscipline !== "all" && question.discipline !== selectedDiscipline) {
+          // Tenta buscar outra questão
+          await fetchQuestion(true);
+          return;
+        }
+        
+        setCurrentQuestion(question);
+      } else {
+        toast.error("Nenhuma questão encontrada com os filtros selecionados");
+      }
+    } catch (error) {
+      console.error("Erro ao buscar questão:", error);
+      toast.error("Erro ao carregar questão. Tente novamente.");
+    } finally {
+      setLoadingQuestion(false);
+    }
+  };
+
+  // Busca questão aleatória
+  const handleRandomQuestion = () => {
+    fetchQuestion(true);
+  };
+
+  // Aplica filtros e busca nova questão
+  const handleApplyFilters = () => {
+    setShowFilters(false);
+    fetchQuestion(false);
+  };
+
+  // Carrega primeira questão ao montar o componente
+  useEffect(() => {
+    if (!loading) {
+      fetchQuestion(false);
+    }
+  }, [loading]);
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse text-primary text-lg">Carregando...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
-      <nav className="bg-card border-b border-border shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
+      {/* Navbar */}
+      <nav className="bg-card/80 backdrop-blur-md border-b border-border shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" onClick={() => navigate("/dashboard")} className="gap-2">
+              <Button 
+                variant="ghost" 
+                onClick={() => navigate("/dashboard")} 
+                className="gap-2 hover:bg-primary/10"
+              >
                 <ArrowLeft className="h-4 w-4" />
-                Voltar
+                <span className="hidden sm:inline">Voltar</span>
               </Button>
-              <div className="flex items-center">
-                <BookOpen className="h-8 w-8 text-primary mr-2" />
-                <span className="text-2xl font-bold text-primary">StudyFlow</span>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                  <BookOpen className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  StudyFlow
+                </span>
               </div>
             </div>
-            <Button onClick={() => setDialogOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nova questão
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => setShowFilters(!showFilters)} 
+                variant="outline"
+                className="gap-2"
+              >
+                <Filter className="h-4 w-4" />
+                <span className="hidden sm:inline">Filtros</span>
+              </Button>
+              <Button 
+                onClick={handleRandomQuestion}
+                className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                disabled={loadingQuestion}
+              >
+                <Shuffle className="h-4 w-4" />
+                <span className="hidden sm:inline">Aleatória</span>
+              </Button>
+            </div>
           </div>
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
+          className="mb-8"
         >
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-foreground mb-2">
-              Banco de Questões
-            </h1>
-            <p className="text-muted-foreground text-lg">
-              Resolva questões de concursos e vestibulares
-            </p>
-          </div>
-
-          <Card className="shadow-lg border-border/50 p-6">
-            <QuestionsList />
-          </Card>
+          <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2">
+            Banco de Questões ENEM
+          </h1>
+          <p className="text-muted-foreground text-base sm:text-lg">
+            Pratique com questões reais das provas de 2009 a 2023
+          </p>
         </motion.div>
-      </main>
 
-      <AddQuestionDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+        {/* Painel de Filtros */}
+        {showFilters && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-6"
+          >
+            <Card className="p-6 border-border/50 shadow-lg">
+              <QuestionFilters
+                selectedYear={selectedYear}
+                selectedDiscipline={selectedDiscipline}
+                selectedLanguage={selectedLanguage}
+                onYearChange={setSelectedYear}
+                onDisciplineChange={setSelectedDiscipline}
+                onLanguageChange={setSelectedLanguage}
+                onApply={handleApplyFilters}
+              />
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Área da questão */}
+        {loadingQuestion ? (
+          <Card className="p-12 border-border/50 shadow-lg">
+            <div className="flex flex-col items-center justify-center gap-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+              <p className="text-muted-foreground">Carregando questão...</p>
+            </div>
+          </Card>
+        ) : currentQuestion ? (
+          <QuestionPractice 
+            question={currentQuestion}
+            onNext={() => fetchQuestion(true)}
+          />
+        ) : (
+          <Card className="p-12 border-border/50 shadow-lg">
+            <div className="text-center">
+              <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-xl font-semibold mb-2">Nenhuma questão encontrada</h3>
+              <p className="text-muted-foreground mb-6">
+                Ajuste os filtros ou clique em "Aleatória" para começar
+              </p>
+              <Button onClick={handleRandomQuestion} className="gap-2">
+                <Shuffle className="h-4 w-4" />
+                Buscar Questão Aleatória
+              </Button>
+            </div>
+          </Card>
+        )}
+      </main>
     </div>
   );
 };
