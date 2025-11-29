@@ -86,6 +86,48 @@ export type Database = {
         }
         Relationships: []
       }
+      question_attempts: {
+        Row: {
+          correct_answer: string
+          created_at: string
+          discipline: string
+          id: string
+          is_correct: boolean
+          language: string | null
+          question_id: string
+          selected_answer: string
+          topic: string | null
+          user_id: string
+          year: string
+        }
+        Insert: {
+          correct_answer: string
+          created_at?: string
+          discipline: string
+          id?: string
+          is_correct: boolean
+          language?: string | null
+          question_id: string
+          selected_answer: string
+          topic?: string | null
+          user_id: string
+          year: string
+        }
+        Update: {
+          correct_answer?: string
+          created_at?: string
+          discipline?: string
+          id?: string
+          is_correct?: boolean
+          language?: string | null
+          question_id?: string
+          selected_answer?: string
+          topic?: string | null
+          user_id?: string
+          year?: string
+        }
+        Relationships: []
+      }
       questions: {
         Row: {
           answer: string | null
