@@ -89,13 +89,13 @@ const Auth = () => {
             transition={{ duration: 0.6, delay: 0.2 }}
           >
             <div className="flex items-center gap-3 mb-6">
-              <BookOpen className="h-12 w-12" />
-              <h1 className="text-5xl font-bold">StudyFlow</h1>
+              <BookOpen className="h-12 w-12 text-white" />
+              <h1 className="text-5xl font-bold text-white">StudyFlow</h1>
             </div>
-            <h2 className="text-3xl font-semibold mb-4">
+            <h2 className="text-3xl font-semibold mb-4 text-white">
               Organize seus estudos de forma inteligente
             </h2>
-            <p className="text-xl text-white/90 mb-8 leading-relaxed">
+            <p className="text-xl text-white mb-8 leading-relaxed">
               Gerencie seu cronograma, resolva questões do ENEM, faça anotações e 
               acompanhe seu progresso em um só lugar.
             </p>
@@ -116,7 +116,7 @@ const Auth = () => {
                   className="flex items-center gap-3"
                 >
                   <div className="w-2 h-2 rounded-full bg-white" />
-                  <span className="text-lg">{feature}</span>
+                  <span className="text-lg text-white">{feature}</span>
                 </motion.div>
               ))}
             </div>

@@ -53,6 +53,44 @@ All colors MUST be HSL.
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
     --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
   }
+
+  .dark {
+    --background: 220 20% 10%;
+    --foreground: 0 0% 95%;
+
+    --card: 220 20% 12%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 220 20% 12%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 217 91% 45%;
+    --primary-foreground: 0 0% 100%;
+    
+    --primary-light: 217 91% 60%;
+    --primary-dark: 217 91% 30%;
+
+    --secondary: 220 20% 16%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 220 20% 16%;
+    --muted-foreground: 220 10% 60%;
+
+    --accent: 217 91% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 20%;
+    --input: 220 20% 20%;
+    --ring: 217 91% 45%;
+
+    --success: 142 76% 45%;
+    --success-foreground: 0 0% 100%;
+    --error: 0 84% 60%;
+    --error-foreground: 0 0% 100%;
+  }
 }
 
 @layer base {
