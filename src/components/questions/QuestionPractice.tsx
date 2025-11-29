@@ -13,9 +13,10 @@ import { cn } from "@/lib/utils";
 interface QuestionPracticeProps {
   question: any;
   onNext: () => void;
+  onAnswer?: (questionId: string, selectedAnswer: string, correctAnswer: string, isCorrect: boolean) => void;
 }
 
-const QuestionPractice = ({ question, onNext }: QuestionPracticeProps) => {
+const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps) => {
   const [selectedAlternative, setSelectedAlternative] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
 
@@ -25,10 +26,17 @@ const QuestionPractice = ({ question, onNext }: QuestionPracticeProps) => {
     setSelectedAlternative(letter);
   };
 
-  // Handler para confirmar resposta
+  // Confirma a resposta e mostra resultado
   const handleConfirmAnswer = () => {
     if (!selectedAlternative) return;
     setShowResult(true);
+    
+    // Salva a resposta se a callback foi fornecida
+    if (onAnswer) {
+      const correctAlt = question.alternatives.find((alt: any) => alt.isCorrect);
+      const isCorrect = selectedAlternative === correctAlt?.letter;
+      onAnswer(question.id, selectedAlternative, correctAlt?.letter, isCorrect);
+    }
   };
 
   // Handler para próxima questão
