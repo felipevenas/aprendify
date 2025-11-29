@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, BookOpen, Shuffle, Filter } from "lucide-react";
+import { ArrowLeft, BookOpen, Shuffle, Filter, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import QuestionPractice from "@/components/questions/QuestionPractice";
 import QuestionFilters from "@/components/questions/QuestionFilters";
+import Navbar from "@/components/Navbar";
 
 /**
  * Página de prática de questões do ENEM
@@ -95,6 +96,28 @@ const Questions = () => {
     }
   };
 
+  // Salva resposta do usuário no banco
+  const handleAnswerSubmit = async (questionId: string, selectedAnswer: string, correctAnswer: string, isCorrect: boolean) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    try {
+      await supabase.from("question_attempts").insert({
+        user_id: user.id,
+        question_id: questionId,
+        discipline: currentQuestion.discipline,
+        year: selectedYear,
+        selected_answer: selectedAnswer,
+        correct_answer: correctAnswer,
+        is_correct: isCorrect,
+        topic: currentQuestion.context || null,
+        language: currentQuestion.language || null,
+      });
+    } catch (error) {
+      console.error("Erro ao salvar resposta:", error);
+    }
+  };
+
   // Busca questão aleatória
   const handleRandomQuestion = () => {
     fetchQuestion(true);
@@ -106,10 +129,10 @@ const Questions = () => {
     fetchQuestion(false);
   };
 
-  // Carrega primeira questão ao montar o componente
+  // Carrega questão aleatória ao montar o componente
   useEffect(() => {
     if (!loading) {
-      fetchQuestion(false);
+      fetchQuestion(true); // Sempre começa com questão aleatória
     }
   }, [loading]);
 
@@ -126,28 +149,20 @@ const Questions = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      {/* Navbar */}
-      <nav className="bg-card/80 backdrop-blur-md border-b border-border shadow-sm sticky top-0 z-50">
+      <Navbar />
+      
+      {/* Barra de ações */}
+      <div className="bg-card/80 backdrop-blur-md border-b border-border shadow-sm sticky top-16 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4">
-              <Button 
-                variant="ghost" 
-                onClick={() => navigate("/dashboard")} 
-                className="gap-2 hover:bg-primary/10"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">Voltar</span>
-              </Button>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                  <BookOpen className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  StudyFlow
-                </span>
-              </div>
-            </div>
+          <div className="flex justify-between items-center h-14">
+            <Button 
+              variant="ghost" 
+              onClick={() => navigate("/dashboard")} 
+              className="gap-2 hover:bg-primary/10"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Voltar</span>
+            </Button>
             <div className="flex gap-2">
               <Button 
                 onClick={() => setShowFilters(!showFilters)} 
@@ -168,7 +183,7 @@ const Questions = () => {
             </div>
           </div>
         </div>
-      </nav>
+      </div>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
@@ -220,6 +235,7 @@ const Questions = () => {
           <QuestionPractice 
             question={currentQuestion}
             onNext={() => fetchQuestion(true)}
+            onAnswer={handleAnswerSubmit}
           />
         ) : (
           <Card className="p-12 border-border/50 shadow-lg">
