@@ -99,22 +99,40 @@ const Questions = () => {
   // Salva resposta do usuário no banco
   const handleAnswerSubmit = async (questionId: string, selectedAnswer: string, correctAnswer: string, isCorrect: boolean) => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      console.error("Usuário não autenticado ao tentar salvar resposta");
+      return;
+    }
 
     try {
-      await supabase.from("question_attempts").insert({
+      const attemptData = {
         user_id: user.id,
         question_id: questionId,
-        discipline: currentQuestion.discipline,
+        discipline: currentQuestion?.discipline || "desconhecida",
         year: selectedYear,
         selected_answer: selectedAnswer,
         correct_answer: correctAnswer,
         is_correct: isCorrect,
-        topic: currentQuestion.context || null,
-        language: currentQuestion.language || null,
-      });
+        topic: currentQuestion?.context || null,
+        language: currentQuestion?.language || null,
+      };
+      
+      console.log("Salvando tentativa de questão:", attemptData);
+      
+      const { data, error } = await supabase
+        .from("question_attempts")
+        .insert(attemptData);
+      
+      if (error) {
+        console.error("Erro ao salvar tentativa:", error);
+        toast.error("Erro ao salvar sua resposta. Suas estatísticas podem não ser atualizadas.");
+      } else {
+        console.log("Tentativa salva com sucesso:", data);
+        toast.success("Resposta registrada!");
+      }
     } catch (error) {
-      console.error("Erro ao salvar resposta:", error);
+      console.error("Erro inesperado ao salvar resposta:", error);
+      toast.error("Erro ao salvar sua resposta.");
     }
   };
 
