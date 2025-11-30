@@ -38,16 +38,24 @@ const Statistics = () => {
 
   const fetchStatistics = async (userId: string) => {
     try {
+      console.log("Buscando estatísticas para o usuário:", userId);
+      
       // Busca todas as tentativas do usuário
       const { data: attempts, error } = await supabase
         .from("question_attempts")
         .select("*")
         .eq("user_id", userId);
 
-      if (error) throw error;
+      console.log("Tentativas encontradas:", attempts?.length || 0, attempts);
+
+      if (error) {
+        console.error("Erro ao buscar tentativas:", error);
+        throw error;
+      }
 
       // Se não houver tentativas, apenas mostra estado vazio
       if (!attempts || attempts.length === 0) {
+        console.log("Nenhuma tentativa encontrada para este usuário");
         setTotalAttempts(0);
         setLoading(false);
         return;
