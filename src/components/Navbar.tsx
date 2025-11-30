@@ -131,13 +131,6 @@ const Navbar = () => {
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => navigate("/statistics")}
-                  className="cursor-pointer"
-                >
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Estatísticas
-                </DropdownMenuItem>
-                <DropdownMenuItem
                   onClick={() => navigate("/settings")}
                   className="cursor-pointer"
                 >
