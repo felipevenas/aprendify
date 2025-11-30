@@ -65,6 +65,15 @@ const Dashboard = () => {
       featured: true,
     },
     {
+      title: "Estatísticas",
+      description: "Acompanhe seu desempenho e evolução",
+      icon: Sparkles,
+      path: "/statistics",
+      gradient: "from-accent to-primary",
+      iconBg: "bg-gradient-to-br from-accent to-primary",
+      featured: false,
+    },
+    {
       title: "Cronograma Semanal",
       description: "Organize suas aulas e sessões de estudo",
       icon: Calendar,

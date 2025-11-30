@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, BookOpen, Plus } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import NotesList from "@/components/notes/NotesList";
 import AddNoteDialog from "@/components/notes/AddNoteDialog";
+import Navbar from "@/components/Navbar";
 
 const Notes = () => {
   const [loading, setLoading] = useState(true);
@@ -47,34 +48,38 @@ const Notes = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse text-primary text-lg">Carregando...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
-      <nav className="bg-card border-b border-border shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
+      <Navbar />
+      
+      {/* Barra de ações */}
+      <div className="bg-card/80 backdrop-blur-md border-b border-border shadow-sm sticky top-16 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" onClick={() => navigate("/dashboard")} className="gap-2">
-                <ArrowLeft className="h-4 w-4" />
-                Voltar
-              </Button>
-              <div className="flex items-center">
-                <BookOpen className="h-8 w-8 text-primary mr-2" />
-                <span className="text-2xl font-bold text-primary">StudyFlow</span>
-              </div>
-            </div>
+          <div className="flex justify-between items-center h-14">
+            <Button 
+              variant="ghost" 
+              onClick={() => navigate("/dashboard")} 
+              className="gap-2 hover:bg-primary/10"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Voltar</span>
+            </Button>
             <Button onClick={handleAddNote} className="gap-2" disabled={!hasSubjects}>
               <Plus className="h-4 w-4" />
-              Nova anotação
+              Nova Anotação
             </Button>
           </div>
         </div>
-      </nav>
+      </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <motion.div
