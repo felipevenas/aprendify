@@ -33,9 +33,15 @@ const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps)
     
     // Salva a resposta se a callback foi fornecida
     if (onAnswer) {
-      const correctAlt = question.alternatives.find((alt: any) => alt.isCorrect);
-      const isCorrect = selectedAlternative === correctAlt?.letter;
-      onAnswer(question.id, selectedAlternative, correctAlt?.letter, isCorrect);
+      const correctAlt = question.correctAlternative;
+      const isCorrect = selectedAlternative === correctAlt;
+      console.log("Confirmando resposta:", {
+        questionId: question.id,
+        selectedAlternative,
+        correctAlt,
+        isCorrect
+      });
+      onAnswer(question.id, selectedAlternative, correctAlt, isCorrect);
     }
   };
 
