@@ -260,15 +260,24 @@ const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps)
         {/* Botões de ação */}
         <div className="flex justify-end gap-3">
           {!showResult ? (
-            <Button
-              onClick={handleConfirmAnswer}
-              disabled={!selectedAlternative}
-              className="gap-2"
-              size="lg"
-            >
-              Confirmar Resposta
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            <>
+              <Button
+                onClick={handleNextQuestion}
+                variant="outline"
+                size="lg"
+              >
+                Pular Questão
+              </Button>
+              <Button
+                onClick={handleConfirmAnswer}
+                disabled={!selectedAlternative}
+                className="gap-2"
+                size="lg"
+              >
+                Confirmar Resposta
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </>
           ) : (
             <Button
               onClick={handleNextQuestion}

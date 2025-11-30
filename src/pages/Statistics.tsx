@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
-import { CheckCircle2, XCircle, TrendingUp, TrendingDown, BookOpen, Target } from "lucide-react";
+import { CheckCircle2, XCircle, TrendingUp, TrendingDown, BookOpen, Target, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 
 /**
@@ -45,8 +46,9 @@ const Statistics = () => {
 
       if (error) throw error;
 
-      if (!attempts || attempts.length < 5) {
-        setTotalAttempts(attempts?.length || 0);
+      // Se não houver tentativas, apenas mostra estado vazio
+      if (!attempts || attempts.length === 0) {
+        setTotalAttempts(0);
         setLoading(false);
         return;
       }
@@ -123,8 +125,8 @@ const Statistics = () => {
     );
   }
 
-  // Mostra mensagem se ainda não respondeu 5 questões
-  if (totalAttempts < 5) {
+  // Mostra mensagem amigável se ainda não houver tentativas
+  if (totalAttempts === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
         <Navbar />
@@ -135,14 +137,14 @@ const Statistics = () => {
             className="flex flex-col items-center justify-center min-h-[60vh] text-center"
           >
             <BookOpen className="h-24 w-24 text-muted-foreground mb-6" />
-            <h1 className="text-3xl font-bold mb-4">Estatísticas Insuficientes</h1>
-            <p className="text-muted-foreground text-lg mb-2">
-              Você precisa responder pelo menos 5 questões para ver suas estatísticas.
+            <h1 className="text-3xl font-bold mb-4">Comece a Praticar!</h1>
+            <p className="text-muted-foreground text-lg mb-6 max-w-md">
+              Você ainda não respondeu nenhuma questão. Vá para o Banco de Questões e comece a praticar para ver suas estatísticas aqui.
             </p>
-            <p className="text-muted-foreground">
-              Questões respondidas: {totalAttempts} / 5
-            </p>
-            <Progress value={(totalAttempts / 5) * 100} className="w-64 mt-6" />
+            <Button onClick={() => navigate("/questions")} className="gap-2">
+              <Target className="h-4 w-4" />
+              Ir para o Banco de Questões
+            </Button>
           </motion.div>
         </main>
       </div>
@@ -209,43 +211,53 @@ const Statistics = () => {
             </Card>
           </div>
 
-          {/* Desempenho por Disciplina */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Desempenho por Disciplina</CardTitle>
-              <CardDescription>
-                Veja seu desempenho em cada disciplina
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {disciplineStats.map((disc) => (
-                  <div key={disc.name}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        {parseFloat(disc.accuracy) >= 70 ? (
-                          <TrendingUp className="h-5 w-5 text-success" />
-                        ) : (
-                          <TrendingDown className="h-5 w-5 text-error" />
-                        )}
-                        <div>
-                          <p className="font-medium">{disc.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {disc.total} questões • {disc.correct} acertos • {disc.wrong} erros
-                          </p>
+          {/* Grid de Disciplinas e Assuntos */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* Desempenho por Disciplina */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Desempenho por Disciplina</CardTitle>
+                <CardDescription>
+                  Veja seu desempenho em cada disciplina
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {disciplineStats.length > 0 ? (
+                    disciplineStats.map((disc) => (
+                      <div key={disc.name}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-3 flex-1">
+                            {parseFloat(disc.accuracy) >= 70 ? (
+                              <TrendingUp className="h-5 w-5 text-success flex-shrink-0" />
+                            ) : (
+                              <TrendingDown className="h-5 w-5 text-error flex-shrink-0" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium truncate">{disc.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {disc.total} questões • {disc.correct} acertos • {disc.wrong} erros
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-lg font-bold ml-2 flex-shrink-0">{disc.accuracy}%</span>
                         </div>
+                        <Progress value={parseFloat(disc.accuracy)} />
                       </div>
-                      <span className="text-lg font-bold">{disc.accuracy}%</span>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                      <p className="text-sm text-muted-foreground">
+                        Responda mais questões para ver estatísticas por disciplina
+                      </p>
                     </div>
-                    <Progress value={parseFloat(disc.accuracy)} />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Assuntos que precisam de atenção */}
-          {topicStats.length > 0 && (
+            {/* Assuntos que precisam de atenção */}
             <Card>
               <CardHeader>
                 <CardTitle>Assuntos que Precisam de Atenção</CardTitle>
@@ -254,28 +266,37 @@ const Statistics = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {topicStats.map((topic, index) => (
-                    <div
-                      key={topic.name}
-                      className="flex items-center justify-between p-4 rounded-lg bg-muted/50"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-error/10 text-error font-bold">
-                          {index + 1}
+                {topicStats.length > 0 ? (
+                  <div className="space-y-4">
+                    {topicStats.map((topic, index) => (
+                      <div
+                        key={topic.name}
+                        className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-error/10 text-error font-bold flex-shrink-0">
+                            {index + 1}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate">{topic.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{topic.discipline}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">{topic.name}</p>
-                          <p className="text-sm text-muted-foreground">{topic.discipline}</p>
-                        </div>
+                        <span className="text-error font-bold ml-2 flex-shrink-0">{topic.count} erros</span>
                       </div>
-                      <span className="text-error font-bold">{topic.count} erros</span>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <CheckCircle2 className="h-12 w-12 text-success mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">
+                      Ótimo! Você ainda não tem assuntos com muitos erros.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
+          </div>
         </motion.div>
       </main>
     </div>
