@@ -42,37 +42,23 @@ const Auth = () => {
         toast.success("Login realizado com sucesso!");
         navigate("/dashboard");
       } else {
-        // Primeiro cria a conta
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        // Cria a conta com todos os dados do perfil
+        const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/dashboard`,
             data: {
               full_name: fullName,
+              username: username,
+              phone: phone,
+              birthdate: birthdate || null,
               role: "user", // Sempre usuário padrão
             },
           },
         });
 
         if (signUpError) throw signUpError;
-
-        // Atualiza o perfil com informações adicionais
-        if (signUpData.user) {
-          const { error: profileError } = await supabase
-            .from("profiles")
-            .update({
-              username,
-              phone,
-              birthdate: birthdate || null,
-            })
-            .eq("id", signUpData.user.id);
-
-          if (profileError) {
-            console.error("Erro ao atualizar perfil:", profileError);
-            toast.warning("Conta criada, mas algumas informações não foram salvas.");
-          }
-        }
 
         toast.success("Cadastro realizado! Faça login para continuar.");
         setIsLogin(true);
