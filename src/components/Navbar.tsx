@@ -76,23 +76,23 @@ const Navbar = () => {
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border bg-card/80 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-14 sm:h-16">
           {/* Logo */}
           <div 
-            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2 sm:gap-3 cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => navigate("/dashboard")}
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <BookOpen className="h-5 w-5 text-white" />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               Learnify
             </span>
           </div>
 
           {/* Menu do usuário */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
             {/* Badge Premium - Link para MercadoPago */}
             <a 
               href="https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=2fab389d1e6546429376b4a50517acd2"
@@ -101,10 +101,10 @@ const Navbar = () => {
               className="transition-transform hover:scale-105"
             >
               <Badge 
-                className="bg-gradient-to-r from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-white border-0 px-4 py-1.5 cursor-pointer shadow-lg"
+                className="bg-gradient-to-r from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-white border-0 px-2 sm:px-4 py-1.5 cursor-pointer shadow-lg flex items-center"
               >
-                <Crown className="h-4 w-4 mr-1" />
-                Premium
+                <Crown className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Premium</span>
               </Badge>
             </a>
             {/* Botão de tema */}
@@ -112,12 +112,12 @@ const Navbar = () => {
               variant="ghost"
               size="icon"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="rounded-full hover:bg-accent/10"
+              className="rounded-full hover:bg-accent/10 h-9 w-9 sm:h-10 sm:w-10"
             >
               {theme === "dark" ? (
-                <Sun className="h-5 w-5" />
+                <Sun className="h-4 w-4 sm:h-5 sm:w-5" />
               ) : (
-                <Moon className="h-5 w-5" />
+                <Moon className="h-4 w-4 sm:h-5 sm:w-5" />
               )}
             </Button>
 
@@ -126,7 +126,7 @@ const Navbar = () => {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="flex items-center gap-2 hover:bg-accent/10 rounded-full pr-4"
+                  className="flex items-center gap-2 hover:bg-accent/10 rounded-full pr-2 sm:pr-4 pl-1 sm:pl-3"
                 >
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={user.user_metadata?.avatar_url} />
