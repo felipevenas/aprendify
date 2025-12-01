@@ -188,23 +188,40 @@ const Questions = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
       <Navbar />
-      
-      {/* Barra de ações */}
-      <div className="bg-card/80 backdrop-blur-md border-b border-border shadow-sm sticky top-16 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-14">
-            <Button 
-              variant="ghost" 
-              onClick={() => navigate("/dashboard")} 
-              className="gap-2 hover:bg-primary/10"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Voltar</span>
-            </Button>
-            <div className="flex gap-2">
+
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header com ações integradas */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-8"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2">
+                Banco de Questões ENEM
+              </h1>
+              <p className="text-muted-foreground text-base sm:text-lg">
+                Pratique com questões reais das provas de 2009 a 2023
+              </p>
+            </div>
+            
+            {/* Ações discretas */}
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate("/dashboard")} 
+                className="gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Voltar</span>
+              </Button>
               <Button 
                 onClick={() => setShowFilters(!showFilters)} 
                 variant="outline"
+                size="sm"
                 className="gap-2"
               >
                 <Filter className="h-4 w-4" />
@@ -212,7 +229,8 @@ const Questions = () => {
               </Button>
               <Button 
                 onClick={handleRandomQuestion}
-                className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                size="sm"
+                className="gap-2"
                 disabled={loadingQuestion}
               >
                 <Shuffle className="h-4 w-4" />
@@ -220,23 +238,6 @@ const Questions = () => {
               </Button>
             </div>
           </div>
-        </div>
-      </div>
-
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-8"
-        >
-          <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2">
-            Banco de Questões ENEM
-          </h1>
-          <p className="text-muted-foreground text-base sm:text-lg">
-            Pratique com questões reais das provas de 2009 a 2023
-          </p>
         </motion.div>
 
         {/* Painel de Filtros */}
