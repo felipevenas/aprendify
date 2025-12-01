@@ -267,20 +267,21 @@ const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps)
         )}
 
         {/* Botões de ação */}
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
           {!showResult ? (
             <>
               <Button
                 onClick={handleNextQuestion}
                 variant="outline"
                 size="lg"
+                className="w-full sm:w-auto"
               >
                 Pular Questão
               </Button>
               <Button
                 onClick={handleConfirmAnswer}
                 disabled={!selectedAlternative}
-                className="gap-2"
+                className="gap-2 w-full sm:w-auto"
                 size="lg"
               >
                 Confirmar Resposta
@@ -290,7 +291,7 @@ const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps)
           ) : (
             <Button
               onClick={handleNextQuestion}
-              className="gap-2"
+              className="gap-2 w-full sm:w-auto"
               size="lg"
             >
               Próxima Questão
