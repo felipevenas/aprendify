@@ -41,41 +41,39 @@ const Schedule = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
       <Navbar />
-      
-      {/* Barra de ações */}
-      <div className="bg-card/80 backdrop-blur-md border-b border-border shadow-sm sticky top-14 sm:top-16 z-40">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-12 sm:h-14">
-            <Button 
-              variant="ghost" 
-              onClick={() => navigate("/dashboard")} 
-              className="gap-1 sm:gap-2 hover:bg-primary/10 h-9 sm:h-10 px-2 sm:px-4"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Voltar</span>
-            </Button>
-            <Button onClick={() => setDialogOpen(true)} className="gap-1 sm:gap-2 h-9 sm:h-10 text-sm px-3 sm:px-4">
-              <Plus className="h-4 w-4" />
-              <span className="hidden xs:inline">Novo Item</span>
-              <span className="xs:hidden">Novo</span>
-            </Button>
-          </div>
-        </div>
-      </div>
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-12">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-2">
-              Cronograma Semanal
-            </h1>
-            <p className="text-muted-foreground text-sm sm:text-base lg:text-lg">
-              Organize suas aulas e sessões de estudo durante a semana
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+            <div>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-2">
+                Cronograma Semanal
+              </h1>
+              <p className="text-muted-foreground text-sm sm:text-base lg:text-lg">
+                Organize suas aulas e sessões de estudo durante a semana
+              </p>
+            </div>
+            
+            {/* Ações discretas */}
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate("/dashboard")} 
+                className="gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Voltar</span>
+              </Button>
+              <Button onClick={() => setDialogOpen(true)} size="sm" className="gap-2">
+                <Plus className="h-4 w-4" />
+                Novo Item
+              </Button>
+            </div>
           </div>
 
           <Card className="shadow-lg border-border/50">
