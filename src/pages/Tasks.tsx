@@ -41,40 +41,39 @@ const Tasks = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
       <Navbar />
-      
-      {/* Barra de ações */}
-      <div className="bg-card/80 backdrop-blur-md border-b border-border shadow-sm sticky top-16 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-14">
-            <Button 
-              variant="ghost" 
-              onClick={() => navigate("/dashboard")} 
-              className="gap-2 hover:bg-primary/10"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Voltar</span>
-            </Button>
-            <Button onClick={() => setDialogOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nova Tarefa
-            </Button>
-          </div>
-        </div>
-      </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-foreground mb-2">
-              Minhas Tarefas
-            </h1>
-            <p className="text-muted-foreground text-lg">
-              Gerencie suas atividades, trabalhos e prazos
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2">
+                Minhas Tarefas
+              </h1>
+              <p className="text-muted-foreground text-lg">
+                Gerencie suas atividades, trabalhos e prazos
+              </p>
+            </div>
+            
+            {/* Ações discretas */}
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate("/dashboard")} 
+                className="gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Voltar</span>
+              </Button>
+              <Button onClick={() => setDialogOpen(true)} size="sm" className="gap-2">
+                <Plus className="h-4 w-4" />
+                Nova Tarefa
+              </Button>
+            </div>
           </div>
 
           <Card className="shadow-lg border-border/50 p-6">

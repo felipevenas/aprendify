@@ -4,9 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
-import { CheckCircle2, XCircle, TrendingUp, TrendingDown, BookOpen, Target, AlertCircle } from "lucide-react";
+import { CheckCircle2, XCircle, TrendingUp, TrendingDown, BookOpen, Target, AlertCircle, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/Navbar";
+import { formatDisciplineName } from "@/lib/formatters";
 
 /**
  * Dashboard de estatísticas de desempenho do usuário
@@ -21,6 +23,7 @@ const Statistics = () => {
   const [wrongAnswers, setWrongAnswers] = useState(0);
   const [disciplineStats, setDisciplineStats] = useState<any[]>([]);
   const [topicStats, setTopicStats] = useState<any[]>([]);
+  const [periodFilter, setPeriodFilter] = useState<'all' | 'week' | 'month' | 'today'>('all');
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -36,15 +39,49 @@ const Statistics = () => {
     checkAuth();
   }, [navigate]);
 
+  // Recarrega estatísticas quando o filtro de período muda
+  useEffect(() => {
+    const reloadStats = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await fetchStatistics(user.id);
+      }
+    };
+
+    if (!loading) {
+      reloadStats();
+    }
+  }, [periodFilter]);
+
   const fetchStatistics = async (userId: string) => {
     try {
       console.log("Buscando estatísticas para o usuário:", userId);
       
-      // Busca todas as tentativas do usuário
-      const { data: attempts, error } = await supabase
+      // Calcula data de início baseado no filtro
+      let startDate = null;
+      const now = new Date();
+      
+      if (periodFilter === 'today') {
+        startDate = new Date(now.setHours(0, 0, 0, 0)).toISOString();
+      } else if (periodFilter === 'week') {
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        startDate = weekAgo.toISOString();
+      } else if (periodFilter === 'month') {
+        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        startDate = monthAgo.toISOString();
+      }
+      
+      // Busca tentativas do usuário com filtro de período
+      let query = supabase
         .from("question_attempts")
         .select("*")
         .eq("user_id", userId);
+      
+      if (startDate) {
+        query = query.gte("created_at", startDate);
+      }
+      
+      const { data: attempts, error } = await query;
 
       console.log("Tentativas encontradas:", attempts?.length || 0, attempts);
 
@@ -85,7 +122,7 @@ const Statistics = () => {
       });
 
       const disciplines = Array.from(disciplineMap.entries()).map(([name, stats]: any) => ({
-        name,
+        name: formatDisciplineName(name),
         correct: stats.correct,
         wrong: stats.wrong,
         total: stats.total,
@@ -170,10 +207,22 @@ const Statistics = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-        >
-          <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-8">
-            Estatísticas de Desempenho
-          </h1>
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+              <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
+                Estatísticas de Desempenho
+              </h1>
+              
+              {/* Filtro de período */}
+              <Tabs value={periodFilter} onValueChange={(v) => setPeriodFilter(v as any)} className="w-full sm:w-auto">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="today" className="text-xs sm:text-sm">Hoje</TabsTrigger>
+                  <TabsTrigger value="week" className="text-xs sm:text-sm">Semana</TabsTrigger>
+                  <TabsTrigger value="month" className="text-xs sm:text-sm">Mês</TabsTrigger>
+                  <TabsTrigger value="all" className="text-xs sm:text-sm">Tudo</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
 
           {/* Cards de resumo */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -265,12 +314,12 @@ const Statistics = () => {
               </CardContent>
             </Card>
 
-            {/* Assuntos que precisam de atenção */}
+            {/* Matérias que precisam de atenção */}
             <Card>
               <CardHeader>
-                <CardTitle>Assuntos que Precisam de Atenção</CardTitle>
+                <CardTitle>Matérias que Precisam de Atenção</CardTitle>
                 <CardDescription>
-                  Foque nesses assuntos para melhorar seu desempenho
+                  Foque nessas matérias para melhorar seu desempenho
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -287,7 +336,7 @@ const Statistics = () => {
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="font-medium truncate">{topic.name}</p>
-                            <p className="text-xs text-muted-foreground truncate">{topic.discipline}</p>
+                            <p className="text-xs text-muted-foreground truncate">{formatDisciplineName(topic.discipline)}</p>
                           </div>
                         </div>
                         <span className="text-error font-bold ml-2 flex-shrink-0">{topic.count} erros</span>
@@ -298,7 +347,7 @@ const Statistics = () => {
                   <div className="text-center py-8">
                     <CheckCircle2 className="h-12 w-12 text-success mx-auto mb-3" />
                     <p className="text-sm text-muted-foreground">
-                      Ótimo! Você ainda não tem assuntos com muitos erros.
+                      Ótimo! Você ainda não tem matérias com muitos erros.
                     </p>
                   </div>
                 )}
