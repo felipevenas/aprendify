@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/Navbar";
 import { formatDisciplineName } from "@/lib/formatters";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 /**
  * Dashboard de estatísticas de desempenho do usuário
@@ -24,6 +25,8 @@ const Statistics = () => {
   const [disciplineStats, setDisciplineStats] = useState<any[]>([]);
   const [topicStats, setTopicStats] = useState<any[]>([]);
   const [periodFilter, setPeriodFilter] = useState<'all' | 'week' | 'month' | 'today'>('all');
+  const [monthlyStats, setMonthlyStats] = useState<any[]>([]);
+  const [disciplineChartData, setDisciplineChartData] = useState<any[]>([]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -133,24 +136,56 @@ const Statistics = () => {
       disciplines.sort((a, b) => parseFloat(a.accuracy) - parseFloat(b.accuracy));
       setDisciplineStats(disciplines);
 
-      // Agrupa por assunto (topic) os erros
-      const topicMap = new Map();
-      attempts.filter((a) => !a.is_correct && a.topic).forEach((attempt) => {
-        const topic = attempt.topic;
-        if (!topicMap.has(topic)) {
-          topicMap.set(topic, { count: 0, discipline: attempt.discipline });
+      // Agrupa erros por disciplina (não por topic/assunto)
+      const errorsByDiscipline = new Map();
+      attempts.filter((a) => !a.is_correct).forEach((attempt) => {
+        const disc = attempt.discipline;
+        if (!errorsByDiscipline.has(disc)) {
+          errorsByDiscipline.set(disc, 0);
         }
-        topicMap.get(topic).count++;
+        errorsByDiscipline.set(disc, errorsByDiscipline.get(disc) + 1);
       });
 
-      const topics = Array.from(topicMap.entries()).map(([name, data]: any) => ({
-        name,
-        count: data.count,
-        discipline: data.discipline,
+      const disciplineErrors = Array.from(errorsByDiscipline.entries()).map(([name, count]: any) => ({
+        name: formatDisciplineName(name),
+        count,
       }));
 
-      topics.sort((a, b) => b.count - a.count);
-      setTopicStats(topics.slice(0, 5)); // Top 5 assuntos com mais erros
+      disciplineErrors.sort((a, b) => b.count - a.count);
+      setTopicStats(disciplineErrors.slice(0, 5)); // Top 5 disciplinas com mais erros
+
+      // Prepara dados para gráfico mensal (últimos 30 dias)
+      const last30Days = Array.from({ length: 30 }, (_, i) => {
+        const date = new Date();
+        date.setDate(date.getDate() - (29 - i));
+        return date.toISOString().split('T')[0];
+      });
+
+      const dailyAttempts = last30Days.map(date => {
+        const count = attempts.filter(a => a.created_at.startsWith(date)).length;
+        return {
+          date: new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+          questões: count
+        };
+      });
+      setMonthlyStats(dailyAttempts);
+
+      // Prepara dados para gráfico por disciplina
+      const disciplineChartMap = new Map();
+      attempts.forEach((attempt) => {
+        const disc = formatDisciplineName(attempt.discipline);
+        if (!disciplineChartMap.has(disc)) {
+          disciplineChartMap.set(disc, 0);
+        }
+        disciplineChartMap.set(disc, disciplineChartMap.get(disc) + 1);
+      });
+
+      const disciplineChart = Array.from(disciplineChartMap.entries()).map(([name, count]: any) => ({
+        disciplina: name,
+        questões: count
+      }));
+
+      setDisciplineChartData(disciplineChart);
 
       setLoading(false);
     } catch (error) {
@@ -319,15 +354,15 @@ const Statistics = () => {
               <CardHeader>
                 <CardTitle>Matérias que Precisam de Atenção</CardTitle>
                 <CardDescription>
-                  Foque nessas matérias para melhorar seu desempenho
+                  Foque nessas disciplinas para melhorar seu desempenho
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {topicStats.length > 0 ? (
                   <div className="space-y-4">
-                    {topicStats.map((topic, index) => (
+                    {topicStats.map((item, index) => (
                       <div
-                        key={topic.name}
+                        key={item.name}
                         className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
                       >
                         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -335,11 +370,10 @@ const Statistics = () => {
                             {index + 1}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="font-medium truncate">{topic.name}</p>
-                            <p className="text-xs text-muted-foreground truncate">{formatDisciplineName(topic.discipline)}</p>
+                            <p className="font-medium truncate">{item.name}</p>
                           </div>
                         </div>
-                        <span className="text-error font-bold ml-2 flex-shrink-0">{topic.count} erros</span>
+                        <span className="text-error font-bold ml-2 flex-shrink-0">{item.count} erros</span>
                       </div>
                     ))}
                   </div>
@@ -351,6 +385,90 @@ const Statistics = () => {
                     </p>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Gráficos de estatísticas */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Gráfico de questões respondidas por dia (últimos 30 dias) */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Questões Respondidas (Últimos 30 Dias)</CardTitle>
+                <CardDescription>
+                  Acompanhe sua evolução diária
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={monthlyStats}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="date" 
+                      className="text-xs"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <YAxis 
+                      className="text-xs"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '0.5rem'
+                      }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="questões" 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={2}
+                      dot={{ fill: 'hsl(var(--primary))' }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Gráfico de questões por disciplina */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Questões por Disciplina</CardTitle>
+                <CardDescription>
+                  Distribuição das suas práticas por área
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={disciplineChartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="disciplina" 
+                      className="text-xs"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis 
+                      className="text-xs"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '0.5rem'
+                      }}
+                    />
+                    <Bar 
+                      dataKey="questões" 
+                      fill="hsl(var(--primary))"
+                      radius={[8, 8, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
           </div>
