@@ -60,54 +60,53 @@ const Notes = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
       <Navbar />
-      
-      {/* Barra de ações */}
-      <div className="bg-card/80 backdrop-blur-md border-b border-border shadow-sm sticky top-16 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-14">
-            <Button 
-              variant="ghost" 
-              onClick={() => navigate("/dashboard")} 
-              className="gap-2 hover:bg-primary/10"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Voltar</span>
-            </Button>
-            <Button onClick={handleAddNote} className="gap-2" disabled={!hasSubjects}>
-              <Plus className="h-4 w-4" />
-              Nova Anotação
-            </Button>
-          </div>
-        </div>
-      </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-foreground mb-2">
-              Minhas Anotações
-            </h1>
-            <p className="text-muted-foreground text-lg">
-              Organize suas anotações por matéria
-            </p>
-            {!hasSubjects && (
-              <div className="mt-4 p-4 bg-accent/10 border border-accent rounded-lg">
-                <p className="text-accent font-medium">
-                  Você precisa cadastrar matérias antes de criar anotações!
-                </p>
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate("/subjects")} 
-                  className="mt-2"
-                >
-                  Cadastrar matérias
-                </Button>
-              </div>
-            )}
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
+            <div className="flex-1">
+              <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2">
+                Minhas Anotações
+              </h1>
+              <p className="text-muted-foreground text-lg">
+                Organize suas anotações por matéria
+              </p>
+              {!hasSubjects && (
+                <div className="mt-4 p-4 bg-accent/10 border border-accent rounded-lg">
+                  <p className="text-accent font-medium">
+                    Você precisa cadastrar matérias antes de criar anotações!
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => navigate("/subjects")} 
+                    className="mt-2"
+                  >
+                    Cadastrar matérias
+                  </Button>
+                </div>
+              )}
+            </div>
+            
+            {/* Ações discretas */}
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate("/dashboard")} 
+                className="gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Voltar</span>
+              </Button>
+              <Button onClick={handleAddNote} size="sm" className="gap-2" disabled={!hasSubjects}>
+                <Plus className="h-4 w-4" />
+                Nova Anotação
+              </Button>
+            </div>
           </div>
 
           <Card className="shadow-lg border-border/50 p-6">

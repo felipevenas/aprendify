@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, XCircle, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDisciplineName, cleanMarkdownArtifacts } from "@/lib/formatters";
 
 /**
  * Componente de prática de questões
@@ -62,19 +63,14 @@ const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps)
   // Verifica se a alternativa está correta
   const isCorrect = selectedAlternative === question.correctAlternative;
 
-  // Mapeia disciplinas para cores
-  const disciplineColors: Record<string, string> = {
-    linguagens: "bg-blue-500/10 text-blue-700 border-blue-500",
-    humanas: "bg-purple-500/10 text-purple-700 border-purple-500",
-    natureza: "bg-green-500/10 text-green-700 border-green-500",
-    matematica: "bg-orange-500/10 text-orange-700 border-orange-500",
-  };
-
-  const disciplineLabels: Record<string, string> = {
-    linguagens: "Linguagens",
-    humanas: "Ciências Humanas",
-    natureza: "Ciências da Natureza",
-    matematica: "Matemática",
+  // Mapeia disciplinas para cores (usando nomes formatados)
+  const getDisciplineColor = (discipline: string): string => {
+    const normalized = discipline.toLowerCase();
+    if (normalized.includes('linguagens')) return "bg-blue-500/10 text-blue-700 border-blue-500";
+    if (normalized.includes('humanas')) return "bg-purple-500/10 text-purple-700 border-purple-500";
+    if (normalized.includes('natureza')) return "bg-green-500/10 text-green-700 border-green-500";
+    if (normalized.includes('matematica')) return "bg-orange-500/10 text-orange-700 border-orange-500";
+    return "bg-primary/10 text-primary border-primary";
   };
 
   return (
@@ -94,10 +90,10 @@ const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps)
               <Badge 
                 className={cn(
                   "border",
-                  disciplineColors[question.discipline] || "bg-primary/10 text-primary border-primary"
+                  getDisciplineColor(question.discipline)
                 )}
               >
-                {disciplineLabels[question.discipline] || question.discipline}
+                {formatDisciplineName(question.discipline)}
               </Badge>
             )}
             {question.language && (
@@ -112,7 +108,7 @@ const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps)
         {question.context && (
           <div className="mb-6 p-4 bg-muted/30 rounded-lg">
             <p className="text-sm sm:text-base text-foreground whitespace-pre-wrap leading-relaxed">
-              {question.context}
+              {cleanMarkdownArtifacts(question.context)}
             </p>
           </div>
         )}
@@ -199,7 +195,7 @@ const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps)
                     {/* Texto da alternativa */}
                     <div className="flex-1">
                       <p className={cn("text-sm sm:text-base", textColor)}>
-                        {alt.text}
+                        {cleanMarkdownArtifacts(alt.text)}
                       </p>
                       
                       {/* Imagens da alternativa */}
