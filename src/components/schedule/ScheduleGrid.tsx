@@ -99,7 +99,7 @@ const ScheduleGrid = () => {
         }}
         editItem={editItem}
       />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
       {DAYS.slice(1, 6).map((day, index) => {
         const dayItems = items.filter((item) => item.day_of_week === index + 1);
         
