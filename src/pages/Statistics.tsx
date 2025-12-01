@@ -401,30 +401,41 @@ const Statistics = () => {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={monthlyStats}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <LineChart data={monthlyStats} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
                     <XAxis 
                       dataKey="date" 
                       className="text-xs"
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                      interval="preserveStartEnd"
+                      minTickGap={50}
                     />
                     <YAxis 
                       className="text-xs"
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
                     />
                     <Tooltip 
                       contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))',
+                        backgroundColor: 'hsl(var(--popover))',
                         border: '1px solid hsl(var(--border))',
-                        borderRadius: '0.5rem'
+                        borderRadius: '0.5rem',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                        fontSize: '12px'
                       }}
+                      labelStyle={{ color: 'hsl(var(--popover-foreground))', fontWeight: 600 }}
+                      cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '3 3' }}
                     />
                     <Line 
                       type="monotone" 
                       dataKey="questões" 
                       stroke="hsl(var(--primary))" 
-                      strokeWidth={2}
-                      dot={{ fill: 'hsl(var(--primary))' }}
+                      strokeWidth={2.5}
+                      dot={false}
+                      activeDot={{ r: 4, fill: 'hsl(var(--primary))' }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -441,31 +452,39 @@ const Statistics = () => {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={disciplineChartData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <BarChart data={disciplineChartData} margin={{ top: 5, right: 5, left: -20, bottom: 60 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
                     <XAxis 
                       dataKey="disciplina" 
                       className="text-xs"
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
                       angle={-45}
                       textAnchor="end"
                       height={80}
+                      tickLine={false}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
                     />
                     <YAxis 
                       className="text-xs"
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
                     />
                     <Tooltip 
                       contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))',
+                        backgroundColor: 'hsl(var(--popover))',
                         border: '1px solid hsl(var(--border))',
-                        borderRadius: '0.5rem'
+                        borderRadius: '0.5rem',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                        fontSize: '12px'
                       }}
+                      labelStyle={{ color: 'hsl(var(--popover-foreground))', fontWeight: 600 }}
+                      cursor={{ fill: 'hsl(var(--muted))' }}
                     />
                     <Bar 
                       dataKey="questões" 
                       fill="hsl(var(--primary))"
-                      radius={[8, 8, 0, 0]}
+                      radius={[6, 6, 0, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
