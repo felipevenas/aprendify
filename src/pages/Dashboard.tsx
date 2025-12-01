@@ -60,8 +60,8 @@ const Dashboard = () => {
       description: "Pratique com questões reais do ENEM",
       icon: Brain,
       path: "/questions",
-      gradient: "from-primary via-primary-light to-accent",
-      iconBg: "bg-gradient-to-br from-primary to-accent",
+      gradient: "from-primary via-primary to-primary/80",
+      iconBg: "bg-primary",
       featured: true,
     },
     {
@@ -69,8 +69,8 @@ const Dashboard = () => {
       description: "Acompanhe seu desempenho e evolução",
       icon: Sparkles,
       path: "/statistics",
-      gradient: "from-accent to-primary",
-      iconBg: "bg-gradient-to-br from-accent to-primary",
+      gradient: "from-primary to-primary/80",
+      iconBg: "bg-primary",
       featured: false,
     },
     {
@@ -78,7 +78,7 @@ const Dashboard = () => {
       description: "Organize suas aulas e sessões de estudo",
       icon: Calendar,
       path: "/schedule",
-      gradient: "from-primary to-primary-dark",
+      gradient: "from-primary to-primary/80",
       iconBg: "bg-primary",
     },
     {
@@ -86,24 +86,24 @@ const Dashboard = () => {
       description: "Gerencie suas atividades e trabalhos",
       icon: CheckSquare,
       path: "/tasks",
-      gradient: "from-accent to-primary-light",
-      iconBg: "bg-accent",
+      gradient: "from-primary to-primary/80",
+      iconBg: "bg-primary",
     },
     {
       title: "Matérias",
       description: "Cadastre e organize suas disciplinas",
       icon: BookOpen,
       path: "/subjects",
-      gradient: "from-primary-light to-primary",
-      iconBg: "bg-primary-light",
+      gradient: "from-primary to-primary/80",
+      iconBg: "bg-primary",
     },
     {
       title: "Anotações",
       description: "Faça anotações organizadas por matéria",
       icon: FileText,
       path: "/notes",
-      gradient: "from-primary-dark to-primary",
-      iconBg: "bg-primary-dark",
+      gradient: "from-primary to-primary/80",
+      iconBg: "bg-primary",
     },
   ];
 
@@ -125,7 +125,7 @@ const Dashboard = () => {
             <span className="text-sm font-medium text-primary">Bem-vindo de volta!</span>
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-3">
-            Olá, {user?.user_metadata?.full_name || "Estudante"}!
+            Olá, {user?.user_metadata?.full_name?.split(' ')[0] || "Estudante"}!
           </h1>
           <p className="text-muted-foreground text-base sm:text-lg max-w-2xl">
             Continue sua jornada de estudos. Gerencie suas atividades e pratique com questões reais do ENEM.
