@@ -11,8 +11,9 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Settings, LogOut, Moon, Sun, BookOpen, BarChart3 } from "lucide-react";
+import { Settings, LogOut, Moon, Sun, BookOpen, Crown } from "lucide-react";
 import { useTheme } from "next-themes";
+import { Badge } from "@/components/ui/badge";
 
 /**
  * Navbar minimalista com perfil do usuário e tema dark/light
@@ -86,12 +87,26 @@ const Navbar = () => {
               <BookOpen className="h-5 w-5 text-white" />
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              StudyFlow
+              Learnify
             </span>
           </div>
 
           {/* Menu do usuário */}
           <div className="flex items-center gap-3">
+            {/* Badge Premium - Link para MercadoPago */}
+            <a 
+              href="https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=2fab389d1e6546429376b4a50517acd2"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-transform hover:scale-105"
+            >
+              <Badge 
+                className="bg-gradient-to-r from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-white border-0 px-4 py-1.5 cursor-pointer shadow-lg"
+              >
+                <Crown className="h-4 w-4 mr-1" />
+                Premium
+              </Badge>
+            </a>
             {/* Botão de tema */}
             <Button
               variant="ghost"

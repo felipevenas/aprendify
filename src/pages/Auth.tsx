@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { BookOpen, Mail, Lock, User, ArrowRight } from "lucide-react";
@@ -20,7 +20,9 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<"user" | "admin">("user");
+  const [username, setUsername] = useState("");
+  const [phone, setPhone] = useState("");
+  const [birthdate, setBirthdate] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -40,19 +42,38 @@ const Auth = () => {
         toast.success("Login realizado com sucesso!");
         navigate("/dashboard");
       } else {
-        const { error } = await supabase.auth.signUp({
+        // Primeiro cria a conta
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/dashboard`,
             data: {
               full_name: fullName,
-              role: role,
+              role: "user", // Sempre usuário padrão
             },
           },
         });
 
-        if (error) throw error;
+        if (signUpError) throw signUpError;
+
+        // Atualiza o perfil com informações adicionais
+        if (signUpData.user) {
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .update({
+              username,
+              phone,
+              birthdate: birthdate || null,
+            })
+            .eq("id", signUpData.user.id);
+
+          if (profileError) {
+            console.error("Erro ao atualizar perfil:", profileError);
+            toast.warning("Conta criada, mas algumas informações não foram salvas.");
+          }
+        }
+
         toast.success("Cadastro realizado! Faça login para continuar.");
         setIsLogin(true);
       }
@@ -90,7 +111,7 @@ const Auth = () => {
           >
             <div className="flex items-center gap-3 mb-6">
               <BookOpen className="h-12 w-12 text-white" />
-              <h1 className="text-5xl font-bold text-white">StudyFlow</h1>
+              <h1 className="text-5xl font-bold text-white">Learnify</h1>
             </div>
             <h2 className="text-3xl font-semibold mb-4 text-white">
               Organize seus estudos de forma inteligente
@@ -135,7 +156,7 @@ const Auth = () => {
           {/* Logo mobile */}
           <div className="flex lg:hidden items-center justify-center mb-8">
             <BookOpen className="h-10 w-10 text-primary mr-3" />
-            <h1 className="text-3xl font-bold text-primary">StudyFlow</h1>
+            <h1 className="text-3xl font-bold text-primary">Learnify</h1>
           </div>
 
           {/* Header do formulário */}
@@ -163,26 +184,81 @@ const Auth = () => {
             onSubmit={handleAuth}
             className="space-y-6"
           >
-            {/* Nome completo (apenas no cadastro) */}
+            {/* Campos de cadastro */}
             {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName" className="text-base font-medium">
-                  Nome Completo
-                </Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <>
+                {/* Nome completo */}
+                <div className="space-y-2">
+                  <Label htmlFor="fullName" className="text-base font-medium">
+                    Nome Completo
+                  </Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      id="fullName"
+                      type="text"
+                      placeholder="Seu nome completo"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required={!isLogin}
+                      disabled={loading}
+                      className="pl-11 h-12 text-base"
+                    />
+                  </div>
+                </div>
+
+                {/* Nome de usuário */}
+                <div className="space-y-2">
+                  <Label htmlFor="username" className="text-base font-medium">
+                    Nome de Usuário
+                  </Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      id="username"
+                      type="text"
+                      placeholder="seunome123"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required={!isLogin}
+                      disabled={loading}
+                      className="pl-11 h-12 text-base"
+                    />
+                  </div>
+                </div>
+
+                {/* Data de nascimento */}
+                <div className="space-y-2">
+                  <Label htmlFor="birthdate" className="text-base font-medium">
+                    Data de Nascimento
+                  </Label>
                   <Input
-                    id="fullName"
-                    type="text"
-                    placeholder="Seu nome completo"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required={!isLogin}
+                    id="birthdate"
+                    type="date"
+                    value={birthdate}
+                    onChange={(e) => setBirthdate(e.target.value)}
                     disabled={loading}
-                    className="pl-11 h-12 text-base"
+                    className="h-12 text-base"
                   />
                 </div>
-              </div>
+
+                {/* Celular */}
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-base font-medium">
+                    Celular
+                  </Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="(00) 00000-0000"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required={!isLogin}
+                    disabled={loading}
+                    className="h-12 text-base"
+                  />
+                </div>
+              </>
             )}
 
             {/* Email */}
@@ -226,36 +302,6 @@ const Auth = () => {
               </div>
             </div>
 
-            {/* Tipo de conta (apenas no cadastro) */}
-            {!isLogin && (
-              <div className="space-y-3">
-                <Label className="text-base font-medium">Tipo de conta</Label>
-                <RadioGroup 
-                  value={role} 
-                  onValueChange={(value) => setRole(value as "user" | "admin")}
-                  className="space-y-3"
-                >
-                  <div className="flex items-center space-x-3 p-4 border border-border rounded-lg hover:bg-accent/5 transition-colors cursor-pointer">
-                    <RadioGroupItem value="user" id="user" />
-                    <Label htmlFor="user" className="font-normal cursor-pointer flex-1">
-                      <div className="font-medium">Usuário</div>
-                      <div className="text-sm text-muted-foreground">
-                        Gerenciar meus estudos
-                      </div>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-3 p-4 border border-border rounded-lg hover:bg-accent/5 transition-colors cursor-pointer">
-                    <RadioGroupItem value="admin" id="admin" />
-                    <Label htmlFor="admin" className="font-normal cursor-pointer flex-1">
-                      <div className="font-medium">Administrador</div>
-                      <div className="text-sm text-muted-foreground">
-                        Gerenciar sistema
-                      </div>
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-            )}
 
             {/* Botão de submit */}
             <Button 
