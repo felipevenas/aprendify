@@ -98,11 +98,25 @@ const Questions = () => {
 
   // Salva resposta do usuário no banco
   const handleAnswerSubmit = async (questionId: string, selectedAnswer: string, correctAnswer: string, isCorrect: boolean) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.error("Usuário não autenticado ao tentar salvar resposta");
+    console.log("=== INÍCIO handleAnswerSubmit ===");
+    console.log("Parâmetros recebidos:", { questionId, selectedAnswer, correctAnswer, isCorrect });
+    
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError) {
+      console.error("Erro ao obter usuário:", userError);
+      toast.error("Erro de autenticação. Por favor, faça login novamente.");
       return;
     }
+    
+    if (!user) {
+      console.error("Usuário não autenticado ao tentar salvar resposta");
+      toast.error("Você precisa estar logado para salvar respostas.");
+      return;
+    }
+
+    console.log("Usuário autenticado:", user.id);
+    console.log("Questão atual:", currentQuestion);
 
     try {
       const attemptData = {
@@ -117,23 +131,28 @@ const Questions = () => {
         language: currentQuestion?.language || null,
       };
       
-      console.log("Salvando tentativa de questão:", attemptData);
+      console.log("📝 Tentando salvar no banco:", attemptData);
       
       const { data, error } = await supabase
         .from("question_attempts")
-        .insert(attemptData);
+        .insert(attemptData)
+        .select();
       
       if (error) {
-        console.error("Erro ao salvar tentativa:", error);
-        toast.error("Erro ao salvar sua resposta. Suas estatísticas podem não ser atualizadas.");
+        console.error("❌ ERRO do Supabase ao salvar tentativa:", error);
+        console.error("Detalhes do erro:", JSON.stringify(error, null, 2));
+        toast.error(`Erro ao salvar: ${error.message}`);
       } else {
-        console.log("Tentativa salva com sucesso:", data);
-        toast.success("Resposta registrada!");
+        console.log("✅ Tentativa salva com SUCESSO:", data);
+        toast.success("Resposta registrada com sucesso!");
       }
     } catch (error) {
-      console.error("Erro inesperado ao salvar resposta:", error);
-      toast.error("Erro ao salvar sua resposta.");
+      console.error("❌ Erro inesperado ao salvar resposta:", error);
+      console.error("Stack trace:", error);
+      toast.error("Erro inesperado ao salvar sua resposta.");
     }
+    
+    console.log("=== FIM handleAnswerSubmit ===");
   };
 
   // Busca questão aleatória
