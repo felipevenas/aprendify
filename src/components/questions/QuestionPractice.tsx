@@ -35,13 +35,20 @@ const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps)
     if (onAnswer) {
       const correctAlt = question.correctAlternative;
       const isCorrect = selectedAlternative === correctAlt;
+      
+      // Cria ID único da questão: ano-disciplina-index
+      // Ex: "2023-ciencias-natureza-99"
+      const questionId = `${question.year}-${question.discipline}-${question.index}`;
+      
       console.log("Confirmando resposta:", {
-        questionId: question.id,
+        questionId,
         selectedAlternative,
         correctAlt,
-        isCorrect
+        isCorrect,
+        questionData: { year: question.year, discipline: question.discipline, index: question.index }
       });
-      onAnswer(question.id, selectedAlternative, correctAlt, isCorrect);
+      
+      onAnswer(questionId, selectedAlternative, correctAlt, isCorrect);
     }
   };
 

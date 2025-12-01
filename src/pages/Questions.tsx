@@ -97,6 +97,7 @@ const Questions = () => {
   };
 
   // Salva resposta do usuário no banco
+  // questionId formato: "ano-disciplina-index" (ex: "2023-ciencias-natureza-99")
   const handleAnswerSubmit = async (questionId: string, selectedAnswer: string, correctAnswer: string, isCorrect: boolean) => {
     console.log("=== INÍCIO handleAnswerSubmit ===");
     console.log("Parâmetros recebidos:", { questionId, selectedAnswer, correctAnswer, isCorrect });
