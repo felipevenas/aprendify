@@ -48,7 +48,7 @@ const Questions = () => {
     checkAuth();
   }, [navigate]);
 
-  // Busca questão da API do ENEM
+  // Busca questão da API do ENEM ou do banco local (2024+)
   const fetchQuestion = async (random: boolean = false) => {
     // Verifica limite de questões para usuários free
     if (!isPremium && dailyQuestionCount >= FREE_DAILY_LIMIT) {
@@ -58,46 +58,103 @@ const Questions = () => {
     
     setLoadingQuestion(true);
     try {
-      // Monta a URL base com o ano selecionado
-      let url = `https://api.enem.dev/v1/exams/${selectedYear}/questions`;
-      const params = new URLSearchParams();
-
-      // Adiciona filtro de disciplina se selecionado
-      if (selectedDiscipline !== "all") {
-        params.append("discipline", selectedDiscipline);
-      }
-
-      // Adiciona filtro de idioma se selecionado
-      if (selectedLanguage !== "all") {
-        params.append("language", selectedLanguage);
-      }
-
-      // Define limite e offset para buscar questões
-      if (random) {
-        // Busca uma questão aleatória dentro dos filtros
-        params.append("limit", "1");
-        const randomOffset = Math.floor(Math.random() * 100); // Offset aleatório
-        params.append("offset", randomOffset.toString());
-      } else {
-        // Busca a primeira questão com os filtros aplicados
-        params.append("limit", "1");
-        params.append("offset", "0");
-      }
-
-      const fullUrl = params.toString() ? `${url}?${params.toString()}` : url;
+      const year = parseInt(selectedYear);
       
-      const response = await fetch(fullUrl);
-      if (!response.ok) {
-        throw new Error("Erro ao buscar questão");
-      }
-
-      const data = await response.json();
-      
-      if (data.questions && data.questions.length > 0) {
-        setCurrentQuestion(data.questions[0]);
+      // Anos 2024+ buscam do banco local
+      if (year >= 2024) {
+        let query = supabase
+          .from('enem_questions')
+          .select('*')
+          .eq('year', selectedYear);
+        
+        // Aplica filtro de disciplina
+        if (selectedDiscipline !== "all") {
+          query = query.eq('discipline', selectedDiscipline);
+        }
+        
+        // Aplica filtro de idioma
+        if (selectedLanguage !== "all") {
+          query = query.eq('language', selectedLanguage);
+        }
+        
+        // Busca aleatória ou primeira
+        if (random) {
+          // Conta total de questões com os filtros
+          const { count } = await supabase
+            .from('enem_questions')
+            .select('*', { count: 'exact', head: true })
+            .eq('year', selectedYear)
+            .eq(selectedDiscipline !== "all" ? 'discipline' : 'year', selectedDiscipline !== "all" ? selectedDiscipline : selectedYear)
+            .eq(selectedLanguage !== "all" ? 'language' : 'year', selectedLanguage !== "all" ? selectedLanguage : selectedYear);
+          
+          const randomOffset = Math.floor(Math.random() * (count || 1));
+          query = query.range(randomOffset, randomOffset);
+        } else {
+          query = query.limit(1);
+        }
+        
+        const { data, error } = await query.maybeSingle();
+        
+        if (error) {
+          console.error("Erro ao buscar questão local:", error);
+          throw new Error("Erro ao buscar questão");
+        }
+        
+        if (data) {
+          // Transforma formato do banco para formato esperado pelo QuestionPractice
+          const transformedQuestion = {
+            index: data.index,
+            title: data.title,
+            discipline: data.discipline,
+            language: data.language,
+            context: data.context,
+            files: data.files,
+            alternativesIntroduction: data.alternatives_introduction,
+            alternatives: data.alternatives,
+            correctAlternative: data.correct_alternative,
+          };
+          setCurrentQuestion(transformedQuestion);
+        } else {
+          toast.error("Nenhuma questão encontrada com os filtros selecionados");
+          setCurrentQuestion(null);
+        }
       } else {
-        toast.error("Nenhuma questão encontrada com os filtros selecionados");
-        setCurrentQuestion(null);
+        // Anos 2009-2023 buscam da API externa
+        let url = `https://api.enem.dev/v1/exams/${selectedYear}/questions`;
+        const params = new URLSearchParams();
+
+        if (selectedDiscipline !== "all") {
+          params.append("discipline", selectedDiscipline);
+        }
+
+        if (selectedLanguage !== "all") {
+          params.append("language", selectedLanguage);
+        }
+
+        if (random) {
+          params.append("limit", "1");
+          const randomOffset = Math.floor(Math.random() * 100);
+          params.append("offset", randomOffset.toString());
+        } else {
+          params.append("limit", "1");
+          params.append("offset", "0");
+        }
+
+        const fullUrl = params.toString() ? `${url}?${params.toString()}` : url;
+        
+        const response = await fetch(fullUrl);
+        if (!response.ok) {
+          throw new Error("Erro ao buscar questão");
+        }
+
+        const data = await response.json();
+        
+        if (data.questions && data.questions.length > 0) {
+          setCurrentQuestion(data.questions[0]);
+        } else {
+          toast.error("Nenhuma questão encontrada com os filtros selecionados");
+          setCurrentQuestion(null);
+        }
       }
     } catch (error) {
       console.error("Erro ao buscar questão:", error);
@@ -215,7 +272,7 @@ const Questions = () => {
                 Banco de Questões ENEM
               </h1>
               <p className="text-muted-foreground text-base sm:text-lg">
-                Pratique com questões reais das provas de 2009 a 2023
+                Pratique com questões reais das provas de 2009 a 2024
               </p>
             </div>
             
