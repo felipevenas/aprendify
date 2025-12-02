@@ -1,10 +1,4 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Check, Crown } from "lucide-react";
 
@@ -26,7 +20,7 @@ export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
   const handleSubscribe = () => {
     window.open(
       "https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=2fab389d1e6546429376b4a50517acd2",
-      "_blank"
+      "_blank",
     );
   };
 
@@ -39,12 +33,8 @@ export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
               <Crown className="w-8 h-8 text-primary-foreground" />
             </div>
           </div>
-          <DialogTitle className="text-center text-2xl">
-            Assine o Plano Premium
-          </DialogTitle>
-          <DialogDescription className="text-center">
-            Desbloqueie todo o potencial do Learnify
-          </DialogDescription>
+          <DialogTitle className="text-center text-2xl">Assine o Plano Premium</DialogTitle>
+          <DialogDescription className="text-center">Desbloqueie todo o potencial do Learnify</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -61,22 +51,16 @@ export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
 
           <div className="pt-4 border-t">
             <div className="text-center mb-4">
-              <p className="text-3xl font-bold">R$ 29,90</p>
+              <p className="text-3xl font-bold">R$ 19,90</p>
               <p className="text-sm text-muted-foreground">por mês</p>
             </div>
 
-            <Button
-              onClick={handleSubscribe}
-              className="w-full"
-              size="lg"
-            >
+            <Button onClick={handleSubscribe} className="w-full" size="lg">
               <Crown className="w-4 h-4 mr-2" />
               Assinar Agora
             </Button>
 
-            <p className="text-xs text-center text-muted-foreground mt-3">
-              Pagamento seguro via MercadoPago
-            </p>
+            <p className="text-xs text-center text-muted-foreground mt-3">Pagamento seguro via MercadoPago</p>
           </div>
         </div>
       </DialogContent>
