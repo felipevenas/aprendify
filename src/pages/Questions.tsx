@@ -79,15 +79,29 @@ const Questions = () => {
         
         // Busca aleatória ou primeira
         if (random) {
-          // Conta total de questões com os filtros
-          const { count } = await supabase
+          // Conta total de questões com os filtros aplicados
+          let countQuery = supabase
             .from('enem_questions')
             .select('*', { count: 'exact', head: true })
-            .eq('year', selectedYear)
-            .eq(selectedDiscipline !== "all" ? 'discipline' : 'year', selectedDiscipline !== "all" ? selectedDiscipline : selectedYear)
-            .eq(selectedLanguage !== "all" ? 'language' : 'year', selectedLanguage !== "all" ? selectedLanguage : selectedYear);
+            .eq('year', selectedYear);
           
-          const randomOffset = Math.floor(Math.random() * (count || 1));
+          if (selectedDiscipline !== "all") {
+            countQuery = countQuery.eq('discipline', selectedDiscipline);
+          }
+          if (selectedLanguage !== "all") {
+            countQuery = countQuery.eq('language', selectedLanguage);
+          }
+          
+          const { count } = await countQuery;
+          
+          if (!count || count === 0) {
+            setCurrentQuestion(null);
+            toast.error("Nenhuma questão encontrada com os filtros selecionados");
+            setLoadingQuestion(false);
+            return;
+          }
+          
+          const randomOffset = Math.floor(Math.random() * count);
           query = query.range(randomOffset, randomOffset);
         } else {
           query = query.limit(1);
