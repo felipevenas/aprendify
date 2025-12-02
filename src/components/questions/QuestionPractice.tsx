@@ -83,8 +83,9 @@ const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps)
         {/* Header da questão */}
         <div className="mb-6 pb-6 border-b border-border">
           <div className="flex flex-wrap items-center gap-3 mb-4">
-            <Badge variant="outline" className="text-sm">
-              {question.title}
+            {/* Badge com número da questão e ano do ENEM */}
+            <Badge variant="outline" className="text-sm font-semibold bg-primary/5 border-primary/30">
+              Questão {question.index} - ENEM {question.year || new Date().getFullYear()}
             </Badge>
             {question.discipline && (
               <Badge 
