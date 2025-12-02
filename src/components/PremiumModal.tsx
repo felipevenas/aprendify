@@ -34,7 +34,9 @@ export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
             </div>
           </div>
           <DialogTitle className="text-center text-xl sm:text-2xl">Assine o Plano Premium</DialogTitle>
-          <DialogDescription className="text-center text-sm sm:text-base">Desbloqueie todo o potencial do Learnify</DialogDescription>
+          <DialogDescription className="text-center text-sm sm:text-base">
+            Desbloqueie todo o potencial do Learnify
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 sm:space-y-4 py-2 sm:py-3">
@@ -51,7 +53,7 @@ export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
 
           <div className="pt-2 sm:pt-3 border-t">
             <div className="text-center mb-2 sm:mb-3">
-              <p className="text-2xl sm:text-3xl font-bold">R$ 19,90</p>
+              <p className="text-2xl sm:text-3xl font-bold">R$ 14,90</p>
               <p className="text-xs sm:text-sm text-muted-foreground">por mês</p>
             </div>
 
@@ -60,7 +62,9 @@ export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
               Assinar Agora
             </Button>
 
-            <p className="text-[10px] sm:text-xs text-center text-muted-foreground mt-2">Pagamento seguro via MercadoPago</p>
+            <p className="text-[10px] sm:text-xs text-center text-muted-foreground mt-2">
+              Pagamento seguro via MercadoPago
+            </p>
           </div>
         </div>
       </DialogContent>
