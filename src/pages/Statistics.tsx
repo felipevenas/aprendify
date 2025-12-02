@@ -4,12 +4,34 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
-import { CheckCircle2, XCircle, TrendingUp, TrendingDown, BookOpen, Target, AlertCircle, Calendar, Lock, Crown } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  TrendingUp,
+  TrendingDown,
+  BookOpen,
+  Target,
+  AlertCircle,
+  Calendar,
+  Lock,
+  Crown,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/Navbar";
 import { formatDisciplineName } from "@/lib/formatters";
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 import { usePremium } from "@/hooks/usePremium";
 
 /**
@@ -26,13 +48,15 @@ const Statistics = () => {
   const [wrongAnswers, setWrongAnswers] = useState(0);
   const [disciplineStats, setDisciplineStats] = useState<any[]>([]);
   const [topicStats, setTopicStats] = useState<any[]>([]);
-  const [periodFilter, setPeriodFilter] = useState<'all' | 'week' | 'month' | 'today'>('all');
+  const [periodFilter, setPeriodFilter] = useState<"all" | "week" | "month" | "today">("all");
   const [monthlyStats, setMonthlyStats] = useState<any[]>([]);
   const [disciplineChartData, setDisciplineChartData] = useState<any[]>([]);
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         navigate("/auth");
         return;
@@ -47,7 +71,9 @@ const Statistics = () => {
   // Recarrega estatísticas quando o filtro de período muda
   useEffect(() => {
     const reloadStats = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         await fetchStatistics(user.id);
       }
@@ -61,31 +87,28 @@ const Statistics = () => {
   const fetchStatistics = async (userId: string) => {
     try {
       console.log("Buscando estatísticas para o usuário:", userId);
-      
+
       // Calcula data de início baseado no filtro
       let startDate = null;
       const now = new Date();
-      
-      if (periodFilter === 'today') {
+
+      if (periodFilter === "today") {
         startDate = new Date(now.setHours(0, 0, 0, 0)).toISOString();
-      } else if (periodFilter === 'week') {
+      } else if (periodFilter === "week") {
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         startDate = weekAgo.toISOString();
-      } else if (periodFilter === 'month') {
+      } else if (periodFilter === "month") {
         const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         startDate = monthAgo.toISOString();
       }
-      
+
       // Busca tentativas do usuário com filtro de período
-      let query = supabase
-        .from("question_attempts")
-        .select("*")
-        .eq("user_id", userId);
-      
+      let query = supabase.from("question_attempts").select("*").eq("user_id", userId);
+
       if (startDate) {
         query = query.gte("created_at", startDate);
       }
-      
+
       const { data: attempts, error } = await query;
 
       console.log("Tentativas encontradas:", attempts?.length || 0, attempts);
@@ -140,13 +163,15 @@ const Statistics = () => {
 
       // Agrupa erros por disciplina (não por topic/assunto)
       const errorsByDiscipline = new Map();
-      attempts.filter((a) => !a.is_correct).forEach((attempt) => {
-        const disc = attempt.discipline;
-        if (!errorsByDiscipline.has(disc)) {
-          errorsByDiscipline.set(disc, 0);
-        }
-        errorsByDiscipline.set(disc, errorsByDiscipline.get(disc) + 1);
-      });
+      attempts
+        .filter((a) => !a.is_correct)
+        .forEach((attempt) => {
+          const disc = attempt.discipline;
+          if (!errorsByDiscipline.has(disc)) {
+            errorsByDiscipline.set(disc, 0);
+          }
+          errorsByDiscipline.set(disc, errorsByDiscipline.get(disc) + 1);
+        });
 
       const disciplineErrors = Array.from(errorsByDiscipline.entries()).map(([name, count]: any) => ({
         name: formatDisciplineName(name),
@@ -160,14 +185,14 @@ const Statistics = () => {
       const last30Days = Array.from({ length: 30 }, (_, i) => {
         const date = new Date();
         date.setDate(date.getDate() - (29 - i));
-        return date.toISOString().split('T')[0];
+        return date.toISOString().split("T")[0];
       });
 
-      const dailyAttempts = last30Days.map(date => {
-        const count = attempts.filter(a => a.created_at.startsWith(date)).length;
+      const dailyAttempts = last30Days.map((date) => {
+        const count = attempts.filter((a) => a.created_at.startsWith(date)).length;
         return {
-          date: new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-          questões: count
+          date: new Date(date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+          questões: count,
         };
       });
       setMonthlyStats(dailyAttempts);
@@ -184,7 +209,7 @@ const Statistics = () => {
 
       const disciplineChart = Array.from(disciplineChartMap.entries()).map(([name, count]: any) => ({
         disciplina: name,
-        questões: count
+        questões: count,
       }));
 
       setDisciplineChartData(disciplineChart);
@@ -221,7 +246,8 @@ const Statistics = () => {
             <BookOpen className="h-24 w-24 text-muted-foreground mb-6" />
             <h1 className="text-3xl font-bold mb-4">Comece a Praticar!</h1>
             <p className="text-muted-foreground text-lg mb-6 max-w-md">
-              Você ainda não respondeu nenhuma questão. Vá para o Banco de Questões e comece a praticar para ver suas estatísticas aqui.
+              Você ainda não respondeu nenhuma questão. Vá para o Banco de Questões e comece a praticar para ver suas
+              estatísticas aqui.
             </p>
             <Button onClick={() => navigate("/questions")} className="gap-2">
               <Target className="h-4 w-4" />
@@ -239,11 +265,7 @@ const Statistics = () => {
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
         <Navbar />
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
             <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
               <Lock className="w-10 h-10 text-white" />
             </div>
@@ -251,7 +273,7 @@ const Statistics = () => {
             <p className="text-xl text-muted-foreground mb-8">
               Assine o plano Premium para acessar estatísticas detalhadas do seu desempenho
             </p>
-            
+
             <Card className="max-w-2xl mx-auto mb-8">
               <CardContent className="pt-6">
                 <div className="space-y-4 text-left">
@@ -288,19 +310,20 @@ const Statistics = () => {
             </Card>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
+              <Button
                 size="lg"
-                onClick={() => window.open("https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=2fab389d1e6546429376b4a50517acd2", "_blank")}
+                onClick={() =>
+                  window.open(
+                    "https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=2fab389d1e6546429376b4a50517acd2",
+                    "_blank",
+                  )
+                }
                 className="gap-2"
               >
                 <Crown className="w-5 h-5" />
                 Assinar Premium Agora
               </Button>
-              <Button 
-                size="lg"
-                variant="outline"
-                onClick={() => navigate("/dashboard")}
-              >
+              <Button size="lg" variant="outline" onClick={() => navigate("/dashboard")}>
                 Voltar ao Dashboard
               </Button>
             </div>
@@ -317,26 +340,28 @@ const Statistics = () => {
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-              <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
-                Estatísticas de Desempenho
-              </h1>
-              
-              {/* Filtro de período */}
-              <Tabs value={periodFilter} onValueChange={(v) => setPeriodFilter(v as any)} className="w-full sm:w-auto">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="today" className="text-xs sm:text-sm">Hoje</TabsTrigger>
-                  <TabsTrigger value="week" className="text-xs sm:text-sm">Semana</TabsTrigger>
-                  <TabsTrigger value="month" className="text-xs sm:text-sm">Mês</TabsTrigger>
-                  <TabsTrigger value="all" className="text-xs sm:text-sm">Tudo</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+            <h1 className="text-3xl sm:text-4xl font-bold text-foreground">Estatísticas de Desempenho</h1>
+
+            {/* Filtro de período */}
+            <Tabs value={periodFilter} onValueChange={(v) => setPeriodFilter(v as any)} className="w-full sm:w-auto">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="today" className="text-xs sm:text-sm">
+                  Hoje
+                </TabsTrigger>
+                <TabsTrigger value="week" className="text-xs sm:text-sm">
+                  Semana
+                </TabsTrigger>
+                <TabsTrigger value="month" className="text-xs sm:text-sm">
+                  Mês
+                </TabsTrigger>
+                <TabsTrigger value="all" className="text-xs sm:text-sm">
+                  Tudo
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
           {/* Cards de resumo */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -388,9 +413,7 @@ const Statistics = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Desempenho por Disciplina</CardTitle>
-                <CardDescription>
-                  Veja seu desempenho em cada disciplina
-                </CardDescription>
+                <CardDescription>Veja seu desempenho em cada disciplina</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
@@ -432,9 +455,7 @@ const Statistics = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Matérias que Precisam de Atenção</CardTitle>
-                <CardDescription>
-                  Foque nessas disciplinas para melhorar seu desempenho
-                </CardDescription>
+                <CardDescription>Foque nessas disciplinas para melhorar seu desempenho</CardDescription>
               </CardHeader>
               <CardContent>
                 {topicStats.length > 0 ? (
@@ -473,48 +494,46 @@ const Statistics = () => {
             {/* Gráfico de questões respondidas por dia (últimos 30 dias) */}
             <Card>
               <CardHeader>
-                <CardTitle>Questões Respondidas (Últimos 30 Dias)</CardTitle>
-                <CardDescription>
-                  Acompanhe sua evolução diária
-                </CardDescription>
+                <CardTitle>Questões Respondidas</CardTitle>
+                <CardDescription>Acompanhe sua evolução diária nos últimos 30 dias...</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={monthlyStats} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
-                    <XAxis 
-                      dataKey="date" 
+                    <XAxis
+                      dataKey="date"
                       className="text-xs"
-                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
                       tickLine={false}
-                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                      axisLine={{ stroke: "hsl(var(--border))" }}
                       interval="preserveStartEnd"
                       minTickGap={50}
                     />
-                    <YAxis 
+                    <YAxis
                       className="text-xs"
-                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
                       tickLine={false}
                       axisLine={false}
                     />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--popover))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '0.5rem',
-                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                        fontSize: '12px'
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--popover))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "0.5rem",
+                        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                        fontSize: "12px",
                       }}
-                      labelStyle={{ color: 'hsl(var(--popover-foreground))', fontWeight: 600 }}
-                      cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '3 3' }}
+                      labelStyle={{ color: "hsl(var(--popover-foreground))", fontWeight: 600 }}
+                      cursor={{ stroke: "hsl(var(--primary))", strokeWidth: 1, strokeDasharray: "3 3" }}
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="questões" 
-                      stroke="hsl(var(--primary))" 
+                    <Line
+                      type="monotone"
+                      dataKey="questões"
+                      stroke="hsl(var(--primary))"
                       strokeWidth={2.5}
                       dot={false}
-                      activeDot={{ r: 4, fill: 'hsl(var(--primary))' }}
+                      activeDot={{ r: 4, fill: "hsl(var(--primary))" }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -525,46 +544,40 @@ const Statistics = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Questões por Disciplina</CardTitle>
-                <CardDescription>
-                  Distribuição das suas práticas por área
-                </CardDescription>
+                <CardDescription>Distribuição das suas práticas por área de conhecimento...</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={disciplineChartData} margin={{ top: 5, right: 5, left: -20, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
-                    <XAxis 
-                      dataKey="disciplina" 
+                    <XAxis
+                      dataKey="disciplina"
                       className="text-xs"
-                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
                       angle={-45}
                       textAnchor="end"
                       height={80}
                       tickLine={false}
-                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                      axisLine={{ stroke: "hsl(var(--border))" }}
                     />
-                    <YAxis 
+                    <YAxis
                       className="text-xs"
-                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
                       tickLine={false}
                       axisLine={false}
                     />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--popover))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '0.5rem',
-                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                        fontSize: '12px'
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--popover))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "0.5rem",
+                        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                        fontSize: "12px",
                       }}
-                      labelStyle={{ color: 'hsl(var(--popover-foreground))', fontWeight: 600 }}
-                      cursor={{ fill: 'hsl(var(--muted))' }}
+                      labelStyle={{ color: "hsl(var(--popover-foreground))", fontWeight: 600 }}
+                      cursor={{ fill: "hsl(var(--muted))" }}
                     />
-                    <Bar 
-                      dataKey="questões" 
-                      fill="hsl(var(--primary))"
-                      radius={[6, 6, 0, 0]}
-                    />
+                    <Bar dataKey="questões" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
