@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Calendar, CheckSquare, FileText, Brain, Sparkles } from "lucide-react";
+import { BookOpen, Calendar, CheckSquare, FileText, Brain, Sparkles, Upload } from "lucide-react";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 
@@ -14,6 +14,7 @@ import Navbar from "@/components/Navbar";
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,6 +27,11 @@ const Dashboard = () => {
       }
 
       setUser(session.user);
+      
+      // Verifica se o usuário é admin
+      const { data: roleData } = await supabase.rpc('get_user_role', { _user_id: session.user.id });
+      setIsAdmin(roleData === 'admin');
+      
       setLoading(false);
     };
 
@@ -104,6 +110,19 @@ const Dashboard = () => {
       path: "/notes",
       gradient: "from-primary to-primary/80",
       iconBg: "bg-primary",
+    },
+  ];
+
+  // Card de admin para importar questões
+  const adminCards = [
+    {
+      title: "Importar Questões",
+      description: "Importe questões do ENEM em formato JSON",
+      icon: Upload,
+      path: "/admin/import",
+      gradient: "from-amber-500 to-orange-500",
+      iconBg: "bg-amber-500",
+      adminOnly: true,
     },
   ];
 
@@ -186,6 +205,63 @@ const Dashboard = () => {
             </motion.div>
           ))}
         </div>
+
+        {/* Cards de Admin */}
+        {isAdmin && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+            className="mt-8"
+          >
+            <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
+              <span className="px-2 py-1 bg-amber-500/10 text-amber-600 text-xs font-semibold rounded-full">Admin</span>
+              Ferramentas de Administração
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {adminCards.map((card, index) => (
+                <motion.div
+                  key={card.path}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.7 + index * 0.08 }}
+                >
+                  <Card
+                    className="group cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-amber-500/30 overflow-hidden relative"
+                    onClick={() => navigate(card.path)}
+                  >
+                    <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
+                    
+                    <CardHeader className="relative">
+                      <div className="flex items-start justify-between">
+                        <div className={`w-14 h-14 rounded-2xl ${card.iconBg} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                          <card.icon className="h-7 w-7 text-white" />
+                        </div>
+                      </div>
+                      <CardTitle className="text-xl group-hover:text-amber-500 transition-colors">
+                        {card.title}
+                      </CardTitle>
+                      <CardDescription className="text-base">
+                        {card.description}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="relative">
+                      <div className="flex items-center text-amber-500 font-medium group-hover:gap-3 gap-2 transition-all">
+                        <span>Acessar</span>
+                        <motion.div
+                          animate={{ x: [0, 4, 0] }}
+                          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                        >
+                          →
+                        </motion.div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
       </main>
     </div>
   );
