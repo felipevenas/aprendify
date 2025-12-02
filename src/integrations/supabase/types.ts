@@ -433,6 +433,10 @@ export type Database = {
     }
     Functions: {
       get_daily_question_count: { Args: { _user_id: string }; Returns: number }
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
       is_user_premium: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
