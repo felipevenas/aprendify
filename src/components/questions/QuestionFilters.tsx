@@ -26,8 +26,14 @@ const QuestionFilters = ({
   onLanguageChange,
   onApply,
 }: QuestionFiltersProps) => {
-  // Anos disponíveis (2009-2024)
-  const years = Array.from({ length: 16 }, (_, i) => (2024 - i).toString());
+  // Anos disponíveis (2009-2024) + opção "Todos"
+  const years = [
+    { value: "all", label: "Todos os anos" },
+    ...Array.from({ length: 16 }, (_, i) => ({ 
+      value: (2024 - i).toString(), 
+      label: `ENEM ${2024 - i}` 
+    }))
+  ];
 
   // Disciplinas do ENEM
   const disciplines = [
@@ -66,8 +72,8 @@ const QuestionFilters = ({
             </SelectTrigger>
             <SelectContent>
               {years.map((year) => (
-                <SelectItem key={year} value={year}>
-                  ENEM {year}
+                <SelectItem key={year.value} value={year.value}>
+                  {year.label}
                 </SelectItem>
               ))}
             </SelectContent>
