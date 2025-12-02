@@ -51,21 +51,26 @@ export const cleanMarkdownArtifacts = (text: string): string => {
 
 /**
  * Identifica padrões de referências bibliográficas no texto ENEM
+ * Otimizado para evitar regex com backtracking catastrófico
  */
 const findReferences = (text: string): string[] => {
   const references: string[] = [];
   
-  // Padrão: Disponível em: URL. Acesso em: data (adaptado).
-  const disponiveisMatches = text.match(/Disponível em:\s*[^\s]+[^.]*\.\s*(?:Acesso em:\s*[^.]+\.?)?\s*(?:\(adaptado\))?\.?/gi);
-  if (disponiveisMatches) {
-    references.push(...disponiveisMatches);
+  // Padrão simples: Disponível em: ... Acesso em: ...
+  const disponiveisMatch = text.match(/Disponível em:[^.]+\.[^.]*Acesso em:[^.]+\./gi);
+  if (disponiveisMatch) {
+    references.push(...disponiveisMatch);
   }
   
-  // Padrão: SOBRENOME, N. Título. Local: Editora, ano (adaptado).
-  // Captura referências que começam com nome em caps seguido de vírgula e inicial
-  const autorMatches = text.match(/[A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÜÇ][A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÜÇ]+,\s*[A-Z]\.(?:\s*[A-Z]\.)*(?:\s*(?:et al\.?|[A-Za-záàâãéèêíïóôõöúüç\s]+))*[^.]*(?:19|20)\d{2}[^.]*(?:\(adaptado\))?\.?/g);
-  if (autorMatches) {
-    references.push(...autorMatches);
+  // Padrão simples para referências com ano entre parênteses ou com "(adaptado)"
+  const adaptadoMatch = text.match(/[^.]+\(\s*adaptado\s*\)\s*\.?/gi);
+  if (adaptadoMatch) {
+    // Filtra apenas referências que parecem bibliográficas (com ano)
+    adaptadoMatch.forEach(match => {
+      if (/(?:19|20)\d{2}/.test(match) || /Disponível|Acesso/.test(match)) {
+        references.push(match.trim());
+      }
+    });
   }
   
   return references;

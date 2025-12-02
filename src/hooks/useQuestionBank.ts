@@ -150,8 +150,8 @@ export const useQuestionBank = () => {
     try {
       const yearNum = year === "all" ? 0 : parseInt(year);
       
-      // Anos 2024+ ou "all" usam banco local com cache
-      if (year === "all" || yearNum >= 2024) {
+      // Anos 2024+ usam banco local com cache
+      if (yearNum >= 2024) {
         // Carrega cache se necessário
         if (!isCacheValid(year, discipline, language)) {
           const ids = await loadQuestionIds(year, discipline, language);
@@ -198,6 +198,55 @@ export const useQuestionBank = () => {
           setCurrentQuestion(null);
           setLoading(false);
           return { success: false, message: "Erro ao carregar questão" };
+        }
+      } else if (year === "all") {
+        // "Todos os anos" - busca aleatoriamente do banco local OU API externa
+        const useLocalDB = Math.random() > 0.5;
+        
+        if (useLocalDB) {
+          // Busca do banco local (2024)
+          if (!isCacheValid("2024", discipline, language)) {
+            const ids = await loadQuestionIds("2024", discipline, language);
+            cacheRef.current = {
+              key: { year: "2024", discipline, language },
+              questionIds: ids,
+              usedIds: new Set(),
+            };
+          }
+          
+          const cache = cacheRef.current;
+          if (cache && cache.questionIds.length > 0) {
+            let availableIds = cache.questionIds.filter(id => !cache.usedIds.has(id));
+            if (availableIds.length === 0) {
+              cache.usedIds.clear();
+              availableIds = cache.questionIds;
+            }
+            const randomIndex = Math.floor(Math.random() * availableIds.length);
+            const selectedId = availableIds[randomIndex];
+            cache.usedIds.add(selectedId);
+            
+            const question = await fetchQuestionById(selectedId);
+            if (question) {
+              setCurrentQuestion(question);
+              setLoading(false);
+              return { success: true };
+            }
+          }
+        }
+        
+        // Busca da API externa (anos aleatórios 2009-2023)
+        const years = ["2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015"];
+        const randomYear = years[Math.floor(Math.random() * years.length)];
+        const question = await fetchFromExternalAPI(randomYear, discipline, language, random);
+        
+        if (question) {
+          setCurrentQuestion(question);
+          setLoading(false);
+          return { success: true };
+        } else {
+          setCurrentQuestion(null);
+          setLoading(false);
+          return { success: false, message: "Nenhuma questão encontrada" };
         }
       } else {
         // Anos 2009-2023 usam API externa

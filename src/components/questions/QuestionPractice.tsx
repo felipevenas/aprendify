@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { CheckCircle2, XCircle, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDisciplineName, cleanMarkdownArtifacts, separateTextAndReference } from "@/lib/formatters";
@@ -150,8 +150,7 @@ const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps)
 
         {/* Alternativas */}
         <div className="space-y-3 mb-6">
-          <AnimatePresence mode="wait">
-            {question.alternatives.map((alt: any) => {
+          {question.alternatives.map((alt: any) => {
               const isSelected = selectedAlternative === alt.letter;
               const isCorrectAlt = alt.letter === question.correctAlternative;
               
@@ -177,11 +176,8 @@ const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps)
               }
 
               return (
-                <motion.button
+                <button
                   key={alt.letter}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3 }}
                   onClick={() => handleSelectAlternative(alt.letter)}
                   disabled={showResult}
                   className={cn(
@@ -236,10 +232,9 @@ const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps)
                       </div>
                     )}
                   </div>
-                </motion.button>
+                </button>
               );
             })}
-          </AnimatePresence>
         </div>
 
         {/* Feedback e ações */}
