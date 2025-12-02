@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { Crown } from "lucide-react";
 
 interface Subject {
   id: string;
@@ -23,6 +24,7 @@ interface AddSubjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editSubject?: Subject | null;
+  isPremium: boolean;
 }
 
 const PRESET_COLORS = [
@@ -36,7 +38,9 @@ const PRESET_COLORS = [
   "#F97316", // Orange
 ];
 
-const AddSubjectDialog = ({ open, onOpenChange, editSubject }: AddSubjectDialogProps) => {
+const FREE_SUBJECT_LIMIT = 3;
+
+const AddSubjectDialog = ({ open, onOpenChange, editSubject, isPremium }: AddSubjectDialogProps) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState(PRESET_COLORS[0]);
@@ -67,6 +71,22 @@ const AddSubjectDialog = ({ open, onOpenChange, editSubject }: AddSubjectDialogP
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
+
+      // Verifica limite de matérias para usuários free (apenas ao criar, não ao editar)
+      if (!editSubject && !isPremium) {
+        const { data: existingSubjects, error: countError } = await supabase
+          .from("subjects")
+          .select("id")
+          .eq("user_id", user.id);
+
+        if (countError) throw countError;
+
+        if (existingSubjects && existingSubjects.length >= FREE_SUBJECT_LIMIT) {
+          toast.error("Limite de matérias atingido! Assine o Premium para adicionar matérias ilimitadas.");
+          setLoading(false);
+          return;
+        }
+      }
 
       const subjectData = {
         name: name.trim(),
@@ -158,6 +178,13 @@ const AddSubjectDialog = ({ open, onOpenChange, editSubject }: AddSubjectDialogP
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Salvando..." : editSubject ? "Atualizar" : "Adicionar"}
           </Button>
+
+          {!editSubject && !isPremium && (
+            <p className="text-xs text-center text-muted-foreground">
+              <Crown className="w-3 h-3 inline mr-1" />
+              Usuários Free podem adicionar até {FREE_SUBJECT_LIMIT} matérias
+            </p>
+          )}
         </form>
       </DialogContent>
     </Dialog>

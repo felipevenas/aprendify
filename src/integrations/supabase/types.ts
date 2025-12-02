@@ -289,6 +289,45 @@ export type Database = {
           },
         ]
       }
+      subscriptions: {
+        Row: {
+          created_at: string
+          end_date: string | null
+          id: string
+          mercadopago_payer_email: string | null
+          mercadopago_subscription_id: string | null
+          plan_id: string | null
+          start_date: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          mercadopago_payer_email?: string | null
+          mercadopago_subscription_id?: string | null
+          plan_id?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          mercadopago_payer_email?: string | null
+          mercadopago_subscription_id?: string | null
+          plan_id?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           completed: boolean
@@ -348,7 +387,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_daily_question_count: { Args: { _user_id: string }; Returns: number }
+      is_user_premium: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       user_role: "admin" | "user"

@@ -4,12 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
-import { CheckCircle2, XCircle, TrendingUp, TrendingDown, BookOpen, Target, AlertCircle, Calendar } from "lucide-react";
+import { CheckCircle2, XCircle, TrendingUp, TrendingDown, BookOpen, Target, AlertCircle, Calendar, Lock, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/Navbar";
 import { formatDisciplineName } from "@/lib/formatters";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { usePremium } from "@/hooks/usePremium";
 
 /**
  * Dashboard de estatísticas de desempenho do usuário
@@ -19,6 +20,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 const Statistics = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const { isPremium, isLoading: premiumLoading } = usePremium();
   const [totalAttempts, setTotalAttempts] = useState(0);
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [wrongAnswers, setWrongAnswers] = useState(0);
@@ -225,6 +227,83 @@ const Statistics = () => {
               <Target className="h-4 w-4" />
               Ir para o Banco de Questões
             </Button>
+          </motion.div>
+        </main>
+      </div>
+    );
+  }
+
+  // Bloqueia acesso para usuários free
+  if (!isPremium) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
+        <Navbar />
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center"
+          >
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
+              <Lock className="w-10 h-10 text-white" />
+            </div>
+            <h1 className="text-4xl font-bold mb-4">Estatísticas Premium</h1>
+            <p className="text-xl text-muted-foreground mb-8">
+              Assine o plano Premium para acessar estatísticas detalhadas do seu desempenho
+            </p>
+            
+            <Card className="max-w-2xl mx-auto mb-8">
+              <CardContent className="pt-6">
+                <div className="space-y-4 text-left">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
+                    <div>
+                      <h3 className="font-semibold">Análise Completa de Desempenho</h3>
+                      <p className="text-sm text-muted-foreground">Acompanhe sua evolução em todas as disciplinas</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
+                    <div>
+                      <h3 className="font-semibold">Gráficos e Histórico Completo</h3>
+                      <p className="text-sm text-muted-foreground">Visualize seu progresso ao longo do tempo</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
+                    <div>
+                      <h3 className="font-semibold">Identificação de Pontos Fracos</h3>
+                      <p className="text-sm text-muted-foreground">Descubra quais tópicos precisam de mais atenção</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
+                    <div>
+                      <h3 className="font-semibold">Questões Ilimitadas</h3>
+                      <p className="text-sm text-muted-foreground">Pratique sem limites diários</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button 
+                size="lg"
+                onClick={() => window.open("https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=2fab389d1e6546429376b4a50517acd2", "_blank")}
+                className="gap-2"
+              >
+                <Crown className="w-5 h-5" />
+                Assinar Premium Agora
+              </Button>
+              <Button 
+                size="lg"
+                variant="outline"
+                onClick={() => navigate("/dashboard")}
+              >
+                Voltar ao Dashboard
+              </Button>
+            </div>
           </motion.div>
         </main>
       </div>
