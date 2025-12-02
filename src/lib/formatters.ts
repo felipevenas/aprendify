@@ -21,14 +21,29 @@ export const formatDisciplineName = (discipline: string): string => {
 };
 
 /**
- * Remove marcadores markdown (**) de texto que não podem ser processados
- * Usado para limpar texto de questões que vêm com markdown não processado
+ * Remove marcadores markdown e corrige problemas comuns de codificação
+ * Usado para limpar texto de questões que vêm com formatação incorreta
  */
 export const cleanMarkdownArtifacts = (text: string): string => {
   if (!text) return '';
   
+  let cleaned = text;
+  
   // Remove ** que não conseguimos processar como negrito
-  return text.replace(/\*\*/g, '');
+  cleaned = cleaned.replace(/\*\*/g, '');
+  
+  // Remove HTML entities comuns
+  cleaned = cleaned.replace(/&nbsp;/g, ' ');
+  cleaned = cleaned.replace(/&amp;/g, '&');
+  cleaned = cleaned.replace(/&lt;/g, '<');
+  cleaned = cleaned.replace(/&gt;/g, '>');
+  cleaned = cleaned.replace(/&quot;/g, '"');
+  cleaned = cleaned.replace(/&#39;/g, "'");
+  
+  // Remove espaços duplicados
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+  
+  return cleaned;
 };
 
 /**
