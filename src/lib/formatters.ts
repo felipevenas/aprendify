@@ -47,6 +47,50 @@ export const cleanMarkdownArtifacts = (text: string): string => {
 };
 
 /**
+ * Identifica e formata referências bibliográficas no texto
+ * Retorna objeto com texto principal e referência separados
+ */
+export const separateTextAndReference = (text: string): { mainText: string; reference: string | null } => {
+  if (!text) return { mainText: '', reference: null };
+  
+  let cleaned = cleanMarkdownArtifacts(text);
+  
+  // Padrões de referência bibliográfica ENEM
+  // Padrão 1: AUTOR, X. et al. Título. Local: Editora, ano (adaptado).
+  // Padrão 2: Disponível em: ... Acesso em: ... (adaptado).
+  // Padrão 3: SOBRENOME, Nome. Título. Local: Editora, ano.
+  
+  const referencePatterns = [
+    // Disponível em: URL. Acesso em: data (adaptado).
+    /(Disponível em:\s*[^\s]+\s*\.?\s*Acesso em:\s*[^.]+\.?\s*\(adaptado\)\.?)/gi,
+    // AUTOR et al. Título. Local: Editora, ano (adaptado).
+    /([A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÜÇ][A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÜÇ\s,\.]+(?:et al\.?|[A-Z]\.|[A-Z][a-záàâãéèêíïóôõöúüç]+)[\s\S]{0,20}(?:In:|[A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÜÇ][a-záàâãéèêíïóôõöúüç]+:)?[\s\S]{5,150}?(?:19|20)\d{2}[^.]*\.?\s*\(adaptado\)\.?)/g,
+    // AUTOR. Título: subtítulo. ano (adaptado).
+    /([A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÜÇ][A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÜÇ\s,\.]{2,50}\.\s+[A-Z][^.]{10,100}\.?\s+(?:19|20)\d{2}[^.]*\(adaptado\)\.?)/g,
+    // Disponível em: ... (adaptado)
+    /(Disponível em:\s*[^.]+\.\s*\(adaptado\)\.?)/gi,
+  ];
+  
+  let reference: string | null = null;
+  let mainText = cleaned;
+  
+  for (const pattern of referencePatterns) {
+    const match = cleaned.match(pattern);
+    if (match && match[0]) {
+      // Pega a última ocorrência como referência (geralmente a fonte está no final ou meio)
+      const lastMatch = match[match.length - 1];
+      if (lastMatch.length > 20 && lastMatch.length < cleaned.length * 0.7) {
+        reference = lastMatch.trim();
+        mainText = cleaned.replace(lastMatch, ' ').replace(/\s+/g, ' ').trim();
+        break;
+      }
+    }
+  }
+  
+  return { mainText, reference };
+};
+
+/**
  * Processa texto com markdown simples para negrito
  * Converte **texto** em <strong>texto</strong>
  */
