@@ -106,11 +106,12 @@ const Questions = () => {
     handleFetchQuestion(false);
   }, [clearCache, handleFetchQuestion]);
 
-  // Carrega questão aleatória ao montar o componente
+  // Carrega questão aleatória ao montar o componente (apenas uma vez)
   useEffect(() => {
-    if (!initialLoading) {
-      handleFetchQuestion(true);
+    if (!initialLoading && !currentQuestion && !loadingQuestion) {
+      fetchQuestion(selectedYear, selectedDiscipline, selectedLanguage, true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialLoading]);
 
   if (initialLoading) {
