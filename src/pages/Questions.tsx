@@ -28,8 +28,8 @@ const Questions = () => {
   // Limite de questões para usuários free
   const FREE_DAILY_LIMIT = 10;
 
-  // Filtros
-  const [selectedYear, setSelectedYear] = useState<string>("2023");
+  // Filtros - inicialmente busca de todos os anos
+  const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>("all");
   const [selectedLanguage, setSelectedLanguage] = useState<string>("all");
 
