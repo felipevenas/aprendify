@@ -32,6 +32,9 @@ export const cleanMarkdownArtifacts = (text: string): string => {
   // Remove ** que não conseguimos processar como negrito
   cleaned = cleaned.replace(/\*\*/g, '');
   
+  // Remove códigos de questão (ex: *020325AZ7*)
+  cleaned = cleaned.replace(/\*\d{6}[A-Z]+\d*\*/g, '');
+  
   // Remove HTML entities comuns
   cleaned = cleaned.replace(/&nbsp;/g, ' ');
   cleaned = cleaned.replace(/&amp;/g, '&');
@@ -40,52 +43,72 @@ export const cleanMarkdownArtifacts = (text: string): string => {
   cleaned = cleaned.replace(/&quot;/g, '"');
   cleaned = cleaned.replace(/&#39;/g, "'");
   
-  // Remove espaços duplicados
+  // Remove espaços duplicados e quebras de linha extras
   cleaned = cleaned.replace(/\s+/g, ' ').trim();
   
   return cleaned;
 };
 
 /**
+ * Identifica padrões de referências bibliográficas no texto ENEM
+ */
+const findReferences = (text: string): string[] => {
+  const references: string[] = [];
+  
+  // Padrão: Disponível em: URL. Acesso em: data (adaptado).
+  const disponiveisMatches = text.match(/Disponível em:\s*[^\s]+[^.]*\.\s*(?:Acesso em:\s*[^.]+\.?)?\s*(?:\(adaptado\))?\.?/gi);
+  if (disponiveisMatches) {
+    references.push(...disponiveisMatches);
+  }
+  
+  // Padrão: SOBRENOME, N. Título. Local: Editora, ano (adaptado).
+  // Captura referências que começam com nome em caps seguido de vírgula e inicial
+  const autorMatches = text.match(/[A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÜÇ][A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÜÇ]+,\s*[A-Z]\.(?:\s*[A-Z]\.)*(?:\s*(?:et al\.?|[A-Za-záàâãéèêíïóôõöúüç\s]+))*[^.]*(?:19|20)\d{2}[^.]*(?:\(adaptado\))?\.?/g);
+  if (autorMatches) {
+    references.push(...autorMatches);
+  }
+  
+  return references;
+};
+
+/**
  * Identifica e formata referências bibliográficas no texto
- * Retorna objeto com texto principal e referência separados
+ * Retorna objeto com texto principal e referências separadas
  */
 export const separateTextAndReference = (text: string): { mainText: string; reference: string | null } => {
   if (!text) return { mainText: '', reference: null };
   
   let cleaned = cleanMarkdownArtifacts(text);
   
-  // Padrões de referência bibliográfica ENEM
-  // Padrão 1: AUTOR, X. et al. Título. Local: Editora, ano (adaptado).
-  // Padrão 2: Disponível em: ... Acesso em: ... (adaptado).
-  // Padrão 3: SOBRENOME, Nome. Título. Local: Editora, ano.
+  // Encontra todas as referências
+  const foundReferences = findReferences(cleaned);
   
-  const referencePatterns = [
-    // Disponível em: URL. Acesso em: data (adaptado).
-    /(Disponível em:\s*[^\s]+\s*\.?\s*Acesso em:\s*[^.]+\.?\s*\(adaptado\)\.?)/gi,
-    // AUTOR et al. Título. Local: Editora, ano (adaptado).
-    /([A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÜÇ][A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÜÇ\s,\.]+(?:et al\.?|[A-Z]\.|[A-Z][a-záàâãéèêíïóôõöúüç]+)[\s\S]{0,20}(?:In:|[A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÜÇ][a-záàâãéèêíïóôõöúüç]+:)?[\s\S]{5,150}?(?:19|20)\d{2}[^.]*\.?\s*\(adaptado\)\.?)/g,
-    // AUTOR. Título: subtítulo. ano (adaptado).
-    /([A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÜÇ][A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÜÇ\s,\.]{2,50}\.\s+[A-Z][^.]{10,100}\.?\s+(?:19|20)\d{2}[^.]*\(adaptado\)\.?)/g,
-    // Disponível em: ... (adaptado)
-    /(Disponível em:\s*[^.]+\.\s*\(adaptado\)\.?)/gi,
-  ];
+  if (foundReferences.length === 0) {
+    return { mainText: cleaned, reference: null };
+  }
   
-  let reference: string | null = null;
+  // Combina referências encontradas
   let mainText = cleaned;
+  const uniqueRefs: string[] = [];
   
-  for (const pattern of referencePatterns) {
-    const match = cleaned.match(pattern);
-    if (match && match[0]) {
-      // Pega a última ocorrência como referência (geralmente a fonte está no final ou meio)
-      const lastMatch = match[match.length - 1];
-      if (lastMatch.length > 20 && lastMatch.length < cleaned.length * 0.7) {
-        reference = lastMatch.trim();
-        mainText = cleaned.replace(lastMatch, ' ').replace(/\s+/g, ' ').trim();
-        break;
+  for (const ref of foundReferences) {
+    const trimmedRef = ref.trim();
+    // Só considera referências que não são muito curtas e não são a maior parte do texto
+    if (trimmedRef.length > 30 && trimmedRef.length < cleaned.length * 0.6) {
+      if (!uniqueRefs.some(r => r.includes(trimmedRef) || trimmedRef.includes(r))) {
+        uniqueRefs.push(trimmedRef);
+        mainText = mainText.replace(trimmedRef, ' ');
       }
     }
   }
+  
+  // Limpa o texto principal
+  mainText = mainText.replace(/\s+/g, ' ').trim();
+  
+  // Remove pontuação solta no início/fim
+  mainText = mainText.replace(/^\s*[.,;:]\s*/, '').replace(/\s*[.,;:]\s*$/, '').trim();
+  
+  const reference = uniqueRefs.length > 0 ? uniqueRefs.join(' | ') : null;
   
   return { mainText, reference };
 };
