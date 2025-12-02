@@ -495,7 +495,7 @@ const Statistics = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Questões Respondidas</CardTitle>
-                <CardDescription>Acompanhe sua evolução diária nos últimos 30 dias...</CardDescription>
+                <CardDescription>Acompanhe sua evolução diária nos últimos 30 dias</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -544,7 +544,7 @@ const Statistics = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Questões por Disciplina</CardTitle>
-                <CardDescription>Distribuição das suas práticas por área de conhecimento...</CardDescription>
+                <CardDescription>Distribuição das suas práticas por área</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
