@@ -13,6 +13,97 @@ interface MercadoPagoWebhook {
   type: string;
 }
 
+// Verify MercadoPago webhook signature
+async function verifySignature(
+  req: Request,
+  body: string
+): Promise<boolean> {
+  const webhookSecret = Deno.env.get('MERCADOPAGO_WEBHOOK_SECRET');
+  
+  // If no secret is configured, log warning and reject request
+  if (!webhookSecret) {
+    console.error('MERCADOPAGO_WEBHOOK_SECRET not configured - rejecting webhook for security');
+    return false;
+  }
+
+  const xSignature = req.headers.get('x-signature');
+  const xRequestId = req.headers.get('x-request-id');
+
+  if (!xSignature || !xRequestId) {
+    console.error('Missing signature headers');
+    return false;
+  }
+
+  // Parse x-signature header (format: "ts=timestamp,v1=hash")
+  const signatureParts: Record<string, string> = {};
+  xSignature.split(',').forEach(part => {
+    const [key, value] = part.split('=');
+    if (key && value) {
+      signatureParts[key.trim()] = value.trim();
+    }
+  });
+
+  const ts = signatureParts['ts'];
+  const v1 = signatureParts['v1'];
+
+  if (!ts || !v1) {
+    console.error('Invalid signature format');
+    return false;
+  }
+
+  // Check timestamp to prevent replay attacks (5 minute window)
+  const timestamp = parseInt(ts, 10);
+  const now = Math.floor(Date.now() / 1000);
+  const fiveMinutes = 5 * 60;
+  
+  if (Math.abs(now - timestamp) > fiveMinutes) {
+    console.error('Webhook timestamp too old or too far in future');
+    return false;
+  }
+
+  // Build the manifest string for HMAC verification
+  // MercadoPago format: id:[data.id];request-id:[x-request-id];ts:[ts];
+  let dataId = '';
+  try {
+    const parsedBody = JSON.parse(body);
+    dataId = parsedBody?.data?.id || '';
+  } catch {
+    console.error('Failed to parse body for signature verification');
+    return false;
+  }
+
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+
+  // Generate HMAC-SHA256
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(webhookSecret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    encoder.encode(manifest)
+  );
+
+  // Convert to hex
+  const hashArray = Array.from(new Uint8Array(signature));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  // Compare signatures
+  if (hashHex !== v1) {
+    console.error('Signature verification failed');
+    return false;
+  }
+
+  console.log('Webhook signature verified successfully');
+  return true;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -20,6 +111,19 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Read body as text first for signature verification
+    const bodyText = await req.text();
+    
+    // Verify webhook signature
+    const isValid = await verifySignature(req, bodyText);
+    if (!isValid) {
+      console.error('Webhook signature verification failed - rejecting request');
+      return new Response(JSON.stringify({ error: 'Invalid signature' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const mercadoPagoToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
     if (!mercadoPagoToken) {
       console.error('MERCADOPAGO_ACCESS_TOKEN not configured');
@@ -33,8 +137,8 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const webhook: MercadoPagoWebhook = await req.json();
-    console.log('Received webhook:', JSON.stringify(webhook));
+    const webhook: MercadoPagoWebhook = JSON.parse(bodyText);
+    console.log('Received verified webhook:', JSON.stringify(webhook));
 
     // Only process subscription-related events
     if (webhook.type === 'subscription_preapproval' || webhook.type === 'subscription') {
