@@ -112,6 +112,7 @@ const Questions = () => {
             alternativesIntroduction: data.alternatives_introduction,
             alternatives: data.alternatives,
             correctAlternative: data.correct_alternative,
+            year: data.year,
           };
           setCurrentQuestion(transformedQuestion);
         } else {
@@ -150,7 +151,8 @@ const Questions = () => {
         const data = await response.json();
         
         if (data.questions && data.questions.length > 0) {
-          setCurrentQuestion(data.questions[0]);
+          // Adiciona o ano à questão da API externa
+          setCurrentQuestion({ ...data.questions[0], year: selectedYear });
         } else {
           toast.error("Nenhuma questão encontrada com os filtros selecionados");
           setCurrentQuestion(null);
