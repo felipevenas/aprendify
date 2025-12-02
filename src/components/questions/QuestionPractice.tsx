@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, XCircle, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDisciplineName, cleanMarkdownArtifacts } from "@/lib/formatters";
+import { formatDisciplineName, cleanMarkdownArtifacts, separateTextAndReference } from "@/lib/formatters";
 
 /**
  * Componente de prática de questões
@@ -20,6 +20,12 @@ interface QuestionPracticeProps {
 const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps) => {
   const [selectedAlternative, setSelectedAlternative] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
+
+  // Processa o contexto para separar texto da referência
+  const processedContext = useMemo(() => {
+    if (!question.context) return null;
+    return separateTextAndReference(question.context);
+  }, [question.context]);
 
   // Handler para selecionar alternativa
   const handleSelectAlternative = (letter: string) => {
@@ -106,11 +112,16 @@ const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps)
         </div>
 
         {/* Contexto da questão */}
-        {question.context && (
-          <div className="mb-6 p-4 bg-muted/30 rounded-lg">
+        {processedContext && (
+          <div className="mb-6 p-4 bg-muted/30 rounded-lg space-y-3">
             <p className="text-sm sm:text-base text-foreground whitespace-pre-wrap leading-relaxed">
-              {cleanMarkdownArtifacts(question.context)}
+              {processedContext.mainText}
             </p>
+            {processedContext.reference && (
+              <p className="text-xs sm:text-sm text-muted-foreground italic border-l-2 border-primary/30 pl-3 mt-2">
+                {processedContext.reference}
+              </p>
+            )}
           </div>
         )}
 
@@ -132,7 +143,7 @@ const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps)
         {question.alternativesIntroduction && (
           <div className="mb-4">
             <p className="font-medium text-foreground">
-              {question.alternativesIntroduction}
+              {cleanMarkdownArtifacts(question.alternativesIntroduction)}
             </p>
           </div>
         )}
