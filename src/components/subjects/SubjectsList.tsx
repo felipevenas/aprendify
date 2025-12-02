@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import AddSubjectDialog from "./AddSubjectDialog";
+import { usePremium } from "@/hooks/usePremium";
 
 interface Subject {
   id: string;
@@ -17,6 +18,7 @@ const SubjectsList = () => {
   const [loading, setLoading] = useState(true);
   const [editSubject, setEditSubject] = useState<Subject | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const { isPremium } = usePremium();
 
   const fetchSubjects = async () => {
     try {
@@ -99,6 +101,7 @@ const SubjectsList = () => {
           if (!open) setEditSubject(null);
         }}
         editSubject={editSubject}
+        isPremium={isPremium}
       />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {subjects.map((subject) => (

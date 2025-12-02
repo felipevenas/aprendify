@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, BookOpen, Shuffle, Filter, ChevronRight } from "lucide-react";
+import { ArrowLeft, BookOpen, Shuffle, Filter, ChevronRight, Lock } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import QuestionPractice from "@/components/questions/QuestionPractice";
 import QuestionFilters from "@/components/questions/QuestionFilters";
 import Navbar from "@/components/Navbar";
+import { usePremium } from "@/hooks/usePremium";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 /**
  * Página de prática de questões do ENEM
@@ -19,6 +21,10 @@ const Questions = () => {
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const navigate = useNavigate();
+  const { isPremium, isLoading: premiumLoading, dailyQuestionCount } = usePremium();
+  
+  // Limite de questões para usuários free
+  const FREE_DAILY_LIMIT = 10;
 
   // Filtros
   const [selectedYear, setSelectedYear] = useState<string>("2023");
@@ -44,6 +50,12 @@ const Questions = () => {
 
   // Busca questão da API do ENEM
   const fetchQuestion = async (random: boolean = false) => {
+    // Verifica limite de questões para usuários free
+    if (!isPremium && dailyQuestionCount >= FREE_DAILY_LIMIT) {
+      toast.error("Você atingiu o limite de 10 questões diárias. Assine o Premium para questões ilimitadas!");
+      return;
+    }
+    
     setLoadingQuestion(true);
     try {
       // Monta a URL base com o ano selecionado
@@ -238,6 +250,34 @@ const Questions = () => {
               </Button>
             </div>
           </div>
+
+          {/* Alerta de limite para usuários free */}
+          {!premiumLoading && !isPremium && (
+            <Alert className={`${dailyQuestionCount >= FREE_DAILY_LIMIT ? 'border-destructive' : 'border-primary'}`}>
+              <AlertDescription className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {dailyQuestionCount >= FREE_DAILY_LIMIT ? (
+                    <Lock className="h-4 w-4 text-destructive" />
+                  ) : (
+                    <BookOpen className="h-4 w-4 text-primary" />
+                  )}
+                  <span>
+                    {dailyQuestionCount >= FREE_DAILY_LIMIT
+                      ? "Limite diário atingido! Assine o Premium para continuar."
+                      : `Você respondeu ${dailyQuestionCount} de ${FREE_DAILY_LIMIT} questões hoje.`}
+                  </span>
+                </div>
+                {dailyQuestionCount >= FREE_DAILY_LIMIT && (
+                  <Button 
+                    size="sm" 
+                    onClick={() => window.open("https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=2fab389d1e6546429376b4a50517acd2", "_blank")}
+                  >
+                    Assinar Premium
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
         </motion.div>
 
         {/* Painel de Filtros */}

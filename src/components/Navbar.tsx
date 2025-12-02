@@ -14,6 +14,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Settings, LogOut, Moon, Sun, BookOpen, Crown } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
+import { usePremium } from "@/hooks/usePremium";
+import { PremiumModal } from "@/components/PremiumModal";
 
 /**
  * Navbar minimalista com perfil do usuário e tema dark/light
@@ -24,6 +26,8 @@ const Navbar = () => {
   const { theme, setTheme } = useTheme();
   const [user, setUser] = useState<User | null>(null);
   const [userName, setUserName] = useState<string>("");
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const { isPremium, isLoading } = usePremium();
 
   useEffect(() => {
     // Busca usuário atual
@@ -93,20 +97,25 @@ const Navbar = () => {
 
           {/* Menu do usuário */}
           <div className="flex items-center gap-1.5 sm:gap-3">
-            {/* Badge Premium - Link para MercadoPago */}
-            <a 
-              href="https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=2fab389d1e6546429376b4a50517acd2"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="transition-transform hover:scale-105"
-            >
-              <Badge 
-                className="bg-gradient-to-r from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-white border-0 px-2 sm:px-4 py-1.5 cursor-pointer shadow-lg flex items-center"
-              >
-                <Crown className="h-4 w-4 sm:mr-1" />
-                <span className="hidden sm:inline">Premium</span>
-              </Badge>
-            </a>
+            {/* Badge Premium ou Free baseado no status de assinatura */}
+            {!isLoading && (
+              isPremium ? (
+                <Badge 
+                  className="bg-gradient-to-r from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-white border-0 px-2 sm:px-4 py-1.5 shadow-lg flex items-center"
+                >
+                  <Crown className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Premium</span>
+                </Badge>
+              ) : (
+                <Badge 
+                  onClick={() => setShowPremiumModal(true)}
+                  className="bg-gradient-to-r from-zinc-400 to-zinc-600 hover:from-zinc-500 hover:to-zinc-700 text-white border-0 px-2 sm:px-4 py-1.5 cursor-pointer shadow-lg flex items-center transition-transform hover:scale-105"
+                >
+                  <Crown className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Free</span>
+                </Badge>
+              )
+            )}
             {/* Botão de tema */}
             <Button
               variant="ghost"
@@ -165,6 +174,12 @@ const Navbar = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Premium para usuários Free */}
+      <PremiumModal 
+        open={showPremiumModal} 
+        onOpenChange={setShowPremiumModal} 
+      />
     </nav>
   );
 };
