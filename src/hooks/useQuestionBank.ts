@@ -42,13 +42,16 @@ export const useQuestionBank = () => {
     return key.year === year && key.discipline === discipline && key.language === language;
   }, []);
 
-  // Carrega IDs das questões para o cache (apenas para anos >= 2024)
+  // Carrega IDs das questões para o cache (banco local)
   const loadQuestionIds = useCallback(async (year: string, discipline: string, language: string) => {
     let query = supabase
       .from('enem_questions')
-      .select('id')
-      .eq('year', year);
+      .select('id');
     
+    // Filtra por ano apenas se não for "all"
+    if (year !== "all") {
+      query = query.eq('year', year);
+    }
     if (discipline !== "all") {
       query = query.eq('discipline', discipline);
     }
@@ -145,10 +148,10 @@ export const useQuestionBank = () => {
     setLoading(true);
     
     try {
-      const yearNum = parseInt(year);
+      const yearNum = year === "all" ? 0 : parseInt(year);
       
-      // Anos 2024+ usam banco local com cache
-      if (yearNum >= 2024) {
+      // Anos 2024+ ou "all" usam banco local com cache
+      if (year === "all" || yearNum >= 2024) {
         // Carrega cache se necessário
         if (!isCacheValid(year, discipline, language)) {
           const ids = await loadQuestionIds(year, discipline, language);
