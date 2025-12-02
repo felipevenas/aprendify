@@ -1,15 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, BookOpen, Shuffle, Filter, ChevronRight, Lock } from "lucide-react";
+import { ArrowLeft, BookOpen, Shuffle, Filter, Lock } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import QuestionPractice from "@/components/questions/QuestionPractice";
 import QuestionFilters from "@/components/questions/QuestionFilters";
 import Navbar from "@/components/Navbar";
 import { usePremium } from "@/hooks/usePremium";
+import { useQuestionBank } from "@/hooks/useQuestionBank";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 /**
@@ -18,10 +19,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
  * Permite filtrar por ano, disciplina e idioma
  */
 const Questions = () => {
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const navigate = useNavigate();
   const { isPremium, isLoading: premiumLoading, dailyQuestionCount } = usePremium();
+  const { currentQuestion, loading: loadingQuestion, fetchQuestion, clearCache } = useQuestionBank();
   
   // Limite de questões para usuários free
   const FREE_DAILY_LIMIT = 10;
@@ -31,10 +33,6 @@ const Questions = () => {
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>("all");
   const [selectedLanguage, setSelectedLanguage] = useState<string>("all");
 
-  // Estado da questão atual
-  const [currentQuestion, setCurrentQuestion] = useState<any>(null);
-  const [loadingQuestion, setLoadingQuestion] = useState(false);
-
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -42,167 +40,35 @@ const Questions = () => {
         navigate("/auth");
         return;
       }
-      setLoading(false);
+      setInitialLoading(false);
     };
 
     checkAuth();
   }, [navigate]);
 
-  // Busca questão da API do ENEM ou do banco local (2024+)
-  const fetchQuestion = async (random: boolean = false) => {
+  // Busca questão com verificação de limite
+  const handleFetchQuestion = useCallback(async (random: boolean = true) => {
     // Verifica limite de questões para usuários free
     if (!isPremium && dailyQuestionCount >= FREE_DAILY_LIMIT) {
       toast.error("Você atingiu o limite de 10 questões diárias. Assine o Premium para questões ilimitadas!");
       return;
     }
+
+    const result = await fetchQuestion(selectedYear, selectedDiscipline, selectedLanguage, random);
     
-    setLoadingQuestion(true);
-    try {
-      const year = parseInt(selectedYear);
-      
-      // Anos 2024+ buscam do banco local
-      if (year >= 2024) {
-        let query = supabase
-          .from('enem_questions')
-          .select('*')
-          .eq('year', selectedYear);
-        
-        // Aplica filtro de disciplina
-        if (selectedDiscipline !== "all") {
-          query = query.eq('discipline', selectedDiscipline);
-        }
-        
-        // Aplica filtro de idioma
-        if (selectedLanguage !== "all") {
-          query = query.eq('language', selectedLanguage);
-        }
-        
-        // Busca aleatória ou primeira
-        if (random) {
-          // Conta total de questões com os filtros aplicados
-          let countQuery = supabase
-            .from('enem_questions')
-            .select('*', { count: 'exact', head: true })
-            .eq('year', selectedYear);
-          
-          if (selectedDiscipline !== "all") {
-            countQuery = countQuery.eq('discipline', selectedDiscipline);
-          }
-          if (selectedLanguage !== "all") {
-            countQuery = countQuery.eq('language', selectedLanguage);
-          }
-          
-          const { count } = await countQuery;
-          
-          if (!count || count === 0) {
-            setCurrentQuestion(null);
-            toast.error("Nenhuma questão encontrada com os filtros selecionados");
-            setLoadingQuestion(false);
-            return;
-          }
-          
-          const randomOffset = Math.floor(Math.random() * count);
-          query = query.range(randomOffset, randomOffset);
-        } else {
-          query = query.limit(1);
-        }
-        
-        const { data, error } = await query.maybeSingle();
-        
-        if (error) {
-          console.error("Erro ao buscar questão local:", error);
-          throw new Error("Erro ao buscar questão");
-        }
-        
-        if (data) {
-          // Transforma formato do banco para formato esperado pelo QuestionPractice
-          const transformedQuestion = {
-            index: data.index,
-            title: data.title,
-            discipline: data.discipline,
-            language: data.language,
-            context: data.context,
-            files: data.files,
-            alternativesIntroduction: data.alternatives_introduction,
-            alternatives: data.alternatives,
-            correctAlternative: data.correct_alternative,
-            year: data.year,
-          };
-          setCurrentQuestion(transformedQuestion);
-        } else {
-          toast.error("Nenhuma questão encontrada com os filtros selecionados");
-          setCurrentQuestion(null);
-        }
-      } else {
-        // Anos 2009-2023 buscam da API externa
-        let url = `https://api.enem.dev/v1/exams/${selectedYear}/questions`;
-        const params = new URLSearchParams();
-
-        if (selectedDiscipline !== "all") {
-          params.append("discipline", selectedDiscipline);
-        }
-
-        if (selectedLanguage !== "all") {
-          params.append("language", selectedLanguage);
-        }
-
-        if (random) {
-          params.append("limit", "1");
-          const randomOffset = Math.floor(Math.random() * 100);
-          params.append("offset", randomOffset.toString());
-        } else {
-          params.append("limit", "1");
-          params.append("offset", "0");
-        }
-
-        const fullUrl = params.toString() ? `${url}?${params.toString()}` : url;
-        
-        const response = await fetch(fullUrl);
-        if (!response.ok) {
-          throw new Error("Erro ao buscar questão");
-        }
-
-        const data = await response.json();
-        
-        if (data.questions && data.questions.length > 0) {
-          // Adiciona o ano à questão da API externa
-          setCurrentQuestion({ ...data.questions[0], year: selectedYear });
-        } else {
-          toast.error("Nenhuma questão encontrada com os filtros selecionados");
-          setCurrentQuestion(null);
-        }
-      }
-    } catch (error) {
-      console.error("Erro ao buscar questão:", error);
-      toast.error("Erro ao carregar questão. Tente novamente.");
-      setCurrentQuestion(null);
-    } finally {
-      setLoadingQuestion(false);
+    if (!result.success && result.message) {
+      toast.error(result.message);
     }
-  };
+  }, [isPremium, dailyQuestionCount, fetchQuestion, selectedYear, selectedDiscipline, selectedLanguage]);
 
   // Salva resposta do usuário no banco
-  // questionId formato: "ano-disciplina-index" (ex: "2023-ciencias-natureza-99")
   const handleAnswerSubmit = async (questionId: string, selectedAnswer: string, correctAnswer: string, isCorrect: boolean) => {
-    console.log("=== INÍCIO handleAnswerSubmit ===");
-    console.log("Parâmetros recebidos:", { questionId, selectedAnswer, correctAnswer, isCorrect });
-    
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    if (userError) {
-      console.error("Erro ao obter usuário:", userError);
+    if (userError || !user) {
       toast.error("Erro de autenticação. Por favor, faça login novamente.");
       return;
     }
-    
-    if (!user) {
-      console.error("Usuário não autenticado ao tentar salvar resposta");
-      toast.error("Você precisa estar logado para salvar respostas.");
-      return;
-    }
-
-    console.log("Usuário autenticado:", user.id);
-    console.log("Questão atual:", currentQuestion);
 
     try {
       const attemptData = {
@@ -217,49 +83,37 @@ const Questions = () => {
         language: currentQuestion?.language || null,
       };
       
-      console.log("📝 Tentando salvar no banco:", attemptData);
-      
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("question_attempts")
-        .insert(attemptData)
-        .select();
+        .insert(attemptData);
       
       if (error) {
-        console.error("❌ ERRO do Supabase ao salvar tentativa:", error);
-        console.error("Detalhes do erro:", JSON.stringify(error, null, 2));
+        console.error("Erro ao salvar tentativa:", error);
         toast.error(`Erro ao salvar: ${error.message}`);
       } else {
-        console.log("✅ Tentativa salva com SUCESSO:", data);
-        toast.success("Resposta registrada com sucesso!");
+        toast.success("Resposta registrada!");
       }
     } catch (error) {
-      console.error("❌ Erro inesperado ao salvar resposta:", error);
-      console.error("Stack trace:", error);
+      console.error("Erro inesperado:", error);
       toast.error("Erro inesperado ao salvar sua resposta.");
     }
-    
-    console.log("=== FIM handleAnswerSubmit ===");
-  };
-
-  // Busca questão aleatória
-  const handleRandomQuestion = () => {
-    fetchQuestion(true);
   };
 
   // Aplica filtros e busca nova questão
-  const handleApplyFilters = () => {
+  const handleApplyFilters = useCallback(() => {
     setShowFilters(false);
-    fetchQuestion(false);
-  };
+    clearCache(); // Limpa cache ao mudar filtros
+    handleFetchQuestion(false);
+  }, [clearCache, handleFetchQuestion]);
 
   // Carrega questão aleatória ao montar o componente
   useEffect(() => {
-    if (!loading) {
-      fetchQuestion(true); // Sempre começa com questão aleatória
+    if (!initialLoading) {
+      handleFetchQuestion(true);
     }
-  }, [loading]);
+  }, [initialLoading]);
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
         <div className="flex flex-col items-center gap-4">
@@ -313,7 +167,7 @@ const Questions = () => {
                 <span className="hidden sm:inline">Filtros</span>
               </Button>
               <Button 
-                onClick={handleRandomQuestion}
+                onClick={() => handleFetchQuestion(true)}
                 size="sm"
                 className="gap-2"
                 disabled={loadingQuestion}
@@ -386,7 +240,7 @@ const Questions = () => {
         ) : currentQuestion ? (
           <QuestionPractice 
             question={currentQuestion}
-            onNext={() => fetchQuestion(true)}
+            onNext={() => handleFetchQuestion(true)}
             onAnswer={handleAnswerSubmit}
           />
         ) : (
@@ -397,7 +251,7 @@ const Questions = () => {
               <p className="text-muted-foreground mb-6">
                 Ajuste os filtros ou clique em "Aleatória" para começar
               </p>
-              <Button onClick={handleRandomQuestion} className="gap-2">
+              <Button onClick={() => handleFetchQuestion(true)} className="gap-2">
                 <Shuffle className="h-4 w-4" />
                 Buscar Questão Aleatória
               </Button>
