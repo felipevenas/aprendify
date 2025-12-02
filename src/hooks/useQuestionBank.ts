@@ -1,0 +1,239 @@
+import { useState, useCallback, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface QuestionData {
+  index: number;
+  title: string;
+  discipline: string;
+  language: string | null;
+  context: string | null;
+  files: string[] | null;
+  alternativesIntroduction: string | null;
+  alternatives: any;
+  correctAlternative: string;
+  year: string;
+}
+
+interface CacheKey {
+  year: string;
+  discipline: string;
+  language: string;
+}
+
+interface QuestionCache {
+  key: CacheKey;
+  questionIds: string[];
+  usedIds: Set<string>;
+}
+
+/**
+ * Hook otimizado para gerenciar banco de questões
+ * Cacheia IDs das questões para navegação instantânea
+ */
+export const useQuestionBank = () => {
+  const [currentQuestion, setCurrentQuestion] = useState<QuestionData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const cacheRef = useRef<QuestionCache | null>(null);
+
+  // Verifica se o cache é válido para os filtros atuais
+  const isCacheValid = useCallback((year: string, discipline: string, language: string) => {
+    if (!cacheRef.current) return false;
+    const { key } = cacheRef.current;
+    return key.year === year && key.discipline === discipline && key.language === language;
+  }, []);
+
+  // Carrega IDs das questões para o cache (apenas para anos >= 2024)
+  const loadQuestionIds = useCallback(async (year: string, discipline: string, language: string) => {
+    let query = supabase
+      .from('enem_questions')
+      .select('id')
+      .eq('year', year);
+    
+    if (discipline !== "all") {
+      query = query.eq('discipline', discipline);
+    }
+    if (language !== "all") {
+      query = query.eq('language', language);
+    }
+
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error("Erro ao carregar IDs:", error);
+      return [];
+    }
+
+    return data?.map(q => q.id) || [];
+  }, []);
+
+  // Busca uma questão específica por ID (banco local)
+  const fetchQuestionById = useCallback(async (id: string): Promise<QuestionData | null> => {
+    const { data, error } = await supabase
+      .from('enem_questions')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error || !data) {
+      console.error("Erro ao buscar questão:", error);
+      return null;
+    }
+
+    return {
+      index: data.index,
+      title: data.title,
+      discipline: data.discipline,
+      language: data.language,
+      context: data.context,
+      files: data.files,
+      alternativesIntroduction: data.alternatives_introduction,
+      alternatives: data.alternatives,
+      correctAlternative: data.correct_alternative,
+      year: data.year,
+    };
+  }, []);
+
+  // Busca questão da API externa (anos 2009-2023)
+  const fetchFromExternalAPI = useCallback(async (
+    year: string, 
+    discipline: string, 
+    language: string,
+    random: boolean
+  ): Promise<QuestionData | null> => {
+    const params = new URLSearchParams();
+    
+    if (discipline !== "all") {
+      params.append("discipline", discipline);
+    }
+    if (language !== "all") {
+      params.append("language", language);
+    }
+    
+    params.append("limit", "1");
+    if (random) {
+      const randomOffset = Math.floor(Math.random() * 100);
+      params.append("offset", randomOffset.toString());
+    } else {
+      params.append("offset", "0");
+    }
+
+    const url = `https://api.enem.dev/v1/exams/${year}/questions?${params.toString()}`;
+    
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("API error");
+      
+      const data = await response.json();
+      
+      if (data.questions && data.questions.length > 0) {
+        return { ...data.questions[0], year };
+      }
+    } catch (error) {
+      console.error("Erro API externa:", error);
+    }
+    
+    return null;
+  }, []);
+
+  // Função principal para buscar questão
+  const fetchQuestion = useCallback(async (
+    year: string,
+    discipline: string,
+    language: string,
+    random: boolean = true
+  ) => {
+    setLoading(true);
+    
+    try {
+      const yearNum = parseInt(year);
+      
+      // Anos 2024+ usam banco local com cache
+      if (yearNum >= 2024) {
+        // Carrega cache se necessário
+        if (!isCacheValid(year, discipline, language)) {
+          const ids = await loadQuestionIds(year, discipline, language);
+          cacheRef.current = {
+            key: { year, discipline, language },
+            questionIds: ids,
+            usedIds: new Set(),
+          };
+        }
+
+        const cache = cacheRef.current!;
+        
+        if (cache.questionIds.length === 0) {
+          setCurrentQuestion(null);
+          setLoading(false);
+          return { success: false, message: "Nenhuma questão encontrada" };
+        }
+
+        // Seleciona ID aleatório não usado
+        let availableIds = cache.questionIds.filter(id => !cache.usedIds.has(id));
+        
+        // Se todas foram usadas, reseta
+        if (availableIds.length === 0) {
+          cache.usedIds.clear();
+          availableIds = cache.questionIds;
+        }
+
+        const randomIndex = random 
+          ? Math.floor(Math.random() * availableIds.length) 
+          : 0;
+        const selectedId = availableIds[randomIndex];
+        
+        // Marca como usada
+        cache.usedIds.add(selectedId);
+
+        // Busca a questão
+        const question = await fetchQuestionById(selectedId);
+        
+        if (question) {
+          setCurrentQuestion(question);
+          setLoading(false);
+          return { success: true };
+        } else {
+          setCurrentQuestion(null);
+          setLoading(false);
+          return { success: false, message: "Erro ao carregar questão" };
+        }
+      } else {
+        // Anos 2009-2023 usam API externa
+        const question = await fetchFromExternalAPI(year, discipline, language, random);
+        
+        if (question) {
+          setCurrentQuestion(question);
+          setLoading(false);
+          return { success: true };
+        } else {
+          setCurrentQuestion(null);
+          setLoading(false);
+          return { success: false, message: "Nenhuma questão encontrada" };
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao buscar questão:", error);
+      setCurrentQuestion(null);
+      setLoading(false);
+      return { success: false, message: "Erro ao carregar questão" };
+    }
+  }, [isCacheValid, loadQuestionIds, fetchQuestionById, fetchFromExternalAPI]);
+
+  // Limpa o cache (útil quando filtros mudam)
+  const clearCache = useCallback(() => {
+    cacheRef.current = null;
+  }, []);
+
+  // Retorna quantidade de questões disponíveis
+  const getAvailableCount = useCallback(() => {
+    if (!cacheRef.current) return 0;
+    return cacheRef.current.questionIds.length;
+  }, []);
+
+  return {
+    currentQuestion,
+    loading,
+    fetchQuestion,
+    clearCache,
+    getAvailableCount,
+  };
+};
