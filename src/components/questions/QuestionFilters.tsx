@@ -26,8 +26,8 @@ const QuestionFilters = ({
   onLanguageChange,
   onApply,
 }: QuestionFiltersProps) => {
-  // Anos disponíveis (2009-2023)
-  const years = Array.from({ length: 15 }, (_, i) => (2023 - i).toString());
+  // Anos disponíveis (2009-2024)
+  const years = Array.from({ length: 16 }, (_, i) => (2024 - i).toString());
 
   // Disciplinas do ENEM
   const disciplines = [
