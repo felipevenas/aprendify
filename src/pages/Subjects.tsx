@@ -8,11 +8,13 @@ import { motion } from "framer-motion";
 import SubjectsList from "@/components/subjects/SubjectsList";
 import AddSubjectDialog from "@/components/subjects/AddSubjectDialog";
 import Navbar from "@/components/Navbar";
+import { usePremium } from "@/hooks/usePremium";
 
 const Subjects = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const navigate = useNavigate();
+  const { isPremium } = usePremium();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -82,7 +84,7 @@ const Subjects = () => {
         </motion.div>
       </main>
 
-      <AddSubjectDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <AddSubjectDialog open={dialogOpen} onOpenChange={setDialogOpen} isPremium={isPremium} />
     </div>
   );
 };
