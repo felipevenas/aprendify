@@ -201,7 +201,7 @@ const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps)
                       !showResult && isSelected && "bg-primary border-primary text-white",
                       !showResult && !isSelected && "bg-background border-border"
                     )}>
-                      {alt.letter}
+                      {alt.letter?.toUpperCase()}
                     </div>
 
                     {/* Texto da alternativa */}
