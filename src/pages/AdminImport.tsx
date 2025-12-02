@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Upload, FileJson, CheckCircle, AlertCircle } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Upload, FileJson, CheckCircle, AlertCircle, PenLine } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
+import AddManualQuestionForm from "@/components/admin/AddManualQuestionForm";
 
 const AdminImport = () => {
   const navigate = useNavigate();
@@ -97,113 +99,134 @@ const AdminImport = () => {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold">Importar Questões ENEM</h1>
+              <h1 className="text-2xl font-bold">Gerenciar Questões ENEM</h1>
               <p className="text-muted-foreground">
-                Área restrita para administradores
+                Adicione questões manualmente ou importe via JSON
               </p>
             </div>
           </div>
 
-          {/* Card de importação */}
-          <Card className="p-6 space-y-6">
-            {/* Ano */}
-            <div className="space-y-2">
-              <Label htmlFor="year">Ano da Prova</Label>
-              <Input
-                id="year"
-                type="text"
-                value={year}
-                onChange={(e) => setYear(e.target.value)}
-                placeholder="2024"
-              />
-            </div>
+          {/* Tabs para alternar entre métodos de adição */}
+          <Tabs defaultValue="manual" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="manual" className="flex items-center gap-2">
+                <PenLine className="h-4 w-4" />
+                Adicionar Manual
+              </TabsTrigger>
+              <TabsTrigger value="json" className="flex items-center gap-2">
+                <FileJson className="h-4 w-4" />
+                Importar JSON
+              </TabsTrigger>
+            </TabsList>
 
-            {/* Upload JSON */}
-            <div className="space-y-2">
-              <Label htmlFor="json">Arquivo JSON</Label>
-              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                <input
-                  id="json"
-                  type="file"
-                  accept=".json"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <label htmlFor="json" className="cursor-pointer">
-                  <FileJson className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                  {jsonFile ? (
-                    <p className="text-sm text-foreground font-medium">
-                      {jsonFile.name}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Clique para selecionar o arquivo JSON
-                    </p>
-                  )}
-                </label>
-              </div>
-            </div>
+            {/* Tab: Adição Manual */}
+            <TabsContent value="manual">
+              <AddManualQuestionForm />
+            </TabsContent>
 
-            {/* Botão de importação */}
-            <Button 
-              onClick={handleImport} 
-              disabled={!jsonFile || importing}
-              className="w-full"
-            >
-              {importing ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />
-                  Importando...
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Importar Questões
-                </>
-              )}
-            </Button>
+            {/* Tab: Importação via JSON */}
+            <TabsContent value="json">
+              <Card className="p-6 space-y-6">
+                {/* Ano */}
+                <div className="space-y-2">
+                  <Label htmlFor="year">Ano da Prova</Label>
+                  <Input
+                    id="year"
+                    type="text"
+                    value={year}
+                    onChange={(e) => setYear(e.target.value)}
+                    placeholder="2024"
+                  />
+                </div>
 
-            {/* Resultado */}
-            {result && (
-              <div className={`p-4 rounded-lg ${result.error ? 'bg-destructive/10' : 'bg-green-500/10'}`}>
-                {result.error ? (
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
-                    <div>
-                      <p className="font-medium text-destructive">Erro na importação</p>
-                      <p className="text-sm text-muted-foreground">{result.error}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium text-green-500">Importação concluída!</p>
-                      <p className="text-sm text-muted-foreground">
-                        {result.inserted} de {result.total} questões importadas
-                      </p>
-                      {result.errors && result.errors.length > 0 && (
-                        <p className="text-sm text-destructive mt-1">
-                          {result.errors.length} erros encontrados
+                {/* Upload JSON */}
+                <div className="space-y-2">
+                  <Label htmlFor="json">Arquivo JSON</Label>
+                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                    <input
+                      id="json"
+                      type="file"
+                      accept=".json"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <label htmlFor="json" className="cursor-pointer">
+                      <FileJson className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                      {jsonFile ? (
+                        <p className="text-sm text-foreground font-medium">
+                          {jsonFile.name}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Clique para selecionar o arquivo JSON
                         </p>
                       )}
-                    </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Botão de importação */}
+                <Button 
+                  onClick={handleImport} 
+                  disabled={!jsonFile || importing}
+                  className="w-full"
+                >
+                  {importing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />
+                      Importando...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Importar Questões
+                    </>
+                  )}
+                </Button>
+
+                {/* Resultado */}
+                {result && (
+                  <div className={`p-4 rounded-lg ${result.error ? 'bg-destructive/10' : 'bg-green-500/10'}`}>
+                    {result.error ? (
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-destructive">Erro na importação</p>
+                          <p className="text-sm text-muted-foreground">{result.error}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-green-500">Importação concluída!</p>
+                          <p className="text-sm text-muted-foreground">
+                            {result.inserted} de {result.total} questões importadas
+                          </p>
+                          {result.errors && result.errors.length > 0 && (
+                            <p className="text-sm text-destructive mt-1">
+                              {result.errors.length} erros encontrados
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
-            )}
-          </Card>
+              </Card>
 
-          {/* Instruções */}
-          <Card className="p-6 mt-6">
-            <h3 className="font-semibold mb-3">Instruções</h3>
-            <ul className="text-sm text-muted-foreground space-y-2">
-              <li>1. Certifique-se de que as imagens foram enviadas ao bucket <code className="bg-muted px-1 rounded">enem-images</code></li>
-              <li>2. As imagens devem estar nomeadas como <code className="bg-muted px-1 rounded">question-1.png</code>, <code className="bg-muted px-1 rounded">question-2.png</code>, etc.</li>
-              <li>3. Selecione o ano da prova e o arquivo JSON extraído</li>
-              <li>4. Clique em "Importar Questões" e aguarde o processamento</li>
-            </ul>
-          </Card>
+              {/* Instruções para JSON */}
+              <Card className="p-6 mt-6">
+                <h3 className="font-semibold mb-3">Instruções para Importação JSON</h3>
+                <ul className="text-sm text-muted-foreground space-y-2">
+                  <li>1. Certifique-se de que as imagens foram enviadas ao bucket <code className="bg-muted px-1 rounded">enem-images</code></li>
+                  <li>2. As imagens devem estar nomeadas como <code className="bg-muted px-1 rounded">question-1.png</code>, <code className="bg-muted px-1 rounded">question-2.png</code>, etc.</li>
+                  <li>3. Selecione o ano da prova e o arquivo JSON extraído</li>
+                  <li>4. Clique em "Importar Questões" e aguarde o processamento</li>
+                </ul>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </motion.div>
       </main>
     </div>
