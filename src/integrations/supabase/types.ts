@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      enem_questions: {
+        Row: {
+          alternatives: Json
+          alternatives_introduction: string | null
+          context: string | null
+          correct_alternative: string
+          created_at: string | null
+          discipline: string
+          files: string[] | null
+          id: string
+          index: number
+          language: string | null
+          title: string
+          year: string
+        }
+        Insert: {
+          alternatives: Json
+          alternatives_introduction?: string | null
+          context?: string | null
+          correct_alternative: string
+          created_at?: string | null
+          discipline: string
+          files?: string[] | null
+          id?: string
+          index: number
+          language?: string | null
+          title: string
+          year: string
+        }
+        Update: {
+          alternatives?: Json
+          alternatives_introduction?: string | null
+          context?: string | null
+          correct_alternative?: string
+          created_at?: string | null
+          discipline?: string
+          files?: string[] | null
+          id?: string
+          index?: number
+          language?: string | null
+          title?: string
+          year?: string
+        }
+        Relationships: []
+      }
       notes: {
         Row: {
           content: string
