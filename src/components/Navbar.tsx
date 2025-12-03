@@ -35,14 +35,17 @@ const Navbar = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUser(user);
-        // Tenta pegar o nome do perfil, senão usa o email
+        // Tenta pegar o primeiro nome do perfil, senão usa o email
         const { data: profile } = await supabase
           .from("profiles")
           .select("full_name")
           .eq("id", user.id)
           .single();
         
-        setUserName(profile?.full_name || user.email?.split("@")[0] || "Usuário");
+        // Extrai apenas o primeiro nome
+        const fullName = profile?.full_name || user.email?.split("@")[0] || "Usuário";
+        const firstName = fullName.split(" ")[0];
+        setUserName(firstName);
       }
     };
 

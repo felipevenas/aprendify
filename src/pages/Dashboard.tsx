@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Calendar, CheckSquare, FileText, Brain, Sparkles, Upload } from "lucide-react";
+import { BookOpen, Calendar, CheckSquare, FileText, Brain, Sparkles, Upload, Layers } from "lucide-react";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
+import QuestionStatsChart from "@/components/dashboard/QuestionStatsChart";
 
 /**
  * Dashboard principal da aplicação
@@ -111,6 +112,14 @@ const Dashboard = () => {
       gradient: "from-primary to-primary/80",
       iconBg: "bg-primary",
     },
+    {
+      title: "Flashcards",
+      description: "Memorize conteúdos com cartões de estudo",
+      icon: Layers,
+      path: "/flashcards",
+      gradient: "from-primary to-primary/80",
+      iconBg: "bg-primary",
+    },
   ];
 
   // Card de admin para importar questões
@@ -132,23 +141,49 @@ const Dashboard = () => {
 
       {/* Conteúdo principal */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        {/* Header com boas-vindas */}
+        {/* Header com boas-vindas e animação */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="mb-8 sm:mb-12"
         >
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium text-primary">Bem-vindo de volta!</span>
-          </div>
+          <motion.div 
+            className="flex items-center gap-2 mb-2"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <motion.div
+              animate={{ rotate: [0, 15, -15, 0] }}
+              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+            >
+              <Sparkles className="h-5 w-5 text-primary" />
+            </motion.div>
+            <motion.span 
+              className="text-sm font-medium text-primary"
+              animate={{ opacity: [1, 0.7, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              Bem-vindo de volta!
+            </motion.span>
+          </motion.div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-3">
             Olá, {user?.user_metadata?.full_name?.split(' ')[0] || "Estudante"}!
           </h1>
           <p className="text-muted-foreground text-base sm:text-lg max-w-2xl">
             Continue sua jornada de estudos. Gerencie suas atividades e pratique com questões reais do ENEM.
           </p>
+        </motion.div>
+
+        {/* Gráfico de estatísticas */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="mb-8"
+        >
+          <QuestionStatsChart />
         </motion.div>
 
         {/* Grid de cards */}
