@@ -177,9 +177,66 @@ const Dashboard = () => {
           </p>
         </motion.div>
 
-        {/* Grid de cards */}
+        {/* Grid de cards - primeira linha com Banco de Questões + Gráfico */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6">
+          {/* Banco de Questões - ocupa 2 colunas */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="md:col-span-2"
+          >
+            <Card
+              className="group cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-border/50 overflow-hidden relative h-full"
+              onClick={() => navigate("/questions")}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/80 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+              
+              <CardHeader className="relative">
+                <div className="flex items-start justify-between">
+                  <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                    <Brain className="h-7 w-7 text-white" />
+                  </div>
+                  <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full">
+                    Destaque
+                  </span>
+                </div>
+                <CardTitle className="text-xl sm:text-2xl group-hover:text-primary transition-colors">
+                  Banco de Questões
+                </CardTitle>
+                <CardDescription className="text-base sm:text-lg">
+                  Pratique com questões reais do ENEM
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="relative">
+                <div className="flex items-center text-primary font-medium group-hover:gap-3 gap-2 transition-all">
+                  <span>Acessar</span>
+                  <motion.div
+                    animate={{ x: [0, 4, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    →
+                  </motion.div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Gráfico de estatísticas */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.08, ease: "easeOut" }}
+          >
+            <div className="h-full">
+              <QuestionStatsChart />
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Grid de cards - demais cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {cards.map((card, index) => (
+          {cards.filter(card => !card.featured).map((card, index) => (
             <motion.div
               key={card.path}
               initial={{ opacity: 0, y: 30 }}
@@ -189,7 +246,6 @@ const Dashboard = () => {
                 delay: index * 0.08,
                 ease: "easeOut" 
               }}
-              className={card.featured ? "md:col-span-2 lg:col-span-3" : ""}
             >
               <Card
                 className="group cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-border/50 overflow-hidden relative"
@@ -203,21 +259,16 @@ const Dashboard = () => {
                     <div className={`w-14 h-14 rounded-2xl ${card.iconBg} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
                       <card.icon className="h-7 w-7 text-white" />
                     </div>
-                    {card.featured && (
-                      <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full">
-                        Destaque
-                      </span>
-                    )}
                     {(card as any).isNew && (
                       <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold rounded-full animate-pulse">
                         Novidade
                       </span>
                     )}
                   </div>
-                  <CardTitle className={`text-xl ${card.featured ? "sm:text-2xl" : ""} group-hover:text-primary transition-colors`}>
+                  <CardTitle className="text-xl group-hover:text-primary transition-colors">
                     {card.title}
                   </CardTitle>
-                  <CardDescription className={`text-base ${card.featured ? "sm:text-lg" : ""}`}>
+                  <CardDescription className="text-base">
                     {card.description}
                   </CardDescription>
                 </CardHeader>
@@ -236,19 +287,6 @@ const Dashboard = () => {
             </motion.div>
           ))}
         </div>
-
-        {/* Gráfico de estatísticas - informação complementar */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-          className="mt-8"
-        >
-          <h2 className="text-lg font-medium mb-4 text-muted-foreground">Seu progresso recente</h2>
-          <div className="max-w-md">
-            <QuestionStatsChart />
-          </div>
-        </motion.div>
 
         {/* Cards de Admin */}
         {isAdmin && (
