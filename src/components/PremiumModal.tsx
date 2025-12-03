@@ -54,7 +54,7 @@ export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
 
           <div className="pt-2 sm:pt-3 border-t">
             <div className="text-center mb-2 sm:mb-3">
-              <p className="text-2xl sm:text-3xl font-bold">R$ 14,90</p>
+              <p className="text-2xl sm:text-3xl font-bold">R$ 19,90</p>
               <p className="text-xs sm:text-sm text-muted-foreground">por mês</p>
             </div>
 
