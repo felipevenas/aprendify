@@ -10,6 +10,7 @@ interface PremiumModalProps {
 export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
   const benefits = [
     "Questões ilimitadas por dia",
+    "Flashcards ilimitados",
     "Acesso completo às estatísticas",
     "Matérias personalizadas ilimitadas",
     "Histórico completo de desempenho",

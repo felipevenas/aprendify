@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,9 +6,56 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { toast } from "sonner";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, Mail, Lock, User, ArrowRight } from "lucide-react";
 import authHero from "@/assets/auth-hero.jpg";
+
+/**
+ * Conteúdos dinâmicos que mudam na tela de login
+ * Cada item contém título, descrição e features específicas
+ */
+const dynamicContent = [
+  {
+    title: "Organize seus estudos de forma inteligente",
+    description: "Gerencie seu cronograma, resolva questões do ENEM, faça anotações e acompanhe seu progresso em um só lugar.",
+    features: [
+      "Cronogramas personalizados",
+      "Banco de questões do ENEM",
+      "Anotações organizadas por matéria",
+      "Acompanhamento de tarefas",
+    ],
+  },
+  {
+    title: "Pratique com milhares de questões reais",
+    description: "Acesse questões do ENEM de 2009 até 2024 e acompanhe seu desempenho em tempo real.",
+    features: [
+      "Questões do ENEM 2009-2024",
+      "Feedback instantâneo",
+      "Estatísticas detalhadas",
+      "Filtros por disciplina e ano",
+    ],
+  },
+  {
+    title: "Memorize com Flashcards inteligentes",
+    description: "Crie cartões de estudo personalizados e revise o conteúdo de forma eficiente.",
+    features: [
+      "Cartões personalizados",
+      "Organização por matéria",
+      "Revisão espaçada",
+      "Interface intuitiva",
+    ],
+  },
+  {
+    title: "Acompanhe sua evolução",
+    description: "Visualize seu progresso com gráficos e identifique os pontos que precisam de mais atenção.",
+    features: [
+      "Dashboard personalizado",
+      "Gráficos de desempenho",
+      "Identificação de pontos fracos",
+      "Histórico completo",
+    ],
+  },
+];
 
 /**
  * Página de autenticação com design moderno split-screen
@@ -24,7 +71,18 @@ const Auth = () => {
   const [phone, setPhone] = useState("");
   const [birthdate, setBirthdate] = useState("");
   const [loading, setLoading] = useState(false);
+  const [contentIndex, setContentIndex] = useState(0);
   const navigate = useNavigate();
+
+  // Efeito para trocar o conteúdo dinâmico a cada 5 segundos
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setContentIndex((prev) => (prev + 1) % dynamicContent.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const currentContent = dynamicContent[contentIndex];
 
   // Handler para autenticação (login ou signup)
   const handleAuth = async (e: React.FormEvent) => {
@@ -88,46 +146,60 @@ const Auth = () => {
           <div className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary/70 to-primary-dark/90" />
         </div>
         
-        {/* Conteúdo sobre a imagem */}
+        {/* Conteúdo dinâmico sobre a imagem */}
         <div className="relative z-10 flex flex-col justify-center px-12 lg:px-16 xl:px-24 text-white">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <div className="flex items-center gap-3 mb-6">
-              <BookOpen className="h-12 w-12 text-white" />
-              <h1 className="text-5xl font-bold text-white">Learnify</h1>
-            </div>
-            <h2 className="text-3xl font-semibold mb-4 text-white">
-              Organize seus estudos de forma inteligente
-            </h2>
-            <p className="text-xl text-white mb-8 leading-relaxed">
-              Gerencie seu cronograma, resolva questões do ENEM, faça anotações e 
-              acompanhe seu progresso em um só lugar.
-            </p>
-            
-            {/* Features */}
-            <div className="space-y-4">
-              {[
-                "Cronogramas personalizados",
-                "Banco de questões do ENEM",
-                "Anotações organizadas por matéria",
-                "Acompanhamento de tarefas"
-              ].map((feature, idx) => (
-                <motion.div
-                  key={feature}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.4 + idx * 0.1 }}
-                  className="flex items-center gap-3"
-                >
-                  <div className="w-2 h-2 rounded-full bg-white" />
-                  <span className="text-lg text-white">{feature}</span>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
+          {/* Logo fixo */}
+          <div className="flex items-center gap-3 mb-6">
+            <BookOpen className="h-12 w-12 text-white" />
+            <h1 className="text-5xl font-bold text-white">Learnify</h1>
+          </div>
+          
+          {/* Conteúdo que muda com animação */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={contentIndex}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.5 }}
+            >
+              <h2 className="text-3xl font-semibold mb-4 text-white">
+                {currentContent.title}
+              </h2>
+              <p className="text-xl text-white mb-8 leading-relaxed">
+                {currentContent.description}
+              </p>
+              
+              {/* Features dinâmicas */}
+              <div className="space-y-4">
+                {currentContent.features.map((feature, idx) => (
+                  <motion.div
+                    key={feature}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4, delay: idx * 0.1 }}
+                    className="flex items-center gap-3"
+                  >
+                    <div className="w-2 h-2 rounded-full bg-white" />
+                    <span className="text-lg text-white">{feature}</span>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </AnimatePresence>
+          
+          {/* Indicadores de página */}
+          <div className="flex gap-2 mt-8">
+            {dynamicContent.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setContentIndex(idx)}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  idx === contentIndex ? "bg-white w-6" : "bg-white/50"
+                }`}
+              />
+            ))}
+          </div>
         </div>
       </motion.div>
 
