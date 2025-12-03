@@ -81,15 +81,15 @@ const QuestionStatsChart = () => {
 
   if (loading) {
     return (
-      <Card className="col-span-full">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <BarChart3 className="h-5 w-5 text-primary" />
-            Questões Respondidas
+      <Card className="h-full">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            Seu Progresso
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+        <CardContent className="pt-0">
+          <div className="h-[140px] flex items-center justify-center text-muted-foreground text-sm">
             Carregando...
           </div>
         </CardContent>
@@ -100,55 +100,62 @@ const QuestionStatsChart = () => {
   const hasData = chartData.some(d => d.acertos > 0 || d.erros > 0);
 
   return (
-    <Card className="col-span-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <BarChart3 className="h-5 w-5 text-primary" />
-          Questões Respondidas (Últimos 7 dias)
-        </CardTitle>
+    <Card className="h-full">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            Seu Progresso
+          </CardTitle>
+          <span className="text-xs text-muted-foreground">Últimos 7 dias</span>
+        </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0">
         {hasData ? (
-          <div className="h-[200px] w-full">
+          <div className="h-[140px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                 <XAxis 
                   dataKey="name" 
-                  tick={{ fontSize: 12 }} 
+                  tick={{ fontSize: 10 }} 
                   className="text-muted-foreground"
+                  axisLine={false}
+                  tickLine={false}
                 />
                 <YAxis 
-                  tick={{ fontSize: 12 }} 
+                  tick={{ fontSize: 10 }} 
                   className="text-muted-foreground"
                   allowDecimals={false}
+                  axisLine={false}
+                  tickLine={false}
                 />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "hsl(var(--card))",
                     border: "1px solid hsl(var(--border))",
                     borderRadius: "8px",
+                    fontSize: "12px",
                   }}
                 />
-                <Legend />
                 <Bar 
                   dataKey="acertos" 
                   name="Acertos" 
                   fill="hsl(var(--primary))" 
-                  radius={[4, 4, 0, 0]} 
+                  radius={[3, 3, 0, 0]} 
                 />
                 <Bar 
                   dataKey="erros" 
                   name="Erros" 
                   fill="hsl(var(--destructive))" 
-                  radius={[4, 4, 0, 0]} 
+                  radius={[3, 3, 0, 0]} 
                 />
               </BarChart>
             </ResponsiveContainer>
           </div>
         ) : (
-          <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-            Nenhuma questão respondida ainda. Comece a praticar!
+          <div className="h-[140px] flex items-center justify-center text-muted-foreground text-sm">
+            Comece a praticar!
           </div>
         )}
       </CardContent>
