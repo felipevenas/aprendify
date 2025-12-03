@@ -59,6 +59,44 @@ export type Database = {
         }
         Relationships: []
       }
+      flashcards: {
+        Row: {
+          back_content: string
+          created_at: string
+          front_content: string
+          id: string
+          subject_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          back_content: string
+          created_at?: string
+          front_content: string
+          id?: string
+          subject_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          back_content?: string
+          created_at?: string
+          front_content?: string
+          id?: string
+          subject_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flashcards_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notes: {
         Row: {
           content: string
@@ -451,6 +489,7 @@ export type Database = {
     }
     Functions: {
       get_daily_question_count: { Args: { _user_id: string }; Returns: number }
+      get_user_flashcard_count: { Args: { _user_id: string }; Returns: number }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
