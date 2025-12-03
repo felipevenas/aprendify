@@ -82,14 +82,14 @@ const QuestionStatsChart = () => {
   if (loading) {
     return (
       <Card className="h-full">
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <BarChart3 className="h-4 w-4 text-primary" />
             Seu Progresso
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-0">
-          <div className="h-[140px] flex items-center justify-center text-muted-foreground text-sm">
+        <CardContent className="pt-0 pb-4">
+          <div className="h-[160px] flex items-center justify-center text-muted-foreground text-sm">
             Carregando...
           </div>
         </CardContent>
@@ -101,7 +101,7 @@ const QuestionStatsChart = () => {
 
   return (
     <Card className="h-full">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base">
             <BarChart3 className="h-4 w-4 text-primary" />
@@ -110,21 +110,21 @@ const QuestionStatsChart = () => {
           <span className="text-xs text-muted-foreground">Últimos 7 dias</span>
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 pb-4">
         {hasData ? (
-          <div className="h-[140px] w-full">
+          <div className="h-[160px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                 <XAxis 
                   dataKey="name" 
-                  tick={{ fontSize: 10 }} 
+                  tick={{ fontSize: 11 }} 
                   className="text-muted-foreground"
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis 
-                  tick={{ fontSize: 10 }} 
+                  tick={{ fontSize: 11 }} 
                   className="text-muted-foreground"
                   allowDecimals={false}
                   axisLine={false}
@@ -142,19 +142,19 @@ const QuestionStatsChart = () => {
                   dataKey="acertos" 
                   name="Acertos" 
                   fill="hsl(var(--primary))" 
-                  radius={[3, 3, 0, 0]} 
+                  radius={[4, 4, 0, 0]} 
                 />
                 <Bar 
                   dataKey="erros" 
                   name="Erros" 
                   fill="hsl(var(--destructive))" 
-                  radius={[3, 3, 0, 0]} 
+                  radius={[4, 4, 0, 0]} 
                 />
               </BarChart>
             </ResponsiveContainer>
           </div>
         ) : (
-          <div className="h-[140px] flex items-center justify-center text-muted-foreground text-sm">
+          <div className="h-[160px] flex items-center justify-center text-muted-foreground text-sm">
             Comece a praticar!
           </div>
         )}
