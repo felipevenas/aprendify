@@ -164,14 +164,18 @@ const AddFlashcardDialog = ({ open, onOpenChange, editFlashcard }: AddFlashcardD
           </div>
 
           {/* Seleção de matéria */}
+          {/* Seleção de matéria */}
           <div className="space-y-2">
             <Label htmlFor="subject">Matéria (opcional)</Label>
-            <Select value={subjectId} onValueChange={setSubjectId}>
+            <Select 
+              value={subjectId || "none"} 
+              onValueChange={(val) => setSubjectId(val === "none" ? "" : val)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione uma matéria" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Sem matéria</SelectItem>
+                <SelectItem value="none">Sem matéria</SelectItem>
                 {subjects.map((subject) => (
                   <SelectItem key={subject.id} value={subject.id}>
                     <div className="flex items-center gap-2">
