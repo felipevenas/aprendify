@@ -119,6 +119,7 @@ const Dashboard = () => {
       path: "/flashcards",
       gradient: "from-primary to-primary/80",
       iconBg: "bg-primary",
+      isNew: true,
     },
   ];
 
@@ -176,16 +177,6 @@ const Dashboard = () => {
           </p>
         </motion.div>
 
-        {/* Gráfico de estatísticas */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="mb-8"
-        >
-          <QuestionStatsChart />
-        </motion.div>
-
         {/* Grid de cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {cards.map((card, index) => (
@@ -217,6 +208,11 @@ const Dashboard = () => {
                         Destaque
                       </span>
                     )}
+                    {(card as any).isNew && (
+                      <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold rounded-full animate-pulse">
+                        Novidade
+                      </span>
+                    )}
                   </div>
                   <CardTitle className={`text-xl ${card.featured ? "sm:text-2xl" : ""} group-hover:text-primary transition-colors`}>
                     {card.title}
@@ -240,6 +236,19 @@ const Dashboard = () => {
             </motion.div>
           ))}
         </div>
+
+        {/* Gráfico de estatísticas - informação complementar */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+          className="mt-8"
+        >
+          <h2 className="text-lg font-medium mb-4 text-muted-foreground">Seu progresso recente</h2>
+          <div className="max-w-md">
+            <QuestionStatsChart />
+          </div>
+        </motion.div>
 
         {/* Cards de Admin */}
         {isAdmin && (
