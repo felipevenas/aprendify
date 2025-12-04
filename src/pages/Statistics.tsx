@@ -527,17 +527,18 @@ const Statistics = () => {
 
           {/* Sugestão de IA */}
           <Card className="mb-8 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
-            <CardHeader>
-              <div className="flex items-center justify-between">
+            <CardHeader className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  <CardTitle>Sugestões de Estudo com IA</CardTitle>
+                  <Sparkles className="h-5 w-5 text-primary flex-shrink-0" />
+                  <CardTitle className="text-base sm:text-lg">Sugestões de Estudo com IA</CardTitle>
                 </div>
                 <Button 
                   onClick={fetchAiSuggestion} 
                   disabled={loadingAiSuggestion}
                   size="sm"
                   variant="outline"
+                  className="w-full sm:w-auto"
                 >
                   {loadingAiSuggestion ? (
                     <>
