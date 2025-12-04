@@ -3,7 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Calendar, CheckSquare, FileText, Brain, Sparkles, Upload, Layers, PenLine, Users } from "lucide-react";
+import {
+  BookOpen,
+  Calendar,
+  CheckSquare,
+  FileText,
+  Brain,
+  Sparkles,
+  Upload,
+  Layers,
+  PenLine,
+  Users,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import QuestionStatsChart from "@/components/dashboard/QuestionStatsChart";
@@ -20,25 +31,29 @@ const Dashboard = () => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
         navigate("/auth");
         return;
       }
 
       setUser(session.user);
-      
+
       // Verifica se o usuário é admin
-      const { data: roleData } = await supabase.rpc('get_user_role', { _user_id: session.user.id });
-      setIsAdmin(roleData === 'admin');
-      
+      const { data: roleData } = await supabase.rpc("get_user_role", { _user_id: session.user.id });
+      setIsAdmin(roleData === "admin");
+
       setLoading(false);
     };
 
     checkAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") {
         navigate("/auth");
       } else if (session) {
@@ -72,7 +87,7 @@ const Dashboard = () => {
       featured: true,
     },
     {
-      title: "Estatísticas",
+      title: "Desempenho",
       description: "Acompanhe seu desempenho e evolução",
       icon: Sparkles,
       path: "/statistics",
@@ -166,7 +181,7 @@ const Dashboard = () => {
           transition={{ duration: 0.5 }}
           className="mb-8 sm:mb-12"
         >
-          <motion.div 
+          <motion.div
             className="flex items-center gap-2 mb-2"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -178,7 +193,7 @@ const Dashboard = () => {
             >
               <Sparkles className="h-5 w-5 text-primary" />
             </motion.div>
-            <motion.span 
+            <motion.span
               className="text-sm font-medium text-primary"
               animate={{ opacity: [1, 0.7, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
@@ -187,7 +202,7 @@ const Dashboard = () => {
             </motion.span>
           </motion.div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-3">
-            Olá, {user?.user_metadata?.full_name?.split(' ')[0] || "Estudante"}!
+            Olá, {user?.user_metadata?.full_name?.split(" ")[0] || "Estudante"}!
           </h1>
           <p className="text-muted-foreground text-base sm:text-lg max-w-2xl">
             Continue sua jornada de estudos. Gerencie suas atividades e pratique com questões reais do ENEM.
@@ -208,7 +223,7 @@ const Dashboard = () => {
               onClick={() => navigate("/questions")}
             >
               <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/80 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
-              
+
               <CardHeader className="relative">
                 <div className="flex items-start justify-between">
                   <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
@@ -221,9 +236,7 @@ const Dashboard = () => {
                 <CardTitle className="text-xl sm:text-2xl group-hover:text-primary transition-colors">
                   Banco de Questões
                 </CardTitle>
-                <CardDescription className="text-base sm:text-lg">
-                  Pratique com questões reais do ENEM
-                </CardDescription>
+                <CardDescription className="text-base sm:text-lg">Pratique com questões reais do ENEM</CardDescription>
               </CardHeader>
               <CardContent className="relative">
                 <div className="flex items-center text-primary font-medium group-hover:gap-3 gap-2 transition-all">
@@ -253,56 +266,58 @@ const Dashboard = () => {
 
         {/* Grid de cards - demais cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {cards.filter(card => !card.featured).map((card, index) => (
-            <motion.div
-              key={card.path}
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ 
-                duration: 0.5, 
-                delay: index * 0.08,
-                ease: "easeOut" 
-              }}
-            >
-              <Card
-                className="group cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-border/50 overflow-hidden relative"
-                onClick={() => navigate(card.path)}
+          {cards
+            .filter((card) => !card.featured)
+            .map((card, index) => (
+              <motion.div
+                key={card.path}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.5,
+                  delay: index * 0.08,
+                  ease: "easeOut",
+                }}
               >
-                {/* Gradiente de fundo animado no hover */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
-                
-                <CardHeader className="relative">
-                  <div className="flex items-start justify-between">
-                    <div className={`w-14 h-14 rounded-2xl ${card.iconBg} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                      <card.icon className="h-7 w-7 text-white" />
+                <Card
+                  className="group cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-border/50 overflow-hidden relative"
+                  onClick={() => navigate(card.path)}
+                >
+                  {/* Gradiente de fundo animado no hover */}
+                  <div
+                    className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}
+                  />
+
+                  <CardHeader className="relative">
+                    <div className="flex items-start justify-between">
+                      <div
+                        className={`w-14 h-14 rounded-2xl ${card.iconBg} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
+                      >
+                        <card.icon className="h-7 w-7 text-white" />
+                      </div>
+                      {(card as any).isNew && (
+                        <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold rounded-full animate-pulse">
+                          Novidade
+                        </span>
+                      )}
                     </div>
-                    {(card as any).isNew && (
-                      <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold rounded-full animate-pulse">
-                        Novidade
-                      </span>
-                    )}
-                  </div>
-                  <CardTitle className="text-xl group-hover:text-primary transition-colors">
-                    {card.title}
-                  </CardTitle>
-                  <CardDescription className="text-base">
-                    {card.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="relative">
-                  <div className="flex items-center text-primary font-medium group-hover:gap-3 gap-2 transition-all">
-                    <span>Acessar</span>
-                    <motion.div
-                      animate={{ x: [0, 4, 0] }}
-                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                      →
-                    </motion.div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
+                    <CardTitle className="text-xl group-hover:text-primary transition-colors">{card.title}</CardTitle>
+                    <CardDescription className="text-base">{card.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="relative">
+                    <div className="flex items-center text-primary font-medium group-hover:gap-3 gap-2 transition-all">
+                      <span>Acessar</span>
+                      <motion.div
+                        animate={{ x: [0, 4, 0] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        →
+                      </motion.div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
         </div>
 
         {/* Cards de Admin */}
@@ -330,20 +345,22 @@ const Dashboard = () => {
                     className="h-full group cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-amber-500/30 overflow-hidden relative"
                     onClick={() => navigate(card.path)}
                   >
-                    <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
-                    
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300`}
+                    />
+
                     <CardHeader className="relative">
                       <div className="flex items-start justify-between">
-                        <div className={`w-14 h-14 rounded-2xl ${card.iconBg} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                        <div
+                          className={`w-14 h-14 rounded-2xl ${card.iconBg} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
+                        >
                           <card.icon className="h-7 w-7 text-white" />
                         </div>
                       </div>
                       <CardTitle className="text-xl group-hover:text-amber-500 transition-colors">
                         {card.title}
                       </CardTitle>
-                      <CardDescription className="text-base">
-                        {card.description}
-                      </CardDescription>
+                      <CardDescription className="text-base">{card.description}</CardDescription>
                     </CardHeader>
                     <CardContent className="relative">
                       <div className="flex items-center text-amber-500 font-medium group-hover:gap-3 gap-2 transition-all">
