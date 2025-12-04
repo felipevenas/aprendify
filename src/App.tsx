@@ -15,6 +15,7 @@ import Questions from "./pages/Questions";
 import Settings from "./pages/Settings";
 import Statistics from "./pages/Statistics";
 import AdminImport from "./pages/AdminImport";
+import AdminUsers from "./pages/AdminUsers";
 import Flashcards from "./pages/Flashcards";
 import Essays from "./pages/Essays";
 import NotFound from "./pages/NotFound";
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/flashcards" element={<Flashcards />} />
             <Route path="/essays" element={<Essays />} />
             <Route path="/admin/import" element={<AdminImport />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
