@@ -177,20 +177,40 @@ const AdminUsers = () => {
   const grantPremium = async (userId: string) => {
     setActionLoading(userId);
     try {
-      // Cria ou atualiza subscription
-      const { error } = await supabase
+      // Verifica se já existe uma subscription para este usuário
+      const { data: existingSubscription } = await supabase
         .from("subscriptions")
-        .upsert({
-          user_id: userId,
-          status: "authorized",
-          plan_id: "admin_grant",
-          start_date: new Date().toISOString(),
-          end_date: null, // Premium sem data de expiração
-        }, {
-          onConflict: "user_id"
-        });
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
 
-      if (error) throw error;
+      if (existingSubscription) {
+        // Atualiza subscription existente
+        const { error } = await supabase
+          .from("subscriptions")
+          .update({
+            status: "authorized",
+            plan_id: "admin_grant",
+            start_date: new Date().toISOString(),
+            end_date: null,
+          })
+          .eq("user_id", userId);
+
+        if (error) throw error;
+      } else {
+        // Cria nova subscription
+        const { error } = await supabase
+          .from("subscriptions")
+          .insert({
+            user_id: userId,
+            status: "authorized",
+            plan_id: "admin_grant",
+            start_date: new Date().toISOString(),
+            end_date: null,
+          });
+
+        if (error) throw error;
+      }
 
       toast.success("Premium concedido com sucesso!");
       fetchUsers();
