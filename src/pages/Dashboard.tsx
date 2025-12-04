@@ -324,9 +324,10 @@ const Dashboard = () => {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.7 + index * 0.08 }}
+                  className="h-full"
                 >
                   <Card
-                    className="group cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-amber-500/30 overflow-hidden relative"
+                    className="h-full group cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-amber-500/30 overflow-hidden relative"
                     onClick={() => navigate(card.path)}
                   >
                     <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
