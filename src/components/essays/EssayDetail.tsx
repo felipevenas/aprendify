@@ -2,10 +2,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Calendar, Trophy, Lightbulb, Target } from "lucide-react";
+import { ArrowLeft, Calendar, Trophy, Lightbulb, Target, CheckCircle, AlertCircle, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useMemo } from "react";
 
 /**
  * Componente para exibir detalhes completos de uma redação corrigida
@@ -24,13 +25,55 @@ const competencyNames = [
   "Elaboração de proposta de intervenção",
 ];
 
+// Descrições curtas das competências
+const competencyDescriptions = [
+  "Ortografia, gramática, pontuação e registro formal",
+  "Repertório sociocultural e desenvolvimento do tema",
+  "Estrutura argumentativa e coerência textual",
+  "Conectivos, coesão e articulação entre parágrafos",
+  "Proposta com ação, agente, modo, efeito e detalhamento",
+];
+
+interface StructuredFeedback {
+  competencies: {
+    c1: string;
+    c2: string;
+    c3: string;
+    c4: string;
+    c5: string;
+  };
+  strengths: string;
+  weaknesses: string;
+}
+
 const EssayDetail = ({ essay, onBack }: EssayDetailProps) => {
+  // Tentar parsear feedback estruturado
+  const structuredFeedback = useMemo<StructuredFeedback | null>(() => {
+    if (!essay.feedback) return null;
+    try {
+      const parsed = JSON.parse(essay.feedback);
+      if (parsed.competencies) {
+        return parsed as StructuredFeedback;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, [essay.feedback]);
+
   // Cor baseada na nota
   const getScoreColor = (score: number) => {
-    if (score >= 160) return "text-green-600 bg-green-500";
-    if (score >= 120) return "text-yellow-600 bg-yellow-500";
-    if (score >= 80) return "text-orange-500 bg-orange-500";
-    return "text-red-500 bg-red-500";
+    if (score >= 160) return "text-green-600";
+    if (score >= 120) return "text-yellow-600";
+    if (score >= 80) return "text-orange-500";
+    return "text-red-500";
+  };
+
+  const getScoreBgColor = (score: number) => {
+    if (score >= 160) return "bg-green-500";
+    if (score >= 120) return "bg-yellow-500";
+    if (score >= 80) return "bg-orange-500";
+    return "bg-red-500";
   };
 
   // Array com as notas das competências
@@ -41,6 +84,13 @@ const EssayDetail = ({ essay, onBack }: EssayDetailProps) => {
     essay.score_competency_4,
     essay.score_competency_5,
   ];
+
+  // Pegar feedback por competência
+  const getCompetencyFeedback = (index: number): string | null => {
+    if (!structuredFeedback) return null;
+    const key = `c${index + 1}` as keyof StructuredFeedback['competencies'];
+    return structuredFeedback.competencies[key];
+  };
 
   return (
     <motion.div
@@ -86,43 +136,89 @@ const EssayDetail = ({ essay, onBack }: EssayDetailProps) => {
         </div>
       </Card>
 
-      {/* Notas por Competência */}
+      {/* Pontos Fortes e Fracos */}
+      {structuredFeedback && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Pontos Fortes */}
+          <Card className="p-4 bg-green-500/5 border-green-500/20">
+            <h3 className="font-semibold text-green-700 dark:text-green-400 mb-2 flex items-center gap-2">
+              <CheckCircle className="h-4 w-4" />
+              Pontos Fortes
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {structuredFeedback.strengths}
+            </p>
+          </Card>
+
+          {/* Pontos a Melhorar */}
+          <Card className="p-4 bg-orange-500/5 border-orange-500/20">
+            <h3 className="font-semibold text-orange-700 dark:text-orange-400 mb-2 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              Pontos a Melhorar
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {structuredFeedback.weaknesses}
+            </p>
+          </Card>
+        </div>
+      )}
+
+      {/* Notas por Competência com Feedback Detalhado */}
       <Card className="p-6">
         <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
           <Target className="h-5 w-5 text-primary" />
-          Notas por Competência
+          Análise por Competência
         </h3>
-        <div className="space-y-4">
+        <div className="space-y-6">
           {competencyNames.map((name, index) => {
             const score = competencyScores[index] || 0;
             const percentage = (score / 200) * 100;
-            const colorClass = getScoreColor(score);
+            const feedback = getCompetencyFeedback(index);
             
             return (
-              <div key={index} className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-foreground">
-                    <span className="font-medium">C{index + 1}:</span> {name}
-                  </span>
+              <div key={index} className="space-y-3 pb-4 border-b border-border/50 last:border-0 last:pb-0">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-foreground">C{index + 1}:</span>
+                      <span className="text-foreground">{name}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {competencyDescriptions[index]}
+                    </p>
+                  </div>
                   <Badge 
                     variant="outline" 
-                    className={colorClass.split(" ")[0]}
+                    className={`${getScoreColor(score)} shrink-0`}
                   >
                     {score}/200
                   </Badge>
                 </div>
+                
                 <Progress 
                   value={percentage} 
                   className="h-2"
                 />
+                
+                {/* Feedback específico da competência */}
+                {feedback && (
+                  <div className="bg-muted/30 rounded-lg p-3 mt-2">
+                    <div className="flex items-start gap-2">
+                      <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {feedback}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       </Card>
 
-      {/* Feedback */}
-      {essay.feedback && (
+      {/* Feedback Geral (fallback para redações antigas) */}
+      {!structuredFeedback && essay.feedback && (
         <Card className="p-6">
           <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
             <Lightbulb className="h-5 w-5 text-yellow-500" />
@@ -136,18 +232,14 @@ const EssayDetail = ({ essay, onBack }: EssayDetailProps) => {
 
       {/* Dicas */}
       {essay.tips && (
-        <Card className="p-6 bg-green-500/5 border-green-500/20">
-          <h3 className="font-semibold text-green-700 mb-3">
-            💡 Dicas para Melhorar
+        <Card className="p-6 bg-blue-500/5 border-blue-500/20">
+          <h3 className="font-semibold text-blue-700 dark:text-blue-400 mb-3 flex items-center gap-2">
+            <Lightbulb className="h-5 w-5" />
+            Dicas para a Próxima Redação
           </h3>
-          <ul className="space-y-2">
-            {essay.tips.split(";").map((tip: string, index: number) => (
-              <li key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
-                <span className="text-green-600 font-bold">•</span>
-                <span>{tip.trim()}</span>
-              </li>
-            ))}
-          </ul>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {essay.tips}
+          </p>
         </Card>
       )}
 

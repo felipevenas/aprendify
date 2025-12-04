@@ -20,6 +20,97 @@ interface EssayCorrectionRequest {
 const FREE_MONTHLY_LIMIT = 1;
 const PREMIUM_MONTHLY_LIMIT = 4;
 
+// Prompt detalhado com rubrica oficial do ENEM
+const ENEM_RUBRIC_PROMPT = `Você é um corretor de redações do ENEM altamente qualificado, com anos de experiência na banca oficial. Corrija a redação seguindo RIGOROSAMENTE os critérios oficiais do ENEM.
+
+## CRITÉRIOS DE AVALIAÇÃO (RUBRICA OFICIAL)
+
+### COMPETÊNCIA 1: Domínio da norma culta da língua portuguesa
+Avalia: ortografia, acentuação, concordância, regência, pontuação, uso do registro formal.
+- 200 pts: Excelente domínio. Desvios gramaticais ou de convenções mínimos (1-2 desvios).
+- 160 pts: Bom domínio. Poucos desvios (3-5 desvios leves).
+- 120 pts: Domínio mediano. Alguns desvios que não comprometem a compreensão (6-8 desvios).
+- 80 pts: Domínio insuficiente. Muitos desvios (9-12 desvios).
+- 40 pts: Domínio precário. Desvios graves e frequentes (13+ desvios).
+- 0 pts: Desconhecimento total da norma ou texto insuficiente.
+
+### COMPETÊNCIA 2: Compreensão da proposta e aplicação de conceitos
+Avalia: compreensão do tema, tipo textual dissertativo-argumentativo, uso de repertório sociocultural.
+- 200 pts: Desenvolve o tema com repertório sociocultural PRODUTIVO e DIVERSIFICADO (citações, dados, exemplos históricos/filosóficos/científicos bem articulados).
+- 160 pts: Desenvolve bem o tema com repertório diversificado.
+- 120 pts: Desenvolve o tema com repertório limitado ou previsível (senso comum).
+- 80 pts: Tangencia o tema (aborda parcialmente) ou cópia excessiva dos textos motivadores.
+- 40 pts: Fuga parcial do tema.
+- 0 pts: Fuga total do tema, não atende ao tipo textual, ou cópia integral.
+
+### COMPETÊNCIA 3: Seleção, organização e interpretação de informações
+Avalia: progressão textual, articulação dos argumentos, coerência.
+- 200 pts: Argumentos consistentes, bem desenvolvidos e articulados com informações de áreas diversas.
+- 160 pts: Bons argumentos, bem articulados.
+- 120 pts: Argumentos previsíveis ou pouco desenvolvidos.
+- 80 pts: Argumentos fracos, repetitivos ou pouca articulação.
+- 40 pts: Informações desconexas, sem encadeamento.
+- 0 pts: Sem defesa de ponto de vista ou informações aleatórias.
+
+### COMPETÊNCIA 4: Conhecimento dos mecanismos linguísticos de coesão
+Avalia: uso de conectivos, pronomes, sinônimos, advérbios para articular as partes do texto.
+- 200 pts: Repertório DIVERSIFICADO de recursos coesivos, SEM inadequações.
+- 160 pts: Bom repertório de recursos coesivos, com poucas inadequações.
+- 120 pts: Repertório POUCO diversificado (repete conectivos como "além disso", "portanto").
+- 80 pts: Repertório limitado, MUITAS inadequações ou repetições.
+- 40 pts: Articulação precária, uso de apenas elementos básicos.
+- 0 pts: Ausência de articulação ou informações desconexas.
+
+### COMPETÊNCIA 5: Elaboração de proposta de intervenção
+Avalia: presença dos 5 elementos (AÇÃO + AGENTE + MODO/MEIO + EFEITO + DETALHAMENTO), respeito aos direitos humanos.
+- 200 pts: Proposta COMPLETA e DETALHADA com os 5 elementos bem desenvolvidos.
+  - Ação: O que será feito?
+  - Agente: Quem fará?
+  - Modo/Meio: Como será feito?
+  - Efeito: Para que/resultado esperado?
+  - Detalhamento: Especificação de pelo menos um dos elementos.
+- 160 pts: Proposta com 4 elementos claros.
+- 120 pts: Proposta com 3 elementos.
+- 80 pts: Proposta com 2 elementos.
+- 40 pts: Proposta vaga com apenas 1 elemento identificável.
+- 0 pts: Sem proposta ou proposta que fere direitos humanos.
+
+## EXEMPLOS DE REFERÊNCIA (CALIBRAÇÃO)
+
+### Exemplo de Redação Nota 1000:
+- Introdução contextualiza com repertório filosófico/histórico relevante
+- Tese clara e bem posicionada no final da introdução
+- Dois parágrafos de desenvolvimento com argumentos distintos e bem fundamentados
+- Cada parágrafo de desenvolvimento tem tópico frasal + argumentação + repertório
+- Conclusão retoma a tese e apresenta proposta completa com os 5 elementos
+- Conectivos variados: "Sob essa ótica", "Nesse viés", "Em síntese", "Dessa forma"
+- Repertório: citações de pensadores, dados estatísticos, referências históricas
+
+### Exemplo de Redação Nota 600-700:
+- Introdução genérica sem repertório significativo
+- Argumentos desenvolvidos mas sem aprofundamento
+- Repertório baseado em senso comum
+- Proposta de intervenção incompleta (falta detalhamento ou efeito)
+- Conectivos repetitivos ("além disso", "portanto", "dessa forma")
+
+## FORMATO DA RESPOSTA
+Responda APENAS com JSON válido (sem markdown), seguindo EXATAMENTE esta estrutura:
+{
+  "score_competency_1": <0|40|80|120|160|200>,
+  "score_competency_2": <0|40|80|120|160|200>,
+  "score_competency_3": <0|40|80|120|160|200>,
+  "score_competency_4": <0|40|80|120|160|200>,
+  "score_competency_5": <0|40|80|120|160|200>,
+  "feedback_competency_1": "<análise específica da C1: cite erros encontrados>",
+  "feedback_competency_2": "<análise específica da C2: comente o repertório usado>",
+  "feedback_competency_3": "<análise específica da C3: avalie a estrutura argumentativa>",
+  "feedback_competency_4": "<análise específica da C4: liste os conectivos usados e avalie variedade>",
+  "feedback_competency_5": "<análise específica da C5: identifique os elementos presentes/ausentes na proposta>",
+  "strengths": "<2-3 pontos fortes da redação>",
+  "weaknesses": "<2-3 principais pontos a melhorar>",
+  "tips": "<3 dicas práticas e específicas para a próxima redação>"
+}`;
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -103,35 +194,16 @@ serve(async (req) => {
       );
     }
 
-    // Prompt para correção no padrão ENEM
-    const prompt = `Você é um corretor de redações do ENEM altamente qualificado. Corrija a seguinte redação de acordo com as 5 competências do ENEM e forneça uma avaliação detalhada.
+    // Prompt do usuário com a redação
+    const userPrompt = `TEMA DA REDAÇÃO: ${title}
 
-TEMA: ${title}
-
-REDAÇÃO:
+REDAÇÃO DO ALUNO:
 ${content}
 
-Avalie cada competência de 0 a 200 pontos (em múltiplos de 40: 0, 40, 80, 120, 160, 200):
-
-1. Competência 1: Domínio da norma culta da língua portuguesa
-2. Competência 2: Compreensão da proposta e aplicação de conceitos das várias áreas do conhecimento
-3. Competência 3: Seleção, relação, organização e interpretação de informações
-4. Competência 4: Demonstração de conhecimento dos mecanismos linguísticos necessários para a construção da argumentação
-5. Competência 5: Elaboração de proposta de intervenção para o problema abordado
-
-Forneça sua resposta EXATAMENTE no seguinte formato JSON (sem markdown, apenas JSON puro):
-{
-  "score_competency_1": <número>,
-  "score_competency_2": <número>,
-  "score_competency_3": <número>,
-  "score_competency_4": <número>,
-  "score_competency_5": <número>,
-  "score_total": <soma das competências>,
-  "feedback": "<análise geral da redação em 3-4 frases>",
-  "tips": "<3 dicas específicas para melhorar, separadas por ponto e vírgula>"
-}`;
+Corrija esta redação seguindo a rubrica oficial do ENEM fornecida. Seja RIGOROSO e ESPECÍFICO na avaliação de cada competência.`;
 
     // Chamar API da Groq
+    console.log("Chamando Groq API para correção...");
     const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -143,12 +215,12 @@ Forneça sua resposta EXATAMENTE no seguinte formato JSON (sem markdown, apenas 
         messages: [
           {
             role: "system",
-            content: "Você é um corretor especialista do ENEM. Sempre responda apenas com JSON válido, sem markdown ou texto adicional."
+            content: ENEM_RUBRIC_PROMPT
           },
-          { role: "user", content: prompt }
+          { role: "user", content: userPrompt }
         ],
-        max_tokens: 1000,
-        temperature: 0.2,
+        max_tokens: 2000,
+        temperature: 0.1, // Baixa temperatura para consistência na avaliação
       }),
     });
 
@@ -163,6 +235,7 @@ Forneça sua resposta EXATAMENTE no seguinte formato JSON (sem markdown, apenas 
 
     const groqData = await groqResponse.json();
     const responseContent = groqData.choices?.[0]?.message?.content || "";
+    console.log("Resposta da IA recebida");
 
     // Parse do JSON da resposta
     let correction;
@@ -200,6 +273,19 @@ Forneça sua resposta EXATAMENTE no seguinte formato JSON (sem markdown, apenas 
 
     const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
 
+    // Montar feedback estruturado em JSON
+    const structuredFeedback = JSON.stringify({
+      competencies: {
+        c1: correction.feedback_competency_1 || "Análise não disponível",
+        c2: correction.feedback_competency_2 || "Análise não disponível",
+        c3: correction.feedback_competency_3 || "Análise não disponível",
+        c4: correction.feedback_competency_4 || "Análise não disponível",
+        c5: correction.feedback_competency_5 || "Análise não disponível",
+      },
+      strengths: correction.strengths || "Pontos fortes não identificados",
+      weaknesses: correction.weaknesses || "Pontos a melhorar não identificados",
+    });
+
     // Salvar redação no banco de dados
     const { data: essay, error: insertError } = await supabase
       .from("essays")
@@ -209,8 +295,8 @@ Forneça sua resposta EXATAMENTE no seguinte formato JSON (sem markdown, apenas 
         content,
         ...scores,
         score_total: totalScore,
-        feedback: correction.feedback || "Correção concluída.",
-        tips: correction.tips || "Continue praticando!",
+        feedback: structuredFeedback,
+        tips: correction.tips || "Continue praticando a escrita dissertativo-argumentativa.",
         status: "corrected"
       })
       .select()
@@ -224,7 +310,7 @@ Forneça sua resposta EXATAMENTE no seguinte formato JSON (sem markdown, apenas 
       );
     }
 
-    console.log("Redação corrigida e salva:", essay.id);
+    console.log("Redação corrigida e salva:", essay.id, "Nota:", totalScore);
 
     return new Response(
       JSON.stringify({ 
