@@ -104,7 +104,8 @@ const Navbar = () => {
             {!isLoading && (
               isPremium ? (
                 <Badge 
-                  className="bg-gradient-to-r from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-white border-0 px-2 sm:px-4 py-1.5 shadow-lg flex items-center"
+                  onClick={() => setShowPremiumModal(true)}
+                  className="bg-gradient-to-r from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-white border-0 px-2 sm:px-4 py-1.5 shadow-lg flex items-center cursor-pointer transition-transform hover:scale-105"
                 >
                   <Crown className="h-4 w-4 sm:mr-1" />
                   <span className="hidden sm:inline">Premium</span>
@@ -178,10 +179,11 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* Modal de Premium para usuários Free */}
+      {/* Modal de Premium */}
       <PremiumModal 
         open={showPremiumModal} 
-        onOpenChange={setShowPremiumModal} 
+        onOpenChange={setShowPremiumModal}
+        isPremium={isPremium}
       />
     </nav>
   );
