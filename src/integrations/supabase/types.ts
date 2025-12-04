@@ -59,6 +59,60 @@ export type Database = {
         }
         Relationships: []
       }
+      essays: {
+        Row: {
+          content: string
+          created_at: string
+          feedback: string | null
+          id: string
+          score_competency_1: number | null
+          score_competency_2: number | null
+          score_competency_3: number | null
+          score_competency_4: number | null
+          score_competency_5: number | null
+          score_total: number | null
+          status: string
+          tips: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          score_competency_1?: number | null
+          score_competency_2?: number | null
+          score_competency_3?: number | null
+          score_competency_4?: number | null
+          score_competency_5?: number | null
+          score_total?: number | null
+          status?: string
+          tips?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          score_competency_1?: number | null
+          score_competency_2?: number | null
+          score_competency_3?: number | null
+          score_competency_4?: number | null
+          score_competency_5?: number | null
+          score_total?: number | null
+          status?: string
+          tips?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       flashcards: {
         Row: {
           back_content: string
@@ -489,6 +543,7 @@ export type Database = {
     }
     Functions: {
       get_daily_question_count: { Args: { _user_id: string }; Returns: number }
+      get_monthly_essay_count: { Args: { _user_id: string }; Returns: number }
       get_user_flashcard_count: { Args: { _user_id: string }; Returns: number }
       get_user_role: {
         Args: { _user_id: string }

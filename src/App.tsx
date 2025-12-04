@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import Statistics from "./pages/Statistics";
 import AdminImport from "./pages/AdminImport";
 import Flashcards from "./pages/Flashcards";
+import Essays from "./pages/Essays";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/settings" element={<Settings />} />
             <Route path="/statistics" element={<Statistics />} />
             <Route path="/flashcards" element={<Flashcards />} />
+            <Route path="/essays" element={<Essays />} />
             <Route path="/admin/import" element={<AdminImport />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
