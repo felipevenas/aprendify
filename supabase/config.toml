@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.correct-essay]
 verify_jwt = false
+
+[functions.ai-study-suggestion]
+verify_jwt = false

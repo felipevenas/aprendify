@@ -7,8 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, Mail, Lock, User, ArrowRight } from "lucide-react";
+import { BookOpen, Mail, Lock, User, ArrowRight, Eye, EyeOff } from "lucide-react";
 import authHero from "@/assets/auth-hero.jpg";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 /**
  * Conteúdos dinâmicos que mudam na tela de login
@@ -72,6 +79,13 @@ const Auth = () => {
   const [birthdate, setBirthdate] = useState("");
   const [loading, setLoading] = useState(false);
   const [contentIndex, setContentIndex] = useState(0);
+  const [showPassword, setShowPassword] = useState(false);
+  
+  // Estados para recuperação de senha
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  
   const navigate = useNavigate();
 
   // Efeito para trocar o conteúdo dinâmico a cada 5 segundos
@@ -143,6 +157,28 @@ const Auth = () => {
     } catch (error: any) {
       toast.error(error.message || "Erro ao conectar com Google. Tente novamente.");
       setLoading(false);
+    }
+  };
+
+  // Handler para recuperação de senha
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: `${window.location.origin}/auth?reset=true`,
+      });
+
+      if (error) throw error;
+
+      toast.success("E-mail de recuperação enviado! Verifique sua caixa de entrada.");
+      setShowForgotPassword(false);
+      setForgotEmail("");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao enviar e-mail de recuperação.");
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -366,18 +402,38 @@ const Auth = () => {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   id="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={loading}
                   minLength={6}
-                  className="pl-11 h-12 text-base"
+                  className="pl-11 pr-11 h-12 text-base"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
             </div>
 
+            {/* Link Esqueci minha senha (apenas no login) */}
+            {isLogin && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm text-primary hover:text-primary/80 transition-colors"
+                >
+                  Esqueci minha senha
+                </button>
+              </div>
+            )}
 
             {/* Botão de submit */}
             <Button 
@@ -452,6 +508,50 @@ const Auth = () => {
           </motion.form>
         </div>
       </motion.div>
+
+      {/* Modal de Recuperação de Senha */}
+      <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Recuperar senha</DialogTitle>
+            <DialogDescription>
+              Digite seu e-mail cadastrado e enviaremos um link para redefinir sua senha.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleForgotPassword} className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label htmlFor="forgotEmail">E-mail</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  id="forgotEmail"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  required
+                  disabled={forgotLoading}
+                  className="pl-11 h-12"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowForgotPassword(false)}
+                className="flex-1"
+                disabled={forgotLoading}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" className="flex-1" disabled={forgotLoading}>
+                {forgotLoading ? "Enviando..." : "Enviar link"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
