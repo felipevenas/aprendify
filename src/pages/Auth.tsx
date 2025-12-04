@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, Mail, Lock, User, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { BookOpen, Mail, Lock, User, ArrowRight, Eye, EyeOff, Check, X } from "lucide-react";
 import authHero from "@/assets/auth-hero.jpg";
 import {
   Dialog,
@@ -65,14 +65,29 @@ const dynamicContent = [
 ];
 
 /**
+ * Validação de senha forte
+ */
+const validatePassword = (password: string) => {
+  return {
+    minLength: password.length >= 8,
+    hasUpperCase: /[A-Z]/.test(password),
+    hasLowerCase: /[a-z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+    hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+  };
+};
+
+/**
  * Página de autenticação com design moderno split-screen
  * Lado esquerdo: Imagem hero
  * Lado direito: Formulário de login/cadastro
  */
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [loginIdentifier, setLoginIdentifier] = useState(""); // Email ou username para login
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
@@ -80,6 +95,7 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [contentIndex, setContentIndex] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   // Estados para recuperação de senha
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -87,6 +103,11 @@ const Auth = () => {
   const [forgotLoading, setForgotLoading] = useState(false);
   
   const navigate = useNavigate();
+
+  // Validação de senha
+  const passwordValidation = useMemo(() => validatePassword(password), [password]);
+  const isPasswordStrong = Object.values(passwordValidation).every(Boolean);
+  const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
 
   // Efeito para trocar o conteúdo dinâmico a cada 5 segundos
   useEffect(() => {
@@ -105,8 +126,26 @@ const Auth = () => {
 
     try {
       if (isLogin) {
+        // Verificar se é email ou username
+        const isEmail = loginIdentifier.includes("@");
+        let loginEmail = loginIdentifier;
+
+        if (!isEmail) {
+          // Buscar email pelo username
+          const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("email")
+            .eq("username", loginIdentifier)
+            .maybeSingle();
+
+          if (profileError || !profile) {
+            throw new Error("Usuário não encontrado");
+          }
+          loginEmail = profile.email;
+        }
+
         const { error } = await supabase.auth.signInWithPassword({
-          email,
+          email: loginEmail,
           password,
         });
 
@@ -114,6 +153,19 @@ const Auth = () => {
         toast.success("Login realizado com sucesso!");
         navigate("/dashboard");
       } else {
+        // Validações de cadastro
+        if (!isPasswordStrong) {
+          toast.error("A senha não atende aos requisitos mínimos de segurança.");
+          setLoading(false);
+          return;
+        }
+
+        if (!passwordsMatch) {
+          toast.error("As senhas não coincidem.");
+          setLoading(false);
+          return;
+        }
+
         // Cria a conta com todos os dados do perfil
         const { error: signUpError } = await supabase.auth.signUp({
           email,
@@ -296,7 +348,7 @@ const Auth = () => {
             onSubmit={handleAuth}
             className="space-y-6"
           >
-            {/* Campos de cadastro */}
+            {/* Campos de cadastro - Nova ordem: Nome, Email, Usuário, Senha, Confirmar Senha, Nascimento, Telefone */}
             {!isLogin && (
               <>
                 {/* Nome completo */}
@@ -313,6 +365,26 @@ const Auth = () => {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required={!isLogin}
+                      disabled={loading}
+                      className="pl-11 h-12 text-base"
+                    />
+                  </div>
+                </div>
+
+                {/* Email (cadastro) */}
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-base font-medium">
+                    E-mail
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="seu@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
                       disabled={loading}
                       className="pl-11 h-12 text-base"
                     />
@@ -337,6 +409,104 @@ const Auth = () => {
                       className="pl-11 h-12 text-base"
                     />
                   </div>
+                </div>
+
+                {/* Senha */}
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-base font-medium">
+                    Senha
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      disabled={loading}
+                      className="pl-11 pr-11 h-12 text-base"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                  
+                  {/* Validador de senha forte */}
+                  {password.length > 0 && (
+                    <div className="grid grid-cols-2 gap-1 mt-2 text-xs">
+                      <div className={`flex items-center gap-1 ${passwordValidation.minLength ? "text-green-500" : "text-muted-foreground"}`}>
+                        {passwordValidation.minLength ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        <span>Mínimo 8 caracteres</span>
+                      </div>
+                      <div className={`flex items-center gap-1 ${passwordValidation.hasUpperCase ? "text-green-500" : "text-muted-foreground"}`}>
+                        {passwordValidation.hasUpperCase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        <span>Letra maiúscula</span>
+                      </div>
+                      <div className={`flex items-center gap-1 ${passwordValidation.hasLowerCase ? "text-green-500" : "text-muted-foreground"}`}>
+                        {passwordValidation.hasLowerCase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        <span>Letra minúscula</span>
+                      </div>
+                      <div className={`flex items-center gap-1 ${passwordValidation.hasNumber ? "text-green-500" : "text-muted-foreground"}`}>
+                        {passwordValidation.hasNumber ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        <span>Número</span>
+                      </div>
+                      <div className={`flex items-center gap-1 ${passwordValidation.hasSpecialChar ? "text-green-500" : "text-muted-foreground"}`}>
+                        {passwordValidation.hasSpecialChar ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        <span>Caractere especial</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Confirmar Senha */}
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword" className="text-base font-medium">
+                    Confirmar Senha
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      disabled={loading}
+                      className={`pl-11 pr-11 h-12 text-base ${
+                        confirmPassword.length > 0 
+                          ? passwordsMatch 
+                            ? "border-green-500 focus-visible:ring-green-500" 
+                            : "border-destructive focus-visible:ring-destructive"
+                          : ""
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                  {confirmPassword.length > 0 && !passwordsMatch && (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <X className="h-3 w-3" /> As senhas não coincidem
+                    </p>
+                  )}
+                  {passwordsMatch && (
+                    <p className="text-xs text-green-500 flex items-center gap-1">
+                      <Check className="h-3 w-3" /> As senhas coincidem
+                    </p>
+                  )}
                 </div>
 
                 {/* Data de nascimento */}
@@ -373,66 +543,67 @@ const Auth = () => {
               </>
             )}
 
-            {/* Email */}
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-base font-medium">
-                Email
-              </Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={loading}
-                  className="pl-11 h-12 text-base"
-                />
-              </div>
-            </div>
-
-            {/* Senha */}
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-base font-medium">
-                Senha
-              </Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={loading}
-                  minLength={6}
-                  className="pl-11 pr-11 h-12 text-base"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Link Esqueci minha senha (apenas no login) */}
+            {/* Campo de login (email ou username) */}
             {isLogin && (
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowForgotPassword(true)}
-                  className="text-sm text-primary hover:text-primary/80 transition-colors"
-                >
-                  Esqueci minha senha
-                </button>
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="loginIdentifier" className="text-base font-medium">
+                    E-mail ou Usuário
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      id="loginIdentifier"
+                      type="text"
+                      placeholder="seu@email.com ou seunome123"
+                      value={loginIdentifier}
+                      onChange={(e) => setLoginIdentifier(e.target.value)}
+                      required
+                      disabled={loading}
+                      className="pl-11 h-12 text-base"
+                    />
+                  </div>
+                </div>
+
+                {/* Senha (login) */}
+                <div className="space-y-2">
+                  <Label htmlFor="passwordLogin" className="text-base font-medium">
+                    Senha
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      id="passwordLogin"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      disabled={loading}
+                      className="pl-11 pr-11 h-12 text-base"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Link Esqueci minha senha */}
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-sm text-primary hover:text-primary/80 transition-colors"
+                  >
+                    Esqueci minha senha
+                  </button>
+                </div>
+              </>
             )}
 
             {/* Botão de submit */}
