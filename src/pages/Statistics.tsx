@@ -12,9 +12,11 @@ import {
   BookOpen,
   Target,
   AlertCircle,
-  Calendar,
   Lock,
   Crown,
+  FileText,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,8 +31,14 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
+  AreaChart,
+  Area,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
 } from "recharts";
 import { usePremium } from "@/hooks/usePremium";
 
@@ -51,6 +59,16 @@ const Statistics = () => {
   const [periodFilter, setPeriodFilter] = useState<"all" | "week" | "month" | "today">("all");
   const [monthlyStats, setMonthlyStats] = useState<any[]>([]);
   const [disciplineChartData, setDisciplineChartData] = useState<any[]>([]);
+  
+  // Novos estados para redações
+  const [essayStats, setEssayStats] = useState<any[]>([]);
+  const [essayCompetencyData, setEssayCompetencyData] = useState<any[]>([]);
+  const [averageEssayScore, setAverageEssayScore] = useState(0);
+  const [totalEssays, setTotalEssays] = useState(0);
+  
+  // Estado para sugestão de IA
+  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+  const [loadingAiSuggestion, setLoadingAiSuggestion] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -63,6 +81,7 @@ const Statistics = () => {
       }
 
       await fetchStatistics(user.id);
+      await fetchEssayStats(user.id);
     };
 
     checkAuth();
@@ -76,6 +95,7 @@ const Statistics = () => {
       } = await supabase.auth.getUser();
       if (user) {
         await fetchStatistics(user.id);
+        await fetchEssayStats(user.id);
       }
     };
 
@@ -83,6 +103,65 @@ const Statistics = () => {
       reloadStats();
     }
   }, [periodFilter]);
+
+  const fetchEssayStats = async (userId: string) => {
+    try {
+      let query = supabase
+        .from("essays")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("status", "corrected")
+        .order("created_at", { ascending: true });
+
+      const { data: essays, error } = await query;
+
+      if (error) throw error;
+
+      if (!essays || essays.length === 0) {
+        setTotalEssays(0);
+        return;
+      }
+
+      setTotalEssays(essays.length);
+
+      // Calcular média de nota
+      const totalScore = essays.reduce((acc, e) => acc + (e.score_total || 0), 0);
+      setAverageEssayScore(Math.round(totalScore / essays.length));
+
+      // Preparar dados para gráfico de evolução
+      const evolutionData = essays.map((essay, index) => ({
+        redacao: `Redação ${index + 1}`,
+        nota: essay.score_total || 0,
+        data: new Date(essay.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+      }));
+      setEssayStats(evolutionData);
+
+      // Calcular médias por competência
+      const competencyAverages = [
+        { competencia: "C1 - Norma Culta", media: 0, fullMark: 200 },
+        { competencia: "C2 - Tema", media: 0, fullMark: 200 },
+        { competencia: "C3 - Argumentação", media: 0, fullMark: 200 },
+        { competencia: "C4 - Coesão", media: 0, fullMark: 200 },
+        { competencia: "C5 - Proposta", media: 0, fullMark: 200 },
+      ];
+
+      essays.forEach((essay) => {
+        competencyAverages[0].media += essay.score_competency_1 || 0;
+        competencyAverages[1].media += essay.score_competency_2 || 0;
+        competencyAverages[2].media += essay.score_competency_3 || 0;
+        competencyAverages[3].media += essay.score_competency_4 || 0;
+        competencyAverages[4].media += essay.score_competency_5 || 0;
+      });
+
+      competencyAverages.forEach((c) => {
+        c.media = Math.round(c.media / essays.length);
+      });
+
+      setEssayCompetencyData(competencyAverages);
+    } catch (error) {
+      console.error("Erro ao buscar estatísticas de redações:", error);
+    }
+  };
 
   const fetchStatistics = async (userId: string) => {
     try {
@@ -221,6 +300,42 @@ const Statistics = () => {
     }
   };
 
+  const fetchAiSuggestion = async () => {
+    setLoadingAiSuggestion(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      // Preparar dados para enviar à IA
+      const statsData = {
+        totalQuestions: totalAttempts,
+        correctAnswers,
+        wrongAnswers,
+        successRate: ((correctAnswers / totalAttempts) * 100).toFixed(1),
+        disciplineStats,
+        topicStats,
+        totalEssays,
+        averageEssayScore,
+        essayCompetencyData,
+      };
+
+      const response = await supabase.functions.invoke("ai-study-suggestion", {
+        body: { stats: statsData },
+      });
+
+      if (response.error) throw response.error;
+
+      setAiSuggestion(response.data.suggestion);
+    } catch (error) {
+      console.error("Erro ao buscar sugestão da IA:", error);
+      setAiSuggestion("Não foi possível gerar sugestões no momento. Tente novamente mais tarde.");
+    } finally {
+      setLoadingAiSuggestion(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
@@ -233,7 +348,7 @@ const Statistics = () => {
   }
 
   // Mostra mensagem amigável se ainda não houver tentativas
-  if (totalAttempts === 0) {
+  if (totalAttempts === 0 && totalEssays === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
         <Navbar />
@@ -246,7 +361,7 @@ const Statistics = () => {
             <BookOpen className="h-24 w-24 text-muted-foreground mb-6" />
             <h1 className="text-3xl font-bold mb-4">Comece a Praticar!</h1>
             <p className="text-muted-foreground text-lg mb-6 max-w-md">
-              Você ainda não respondeu nenhuma questão. Vá para o Banco de Questões e comece a praticar para ver suas
+              Você ainda não respondeu nenhuma questão ou enviou redações. Comece a praticar para ver suas
               estatísticas aqui.
             </p>
             <Button onClick={() => navigate("/questions")} className="gap-2">
@@ -294,8 +409,8 @@ const Statistics = () => {
                   <div className="flex items-start gap-3">
                     <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
                     <div>
-                      <h3 className="font-semibold">Identificação de Pontos Fracos</h3>
-                      <p className="text-sm text-muted-foreground">Descubra quais tópicos precisam de mais atenção</p>
+                      <h3 className="font-semibold">Sugestões Personalizadas com IA</h3>
+                      <p className="text-sm text-muted-foreground">Receba dicas inteligentes para melhorar seu estudo</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
@@ -333,7 +448,7 @@ const Statistics = () => {
     );
   }
 
-  const successRate = ((correctAnswers / totalAttempts) * 100).toFixed(1);
+  const successRate = totalAttempts > 0 ? ((correctAnswers / totalAttempts) * 100).toFixed(1) : "0";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
@@ -363,8 +478,8 @@ const Statistics = () => {
             </Tabs>
           </div>
 
-          {/* Cards de resumo */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {/* Cards de resumo - Questões e Redações */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total de Questões</CardTitle>
@@ -389,25 +504,72 @@ const Statistics = () => {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Acertos vs Erros</CardTitle>
-                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Redações Enviadas</CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-success" />
-                    <span className="text-xl font-bold">{correctAnswers}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <XCircle className="h-5 w-5 text-error" />
-                    <span className="text-xl font-bold">{wrongAnswers}</span>
-                  </div>
-                </div>
+                <div className="text-2xl font-bold">{totalEssays}</div>
+                <p className="text-xs text-muted-foreground">redações corrigidas</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Média Redações</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{averageEssayScore}</div>
+                <p className="text-xs text-muted-foreground">pontos (máx. 1000)</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Grid de Disciplinas e Assuntos */}
+          {/* Sugestão de IA */}
+          <Card className="mb-8 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  <CardTitle>Sugestões de Estudo com IA</CardTitle>
+                </div>
+                <Button 
+                  onClick={fetchAiSuggestion} 
+                  disabled={loadingAiSuggestion}
+                  size="sm"
+                  variant="outline"
+                >
+                  {loadingAiSuggestion ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Analisando...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Gerar Sugestões
+                    </>
+                  )}
+                </Button>
+              </div>
+              <CardDescription>
+                Análise personalizada baseada no seu desempenho em questões e redações
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {aiSuggestion ? (
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed">{aiSuggestion}</div>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  Clique em "Gerar Sugestões" para receber dicas personalizadas baseadas nos seus dados de estudo.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Grid de Questões */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             {/* Desempenho por Disciplina */}
             <Card>
@@ -416,7 +578,7 @@ const Statistics = () => {
                 <CardDescription>Veja seu desempenho em cada disciplina</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
+                <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2">
                   {disciplineStats.length > 0 ? (
                     disciplineStats.map((disc) => (
                       <div key={disc.name}>
@@ -489,30 +651,34 @@ const Statistics = () => {
             </Card>
           </div>
 
-          {/* Gráficos de estatísticas */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Gráficos de Questões */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             {/* Gráfico de questões respondidas por dia (últimos 30 dias) */}
             <Card>
               <CardHeader>
                 <CardTitle>Questões Respondidas</CardTitle>
-                <CardDescription>Acompanhe sua evolução diária nos últimos 30 dias</CardDescription>
+                <CardDescription>Evolução diária nos últimos 30 dias</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={monthlyStats} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                <ResponsiveContainer width="100%" height={250}>
+                  <AreaChart data={monthlyStats} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="colorQuestoes" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
                     <XAxis
                       dataKey="date"
-                      className="text-xs"
-                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
                       tickLine={false}
                       axisLine={{ stroke: "hsl(var(--border))" }}
                       interval="preserveStartEnd"
                       minTickGap={50}
                     />
                     <YAxis
-                      className="text-xs"
-                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
                       tickLine={false}
                       axisLine={false}
                     />
@@ -521,21 +687,17 @@ const Statistics = () => {
                         backgroundColor: "hsl(var(--popover))",
                         border: "1px solid hsl(var(--border))",
                         borderRadius: "0.5rem",
-                        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                         fontSize: "12px",
                       }}
-                      labelStyle={{ color: "hsl(var(--popover-foreground))", fontWeight: 600 }}
-                      cursor={{ stroke: "hsl(var(--primary))", strokeWidth: 1, strokeDasharray: "3 3" }}
                     />
-                    <Line
+                    <Area
                       type="monotone"
                       dataKey="questões"
                       stroke="hsl(var(--primary))"
-                      strokeWidth={2.5}
-                      dot={false}
-                      activeDot={{ r: 4, fill: "hsl(var(--primary))" }}
+                      strokeWidth={2}
+                      fill="url(#colorQuestoes)"
                     />
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
@@ -544,16 +706,15 @@ const Statistics = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Questões por Disciplina</CardTitle>
-                <CardDescription>Distribuição das suas práticas por área</CardDescription>
+                <CardDescription>Distribuição das suas práticas</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={disciplineChartData} margin={{ top: 5, right: 5, left: -20, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
                     <XAxis
                       dataKey="disciplina"
-                      className="text-xs"
-                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9 }}
                       angle={-45}
                       textAnchor="end"
                       height={80}
@@ -561,8 +722,7 @@ const Statistics = () => {
                       axisLine={{ stroke: "hsl(var(--border))" }}
                     />
                     <YAxis
-                      className="text-xs"
-                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
                       tickLine={false}
                       axisLine={false}
                     />
@@ -571,18 +731,110 @@ const Statistics = () => {
                         backgroundColor: "hsl(var(--popover))",
                         border: "1px solid hsl(var(--border))",
                         borderRadius: "0.5rem",
-                        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                         fontSize: "12px",
                       }}
-                      labelStyle={{ color: "hsl(var(--popover-foreground))", fontWeight: 600 }}
-                      cursor={{ fill: "hsl(var(--muted))" }}
                     />
-                    <Bar dataKey="questões" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="questões" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           </div>
+
+          {/* Seção de Redações */}
+          {totalEssays > 0 && (
+            <>
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                <FileText className="h-6 w-6" />
+                Estatísticas de Redações
+              </h2>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                {/* Gráfico de evolução de notas */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Evolução das Notas</CardTitle>
+                    <CardDescription>Acompanhe seu progresso nas redações</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <LineChart data={essayStats} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
+                        <XAxis
+                          dataKey="redacao"
+                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                          tickLine={false}
+                          axisLine={{ stroke: "hsl(var(--border))" }}
+                        />
+                        <YAxis
+                          domain={[0, 1000]}
+                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--popover))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "0.5rem",
+                            fontSize: "12px",
+                          }}
+                          formatter={(value: number) => [`${value} pontos`, "Nota"]}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="nota"
+                          stroke="hsl(var(--chart-2))"
+                          strokeWidth={2.5}
+                          dot={{ fill: "hsl(var(--chart-2))", r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+
+                {/* Gráfico radar de competências */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Média por Competência</CardTitle>
+                    <CardDescription>Seu desempenho nas 5 competências do ENEM</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <RadarChart data={essayCompetencyData} margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
+                        <PolarGrid stroke="hsl(var(--border))" />
+                        <PolarAngleAxis
+                          dataKey="competencia"
+                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9 }}
+                        />
+                        <PolarRadiusAxis
+                          domain={[0, 200]}
+                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9 }}
+                        />
+                        <Radar
+                          name="Média"
+                          dataKey="media"
+                          stroke="hsl(var(--chart-2))"
+                          fill="hsl(var(--chart-2))"
+                          fillOpacity={0.3}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--popover))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "0.5rem",
+                            fontSize: "12px",
+                          }}
+                          formatter={(value: number) => [`${value} / 200`, "Média"]}
+                        />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
         </motion.div>
       </main>
     </div>
