@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Calendar, CheckSquare, FileText, Brain, Sparkles, Upload, Layers, PenLine } from "lucide-react";
+import { BookOpen, Calendar, CheckSquare, FileText, Brain, Sparkles, Upload, Layers, PenLine, Users } from "lucide-react";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import QuestionStatsChart from "@/components/dashboard/QuestionStatsChart";
@@ -131,13 +131,22 @@ const Dashboard = () => {
     },
   ];
 
-  // Card de admin para importar questões
+  // Cards de admin para ferramentas administrativas
   const adminCards = [
     {
       title: "Importar Questões",
       description: "Importe questões do ENEM em formato JSON",
       icon: Upload,
       path: "/admin/import",
+      gradient: "from-amber-500 to-orange-500",
+      iconBg: "bg-amber-500",
+      adminOnly: true,
+    },
+    {
+      title: "Gerenciar Usuários",
+      description: "Gerencie usuários, assinaturas e permissões",
+      icon: Users,
+      path: "/admin/users",
       gradient: "from-amber-500 to-orange-500",
       iconBg: "bg-amber-500",
       adminOnly: true,
