@@ -97,28 +97,42 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
   if (!showResult) return null;
 
   return (
-    <div className="mt-4 mb-4">
-      {/* Botão para ver explicação */}
-      <Button
-        onClick={fetchExplanation}
-        variant={isPremium ? "outline" : "secondary"}
-        size="sm"
-        disabled={loading}
-        className={cn(
-          "gap-2 w-full sm:w-auto",
-          !isPremium && "opacity-80"
-        )}
-      >
-        {loading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : isPremium ? (
-          <MessageCircle className="h-4 w-4" />
-        ) : (
-          <Lock className="h-4 w-4" />
-        )}
-        {loading ? "Carregando..." : showExplanation && explanation ? "Ocultar Explicação" : "Ver Explicação"}
-        {!isPremium && <Crown className="h-3 w-3 ml-1 text-yellow-500" />}
-      </Button>
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 }}
+      className="mt-4 mb-4 p-4 bg-primary/5 border border-primary/20 rounded-lg"
+    >
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="h-5 w-5 text-primary" />
+          <span className="font-medium text-foreground">
+            {isPremium ? "Quer entender a resolução?" : "Explicação por IA"}
+          </span>
+        </div>
+        
+        {/* Botão para ver explicação */}
+        <Button
+          onClick={fetchExplanation}
+          variant={isPremium ? "default" : "secondary"}
+          size="sm"
+          disabled={loading}
+          className={cn(
+            "gap-2",
+            isPremium && "bg-primary hover:bg-primary/90"
+          )}
+        >
+          {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : isPremium ? (
+            <MessageCircle className="h-4 w-4" />
+          ) : (
+            <Lock className="h-4 w-4" />
+          )}
+          {loading ? "Carregando..." : showExplanation && explanation ? "Ocultar" : "Ver Explicação"}
+          {!isPremium && <Crown className="h-3 w-3 ml-1 text-yellow-500" />}
+        </Button>
+      </div>
 
       {/* Explicação */}
       <AnimatePresence>
@@ -130,7 +144,7 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
             transition={{ duration: 0.3 }}
             className="overflow-hidden"
           >
-            <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+            <div className="mt-4 p-4 bg-background border border-border rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <MessageCircle className="h-4 w-4 text-primary" />
                 <h4 className="font-semibold text-sm text-primary">Explicação</h4>
@@ -149,7 +163,7 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 };
 
