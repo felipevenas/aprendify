@@ -243,6 +243,7 @@ const Questions = () => {
             question={currentQuestion}
             onNext={() => handleFetchQuestion(true)}
             onAnswer={handleAnswerSubmit}
+            isPremium={isPremium}
           />
         ) : (
           <Card className="p-12 border-border/50 shadow-lg">

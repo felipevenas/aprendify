@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { CheckCircle2, XCircle, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDisciplineName, cleanMarkdownArtifacts, separateTextAndReference } from "@/lib/formatters";
+import QuestionExplanation from "./QuestionExplanation";
 
 /**
  * Componente de prática de questões
@@ -15,9 +16,10 @@ interface QuestionPracticeProps {
   question: any;
   onNext: () => void;
   onAnswer?: (questionId: string, selectedAnswer: string, correctAnswer: string, isCorrect: boolean) => void;
+  isPremium?: boolean;
 }
 
-const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps) => {
+const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: QuestionPracticeProps) => {
   const [selectedAlternative, setSelectedAlternative] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
 
@@ -272,6 +274,13 @@ const QuestionPractice = ({ question, onNext, onAnswer }: QuestionPracticeProps)
             </div>
           </motion.div>
         )}
+
+        {/* Botão de Explicação - apenas após responder */}
+        <QuestionExplanation 
+          question={question} 
+          isPremium={isPremium} 
+          showResult={showResult} 
+        />
 
         {/* Botões de ação */}
         <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
