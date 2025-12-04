@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Calendar, CheckSquare, FileText, Brain, Sparkles, Upload, Layers } from "lucide-react";
+import { BookOpen, Calendar, CheckSquare, FileText, Brain, Sparkles, Upload, Layers, PenLine } from "lucide-react";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import QuestionStatsChart from "@/components/dashboard/QuestionStatsChart";
@@ -117,6 +117,14 @@ const Dashboard = () => {
       description: "Memorize conteúdos com cartões de estudo",
       icon: Layers,
       path: "/flashcards",
+      gradient: "from-primary to-primary/80",
+      iconBg: "bg-primary",
+    },
+    {
+      title: "Redação ENEM",
+      description: "Escreva e receba correção automática com IA",
+      icon: PenLine,
+      path: "/essays",
       gradient: "from-primary to-primary/80",
       iconBg: "bg-primary",
       isNew: true,
