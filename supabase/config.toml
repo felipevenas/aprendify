@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.import-enem-questions]
 verify_jwt = false
+
+[functions.question-explanation]
+verify_jwt = false
+
+[functions.correct-essay]
+verify_jwt = false
