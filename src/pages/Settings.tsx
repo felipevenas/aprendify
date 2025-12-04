@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Upload, Loader2 } from "lucide-react";
+import { Upload, Loader2, Shield, Users, ChevronRight } from "lucide-react";
 import Navbar from "@/components/Navbar";
 
 /**
@@ -26,6 +26,7 @@ const Settings = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -49,6 +50,10 @@ const Settings = () => {
       if (profile) {
         setFullName(profile.full_name || "");
       }
+
+      // Verifica se é admin
+      const { data: roleData } = await supabase.rpc("get_user_role", { _user_id: user.id });
+      setIsAdmin(roleData === "admin");
 
       setLoading(false);
     };
@@ -291,6 +296,37 @@ const Settings = () => {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Ferramentas de Administrador - Apenas para admins */}
+            {isAdmin && (
+              <Card className="border-primary/30 bg-primary/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-primary" />
+                    Ferramentas de Administrador
+                  </CardTitle>
+                  <CardDescription>
+                    Acesso privilegiado para gerenciar o sistema
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    onClick={() => navigate("/admin/users")} 
+                    className="w-full justify-between"
+                    variant="outline"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Gerenciar Usuários
+                    </span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Conceda benefícios, gerencie assinaturas e bana usuários
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </motion.div>
       </main>
