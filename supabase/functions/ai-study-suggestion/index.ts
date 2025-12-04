@@ -1,0 +1,98 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { stats } = await req.json();
+
+    const groqApiKey = Deno.env.get("GROQ_API_KEY");
+    if (!groqApiKey) {
+      return new Response(
+        JSON.stringify({ error: "GROQ_API_KEY não configurada" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Construir prompt com os dados do usuário
+    const prompt = `Você é um tutor especialista em preparação para o ENEM. Analise os dados de estudo do aluno e forneça sugestões personalizadas e práticas.
+
+## DADOS DO ALUNO:
+
+### Questões:
+- Total de questões respondidas: ${stats.totalQuestions}
+- Acertos: ${stats.correctAnswers}
+- Erros: ${stats.wrongAnswers}
+- Taxa de acerto geral: ${stats.successRate}%
+
+### Desempenho por disciplina:
+${stats.disciplineStats?.map((d: any) => `- ${d.name}: ${d.accuracy}% de acerto (${d.total} questões)`).join('\n') || 'Sem dados'}
+
+### Disciplinas com mais erros:
+${stats.topicStats?.map((t: any) => `- ${t.name}: ${t.count} erros`).join('\n') || 'Sem dados'}
+
+### Redações:
+- Total de redações enviadas: ${stats.totalEssays}
+- Média de nota: ${stats.averageEssayScore}/1000
+
+### Média por competência das redações:
+${stats.essayCompetencyData?.map((c: any) => `- ${c.competencia}: ${c.media}/200`).join('\n') || 'Sem dados'}
+
+## INSTRUÇÕES:
+1. Faça uma análise breve do desempenho geral
+2. Identifique os pontos fortes e fracos
+3. Dê 3-5 sugestões práticas e específicas de estudo
+4. Se houver dados de redação, inclua dicas específicas para melhorar nas competências mais fracas
+5. Seja motivador mas realista
+6. Use linguagem clara e direta
+
+Responda em português brasileiro de forma organizada e concisa.`;
+
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${groqApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          { role: "user", content: prompt }
+        ],
+        max_tokens: 1500,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Erro na API Groq:", response.status, errorText);
+      return new Response(
+        JSON.stringify({ error: "Erro ao gerar sugestões" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const data = await response.json();
+    const suggestion = data.choices?.[0]?.message?.content || "Não foi possível gerar sugestões.";
+
+    return new Response(
+      JSON.stringify({ suggestion }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+
+  } catch (error) {
+    console.error("Erro na função ai-study-suggestion:", error);
+    return new Response(
+      JSON.stringify({ error: "Erro interno do servidor" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

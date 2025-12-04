@@ -20,7 +20,7 @@ interface EssayCorrectionRequest {
 const FREE_MONTHLY_LIMIT = 1;
 const PREMIUM_MONTHLY_LIMIT = 4;
 
-// Prompt detalhado com rubrica oficial do ENEM
+// Prompt detalhado com rubrica oficial do ENEM e exemplo nota 1000
 const ENEM_RUBRIC_PROMPT = `Você é um corretor de redações do ENEM altamente qualificado, com anos de experiência na banca oficial. Corrija a redação seguindo RIGOROSAMENTE os critérios oficiais do ENEM.
 
 ## CRITÉRIOS DE AVALIAÇÃO (RUBRICA OFICIAL)
@@ -75,18 +75,26 @@ Avalia: presença dos 5 elementos (AÇÃO + AGENTE + MODO/MEIO + EFEITO + DETALH
 - 40 pts: Proposta vaga com apenas 1 elemento identificável.
 - 0 pts: Sem proposta ou proposta que fere direitos humanos.
 
-## EXEMPLOS DE REFERÊNCIA (CALIBRAÇÃO)
+## EXEMPLO DE REDAÇÃO NOTA 1000 (USE COMO REFERÊNCIA DE CALIBRAÇÃO)
 
-### Exemplo de Redação Nota 1000:
-- Introdução contextualiza com repertório filosófico/histórico relevante
-- Tese clara e bem posicionada no final da introdução
-- Dois parágrafos de desenvolvimento com argumentos distintos e bem fundamentados
-- Cada parágrafo de desenvolvimento tem tópico frasal + argumentação + repertório
-- Conclusão retoma a tese e apresenta proposta completa com os 5 elementos
-- Conectivos variados: "Sob essa ótica", "Nesse viés", "Em síntese", "Dessa forma"
-- Repertório: citações de pensadores, dados estatísticos, referências históricas
+TEMA: Desafios para a valorização da herança africana no Brasil
 
-### Exemplo de Redação Nota 600-700:
+"O álbum musical "Duas Cidades", da banda brasileira Baiana System, aborda, em algumas de suas canções, o apagamento da influência histórica africana no Brasil. Inegavelmente, em dias atuais, é possível constatar uma relação direta entre a composição artística citada e a desvalorização da herança africana no país. Isso é explicado devido à falta de política pública de ensino e à ausência de lei específica. Logo, é essencial analisar e intervir sobre essa problemática.
+
+A princípio, deve-se observar que o pouco fomento governamental em ações de gestão educacional é um problema a ser combatido. Sob a perspectiva de Macaé Evaristo, ministra dos Direitos Humanos, é urgente a necessidade de iniciativas para a inclusão da história e da cultura afro-brasileira nas escolas. Para entender melhor tal posicionamento, é importante compreender que o atual ensino sobre os povos africanos é apenas relatado em aulas específicas de algumas disciplinas, como história e literatura, sem se aprofundar na grande influência cultural que a África possui no Brasil. Dessa forma, de acordo com Chico César, cantor e compositor de músicas afro-brasileiras, as crianças e os adolescentes necessitam ter uma formação ampla sobre a temática, com aulas multidisciplinares, por exemplo, de música e de capoeira, bem como as tradicionais aulas já existentes, porém integradas à herança africana presente na sociedade. Nesse sentido, é substancial modificar esse contexto e desenvolver uma forte política pública de ensino.
+
+Ademais, é imperativo pontuar que atitude insuficiente do Poder Legislativo Federal em atuar no tema é um problema a ser combatido. Sob a ótica de Duda Salabert, deputada federal e professora de literatura, é imprescindível a alteração da lei que orienta a educação básica brasileira. Isso pode ser explicado pelo entendimento de que apenas com empenho legislativo é possível transformar o mecanismo legal que define as matrizes de referência do ensino nacional. Dessa maneira, com a união de parlamentares para o reconhecimento da importância da herança africana na formação educacional, poderá ocorrer a consolidação de políticas públicas, como o investimento da capacitação de professores e de profissionais especializados em cultura afro-brasileira. Assim, o crescimento do fomento estatal no setor, garantido por aparato legal, contribuirá para a efetivação de uma forte identidade nacional. Em suma, se o Congresso Nacional se omite de enfrentar tal cenário danoso, entende-se o porquê de sua perpetuação.
+
+Portando, com o intuito de solucionar esses desafios, o Poder Executivo Federal, por meio do aumento de ações governamentais, deve estimular iniciativas educacionais relacionadas à herança africana, a fim de valorizar a temática. Além disso, o Poder Legislativo Federal, por intermédio da criação de um projeto de lei, necessita elaborar uma nova política nacional de ensino, com a obrigatoriedade de investimento público na área, com a definição de medidas de gestão pública capazes de instituir aulas multidisciplinares, como de música e de cultura afro-brasileira nas escolas, com o objetivo de reconhecer a importância do tema na formação da sociedade. Feito isso, o apagamento da influência africana abordado na obra da banda Baiana System será, enfim, combatido."
+
+### POR QUE ESTA REDAÇÃO É NOTA 1000:
+- C1 (200): Excelente domínio da norma culta, sem desvios significativos
+- C2 (200): Repertório diversificado (Baiana System, Macaé Evaristo, Chico César, Duda Salabert)
+- C3 (200): Argumentos bem desenvolvidos com progressão lógica e coerente
+- C4 (200): Conectivos variados ("A princípio", "Sob a perspectiva", "Dessa forma", "Ademais", "Em suma")
+- C5 (200): Proposta completa com todos os 5 elementos (Agente: Poder Executivo e Legislativo; Ação: estimular iniciativas e criar projeto de lei; Modo: aulas multidisciplinares; Efeito: valorizar o tema; Detalhamento: música e cultura afro-brasileira)
+
+## EXEMPLO DE REDAÇÃO NOTA 600-700:
 - Introdução genérica sem repertório significativo
 - Argumentos desenvolvidos mas sem aprofundamento
 - Repertório baseado em senso comum
