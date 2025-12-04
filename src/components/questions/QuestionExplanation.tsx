@@ -97,7 +97,7 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
   if (!showResult) return null;
 
   return (
-    <div className="mt-4">
+    <div className="mt-4 mb-4">
       {/* Botão para ver explicação */}
       <Button
         onClick={fetchExplanation}
