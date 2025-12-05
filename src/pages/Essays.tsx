@@ -27,13 +27,15 @@ const Essays = () => {
   const [activeTab, setActiveTab] = useState("write");
 
   // Limites de redações
-  const limit = isPremium ? 4 : 1;
+  const limit = isPremium ? 12 : 1;
   const remaining = Math.max(0, limit - monthlyCount);
 
   // Verificar autenticação e carregar dados
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         navigate("/auth");
         return;
@@ -46,11 +48,12 @@ const Essays = () => {
 
   // Carregar contagem de redações do mês
   const loadMonthlyCount = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data, error } = await supabase
-      .rpc("get_monthly_essay_count", { _user_id: user.id });
+    const { data, error } = await supabase.rpc("get_monthly_essay_count", { _user_id: user.id });
 
     if (!error && data !== null) {
       setMonthlyCount(data);
@@ -90,37 +93,24 @@ const Essays = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <main className="container mx-auto px-4 py-8">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
             <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/dashboard")}
-              >
+              <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div>
                 <h1 className="text-2xl font-bold text-foreground">Redação ENEM</h1>
-                <p className="text-muted-foreground text-sm">
-                  Escreva e receba correção automática no padrão ENEM
-                </p>
+                <p className="text-muted-foreground text-sm">Escreva e receba correção automática no padrão ENEM</p>
               </div>
             </div>
 
             {/* Badge de limite */}
             <div className="flex items-center gap-2">
-              <Badge 
-                variant={remaining > 0 ? "default" : "destructive"}
-                className="gap-1"
-              >
+              <Badge variant={remaining > 0 ? "default" : "destructive"} className="gap-1">
                 <FileText className="h-3 w-3" />
                 {remaining} de {limit} restantes este mês
               </Badge>
@@ -138,12 +128,10 @@ const Essays = () => {
             <div className="flex items-start gap-3">
               <PenLine className="h-5 w-5 text-primary mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium text-foreground mb-1">
-                  Correção inteligente com IA
-                </p>
+                <p className="font-medium text-foreground mb-1">Correção inteligente com IA</p>
                 <p className="text-muted-foreground">
-                  Sua redação será avaliada nas 5 competências do ENEM, recebendo nota de 0 a 1000, 
-                  feedback detalhado e dicas para melhorar.
+                  Sua redação será avaliada nas 5 competências do ENEM, recebendo nota de 0 a 1000, feedback detalhado e
+                  dicas para melhorar.
                 </p>
               </div>
             </div>
@@ -170,11 +158,7 @@ const Essays = () => {
 
           {/* Tab: Escrever redação */}
           <TabsContent value="write">
-            <EssayForm 
-              onComplete={handleCorrectionComplete}
-              canSubmit={remaining > 0}
-              isPremium={isPremium}
-            />
+            <EssayForm onComplete={handleCorrectionComplete} canSubmit={remaining > 0} isPremium={isPremium} />
           </TabsContent>
 
           {/* Tab: Histórico */}
@@ -184,12 +168,7 @@ const Essays = () => {
 
           {/* Tab: Detalhes da redação */}
           <TabsContent value="detail">
-            {selectedEssay && (
-              <EssayDetail 
-                essay={selectedEssay} 
-                onBack={handleBackToList}
-              />
-            )}
+            {selectedEssay && <EssayDetail essay={selectedEssay} onBack={handleBackToList} />}
           </TabsContent>
         </Tabs>
       </main>
