@@ -16,9 +16,9 @@ interface PremiumModalProps {
 export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumModalProps) => {
   const benefits = [
     "Questões ilimitadas por dia",
-    "Explicações de questões por IA",
+    "Todas as questões explicadas",
     "Flashcards ilimitados",
-    "4 correções de redação por mês",
+    "12 correções de redação por mês",
     "Acesso completo às estatísticas",
     "Matérias personalizadas ilimitadas",
     "Histórico completo de desempenho",
