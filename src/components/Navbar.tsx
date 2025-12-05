@@ -32,16 +32,14 @@ const Navbar = () => {
   useEffect(() => {
     // Busca usuário atual
     const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         setUser(user);
         // Tenta pegar o primeiro nome do perfil, senão usa o email
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", user.id)
-          .single();
-        
+        const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
+
         // Extrai apenas o primeiro nome
         const fullName = profile?.full_name || user.email?.split("@")[0] || "Usuário";
         const firstName = fullName.split(" ")[0];
@@ -52,15 +50,15 @@ const Navbar = () => {
     fetchUser();
 
     // Escuta mudanças de autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (session?.user) {
-          setUser(session.user);
-        } else {
-          setUser(null);
-        }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+      } else {
+        setUser(null);
       }
-    );
+    });
 
     return () => subscription.unsubscribe();
   }, []);
@@ -86,7 +84,7 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-14 sm:h-16">
           {/* Logo */}
-          <div 
+          <div
             className="flex items-center gap-2 sm:gap-3 cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => navigate("/dashboard")}
           >
@@ -94,16 +92,16 @@ const Navbar = () => {
               <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
             </div>
             <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Learnify
+              Estudify
             </span>
           </div>
 
           {/* Menu do usuário */}
           <div className="flex items-center gap-1.5 sm:gap-3">
             {/* Badge Premium ou Free baseado no status de assinatura */}
-            {!isLoading && (
-              isPremium ? (
-                <Badge 
+            {!isLoading &&
+              (isPremium ? (
+                <Badge
                   onClick={() => setShowPremiumModal(true)}
                   className="bg-gradient-to-r from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-white border-0 px-2 sm:px-4 py-1.5 shadow-lg flex items-center cursor-pointer transition-transform hover:scale-105"
                 >
@@ -111,15 +109,14 @@ const Navbar = () => {
                   <span className="hidden sm:inline">Premium</span>
                 </Badge>
               ) : (
-                <Badge 
+                <Badge
                   onClick={() => setShowPremiumModal(true)}
                   className="bg-gradient-to-r from-zinc-400 to-zinc-600 hover:from-zinc-500 hover:to-zinc-700 text-white border-0 px-2 sm:px-4 py-1.5 cursor-pointer shadow-lg flex items-center transition-transform hover:scale-105"
                 >
                   <Crown className="h-4 w-4 sm:mr-1" />
                   <span className="hidden sm:inline">Free</span>
                 </Badge>
-              )
-            )}
+              ))}
             {/* Botão de tema */}
             <Button
               variant="ghost"
@@ -147,9 +144,7 @@ const Navbar = () => {
                       {getInitials(userName)}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-sm font-medium hidden sm:inline">
-                    {userName}
-                  </span>
+                  <span className="text-sm font-medium hidden sm:inline">{userName}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -158,10 +153,7 @@ const Navbar = () => {
                   <p className="text-xs text-muted-foreground">{user.email}</p>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => navigate("/settings")}
-                  className="cursor-pointer"
-                >
+                <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer">
                   <Settings className="h-4 w-4 mr-2" />
                   Configurações
                 </DropdownMenuItem>
@@ -180,11 +172,7 @@ const Navbar = () => {
       </div>
 
       {/* Modal de Premium */}
-      <PremiumModal 
-        open={showPremiumModal} 
-        onOpenChange={setShowPremiumModal}
-        isPremium={isPremium}
-      />
+      <PremiumModal open={showPremiumModal} onOpenChange={setShowPremiumModal} isPremium={isPremium} />
     </nav>
   );
 };
