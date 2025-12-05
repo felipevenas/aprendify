@@ -92,7 +92,7 @@ const Navbar = () => {
               <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
             </div>
             <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Estudify
+              Aprendify
             </span>
           </div>
 
