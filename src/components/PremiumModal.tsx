@@ -52,7 +52,7 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
             {isPremium ? "Você é Premium!" : "Assine o Plano Premium"}
           </DialogTitle>
           <DialogDescription className="text-center text-sm sm:text-base">
-            {isPremium ? "Confira todos os benefícios que você possui" : "Desbloqueie todo o potencial do Estudify"}
+            {isPremium ? "Confira todos os benefícios que você possui" : "Desbloqueie todo o potencial do Aprendify"}
           </DialogDescription>
         </DialogHeader>
 
@@ -82,7 +82,7 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
                   <span className="text-sm font-medium text-yellow-600">Assinatura Ativa</span>
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  Obrigado por apoiar o Estudify! Aproveite todos os recursos premium.
+                  Obrigado por apoiar o Aprendify! Aproveite todos os recursos premium.
                 </p>
               </div>
             ) : (
