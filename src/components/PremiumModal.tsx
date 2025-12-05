@@ -21,7 +21,7 @@ const PLANS = {
   annual: {
     price: 191.04, // 19.90 * 12 * 0.8 (20% discount)
     period: "ano",
-    mercadoPagoId: "SEU_PLANO_ANUAL_ID_AQUI", // TODO: Criar plano anual no MercadoPago
+    mercadoPagoId: "aa593ab5788f43a29726b7a45381baaa",
     monthlyEquivalent: 15.92, // 191.04 / 12
     discount: 20,
   },
