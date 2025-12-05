@@ -150,18 +150,27 @@ serve(async (req) => {
       );
     }
 
-    const { data: profile, error: profileError } = await supabaseClient
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle();
+    // Verificar se o usuário é admin usando a função get_user_role
+    const { data: userRole, error: roleError } = await supabaseClient
+      .rpc('get_user_role', { _user_id: user.id });
 
-    if (profileError || !profile || profile.role !== 'admin') {
+    if (roleError) {
+      console.error('Error checking user role:', roleError);
+      return new Response(
+        JSON.stringify({ error: 'Error checking permissions' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (userRole !== 'admin') {
+      console.log('Access denied for user:', user.id, 'role:', userRole);
       return new Response(
         JSON.stringify({ error: 'Admin access required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log('Admin access granted for user:', user.id);
 
     // Parse body
     const body = await req.json();
