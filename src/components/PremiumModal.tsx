@@ -38,11 +38,13 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
       <DialogContent className="sm:max-w-[500px] max-w-[95vw] p-4 sm:p-6">
         <DialogHeader>
           <div className="flex items-center justify-center mb-2 sm:mb-3">
-            <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center ${
-              isPremium 
-                ? "bg-gradient-to-br from-yellow-500 to-amber-500" 
-                : "bg-gradient-to-br from-primary to-primary/60"
-            }`}>
+            <div
+              className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center ${
+                isPremium
+                  ? "bg-gradient-to-br from-yellow-500 to-amber-500"
+                  : "bg-gradient-to-br from-primary to-primary/60"
+              }`}
+            >
               <Crown className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
             </div>
           </div>
@@ -50,10 +52,7 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
             {isPremium ? "Você é Premium!" : "Assine o Plano Premium"}
           </DialogTitle>
           <DialogDescription className="text-center text-sm sm:text-base">
-            {isPremium 
-              ? "Confira todos os benefícios que você possui" 
-              : "Desbloqueie todo o potencial do Learnify"
-            }
+            {isPremium ? "Confira todos os benefícios que você possui" : "Desbloqueie todo o potencial do Estudify"}
           </DialogDescription>
         </DialogHeader>
 
@@ -62,14 +61,12 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
           <div className="space-y-2 sm:space-y-2.5">
             {benefits.map((benefit, index) => (
               <div key={index} className="flex items-start gap-2 sm:gap-2.5">
-                <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                  isPremium 
-                    ? "bg-green-500/20" 
-                    : "bg-primary/10"
-                }`}>
-                  <Check className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${
-                    isPremium ? "text-green-600" : "text-primary"
-                  }`} />
+                <div
+                  className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                    isPremium ? "bg-green-500/20" : "bg-primary/10"
+                  }`}
+                >
+                  <Check className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${isPremium ? "text-green-600" : "text-primary"}`} />
                 </div>
                 <span className="text-xs sm:text-sm leading-snug">{benefit}</span>
               </div>
@@ -85,7 +82,7 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
                   <span className="text-sm font-medium text-yellow-600">Assinatura Ativa</span>
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  Obrigado por apoiar o Learnify! Aproveite todos os recursos premium.
+                  Obrigado por apoiar o Estudify! Aproveite todos os recursos premium.
                 </p>
               </div>
             ) : (
