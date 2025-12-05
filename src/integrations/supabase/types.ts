@@ -431,6 +431,7 @@ export type Database = {
           mercadopago_payer_email: string | null
           mercadopago_subscription_id: string | null
           plan_id: string | null
+          plan_type: Database["public"]["Enums"]["plan_type"] | null
           start_date: string | null
           status: string
           updated_at: string
@@ -443,6 +444,7 @@ export type Database = {
           mercadopago_payer_email?: string | null
           mercadopago_subscription_id?: string | null
           plan_id?: string | null
+          plan_type?: Database["public"]["Enums"]["plan_type"] | null
           start_date?: string | null
           status?: string
           updated_at?: string
@@ -455,6 +457,7 @@ export type Database = {
           mercadopago_payer_email?: string | null
           mercadopago_subscription_id?: string | null
           plan_id?: string | null
+          plan_type?: Database["public"]["Enums"]["plan_type"] | null
           start_date?: string | null
           status?: string
           updated_at?: string
@@ -559,6 +562,7 @@ export type Database = {
       is_user_premium: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
+      plan_type: "monthly" | "annual" | "god"
       user_role: "admin" | "user"
     }
     CompositeTypes: {
@@ -687,6 +691,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      plan_type: ["monthly", "annual", "god"],
       user_role: ["admin", "user"],
     },
   },
