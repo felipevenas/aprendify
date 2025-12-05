@@ -9,13 +9,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, Mail, Lock, User, ArrowRight, Eye, EyeOff, Check, X } from "lucide-react";
 import authHero from "@/assets/auth-hero.jpg";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 /**
  * Conteúdos dinâmicos que mudam na tela de login
@@ -24,7 +18,8 @@ import {
 const dynamicContent = [
   {
     title: "Organize seus estudos de forma inteligente",
-    description: "Gerencie seu cronograma, resolva questões do ENEM, faça anotações e acompanhe seu progresso em um só lugar.",
+    description:
+      "Gerencie seu cronograma, resolva questões do ENEM, faça anotações e acompanhe seu progresso em um só lugar.",
     features: [
       "Cronogramas personalizados",
       "Banco de questões do ENEM",
@@ -45,12 +40,7 @@ const dynamicContent = [
   {
     title: "Memorize com Flashcards inteligentes",
     description: "Crie cartões de estudo personalizados e revise o conteúdo de forma eficiente.",
-    features: [
-      "Cartões personalizados",
-      "Organização por matéria",
-      "Revisão espaçada",
-      "Interface intuitiva",
-    ],
+    features: ["Cartões personalizados", "Organização por matéria", "Revisão espaçada", "Interface intuitiva"],
   },
   {
     title: "Acompanhe sua evolução",
@@ -96,12 +86,12 @@ const Auth = () => {
   const [contentIndex, setContentIndex] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   // Estados para recuperação de senha
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
-  
+
   const navigate = useNavigate();
 
   // Validação de senha
@@ -199,7 +189,7 @@ const Auth = () => {
     try {
       setLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider: "google",
         options: {
           redirectTo: `${window.location.origin}/dashboard`,
         },
@@ -237,29 +227,26 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Lado esquerdo - Imagem Hero (hidden em mobile) */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}
         className="hidden lg:flex lg:w-1/2 relative bg-primary overflow-hidden"
       >
         {/* Imagem de fundo */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${authHero})` }}
-        >
+        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${authHero})` }}>
           {/* Overlay gradiente */}
           <div className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary/70 to-primary-dark/90" />
         </div>
-        
+
         {/* Conteúdo dinâmico sobre a imagem */}
         <div className="relative z-10 flex flex-col justify-center px-12 lg:px-16 xl:px-24 text-white">
           {/* Logo fixo */}
           <div className="flex items-center gap-3 mb-6">
             <BookOpen className="h-12 w-12 text-white" />
-            <h1 className="text-5xl font-bold text-white">Learnify</h1>
+            <h1 className="text-5xl font-bold text-white">Estudify</h1>
           </div>
-          
+
           {/* Conteúdo que muda com animação */}
           <AnimatePresence mode="wait">
             <motion.div
@@ -269,13 +256,9 @@ const Auth = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.5 }}
             >
-              <h2 className="text-3xl font-semibold mb-4 text-white">
-                {currentContent.title}
-              </h2>
-              <p className="text-xl text-white mb-8 leading-relaxed">
-                {currentContent.description}
-              </p>
-              
+              <h2 className="text-3xl font-semibold mb-4 text-white">{currentContent.title}</h2>
+              <p className="text-xl text-white mb-8 leading-relaxed">{currentContent.description}</p>
+
               {/* Features dinâmicas */}
               <div className="space-y-4">
                 {currentContent.features.map((feature, idx) => (
@@ -293,7 +276,7 @@ const Auth = () => {
               </div>
             </motion.div>
           </AnimatePresence>
-          
+
           {/* Indicadores de página */}
           <div className="flex gap-2 mt-8">
             {dynamicContent.map((_, idx) => (
@@ -310,7 +293,7 @@ const Auth = () => {
       </motion.div>
 
       {/* Lado direito - Formulário */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, x: 50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}
@@ -320,7 +303,7 @@ const Auth = () => {
           {/* Logo mobile */}
           <div className="flex lg:hidden items-center justify-center mb-8">
             <BookOpen className="h-10 w-10 text-primary mr-3" />
-            <h1 className="text-3xl font-bold text-primary">Learnify</h1>
+            <h1 className="text-3xl font-bold text-primary">Estudify</h1>
           </div>
 
           {/* Header do formulário */}
@@ -334,9 +317,7 @@ const Auth = () => {
               {isLogin ? "Bem-vindo de volta" : "Criar sua conta"}
             </h2>
             <p className="text-muted-foreground text-lg">
-              {isLogin
-                ? "Entre com suas credenciais para continuar"
-                : "Preencha os dados para começar sua jornada"}
+              {isLogin ? "Entre com suas credenciais para continuar" : "Preencha os dados para começar sua jornada"}
             </p>
           </motion.div>
 
@@ -437,27 +418,37 @@ const Auth = () => {
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
-                  
+
                   {/* Validador de senha forte */}
                   {password.length > 0 && (
                     <div className="grid grid-cols-2 gap-1 mt-2 text-xs">
-                      <div className={`flex items-center gap-1 ${passwordValidation.minLength ? "text-green-500" : "text-muted-foreground"}`}>
+                      <div
+                        className={`flex items-center gap-1 ${passwordValidation.minLength ? "text-green-500" : "text-muted-foreground"}`}
+                      >
                         {passwordValidation.minLength ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                         <span>Mínimo 8 caracteres</span>
                       </div>
-                      <div className={`flex items-center gap-1 ${passwordValidation.hasUpperCase ? "text-green-500" : "text-muted-foreground"}`}>
+                      <div
+                        className={`flex items-center gap-1 ${passwordValidation.hasUpperCase ? "text-green-500" : "text-muted-foreground"}`}
+                      >
                         {passwordValidation.hasUpperCase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                         <span>Letra maiúscula</span>
                       </div>
-                      <div className={`flex items-center gap-1 ${passwordValidation.hasLowerCase ? "text-green-500" : "text-muted-foreground"}`}>
+                      <div
+                        className={`flex items-center gap-1 ${passwordValidation.hasLowerCase ? "text-green-500" : "text-muted-foreground"}`}
+                      >
                         {passwordValidation.hasLowerCase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                         <span>Letra minúscula</span>
                       </div>
-                      <div className={`flex items-center gap-1 ${passwordValidation.hasNumber ? "text-green-500" : "text-muted-foreground"}`}>
+                      <div
+                        className={`flex items-center gap-1 ${passwordValidation.hasNumber ? "text-green-500" : "text-muted-foreground"}`}
+                      >
                         {passwordValidation.hasNumber ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                         <span>Número</span>
                       </div>
-                      <div className={`flex items-center gap-1 ${passwordValidation.hasSpecialChar ? "text-green-500" : "text-muted-foreground"}`}>
+                      <div
+                        className={`flex items-center gap-1 ${passwordValidation.hasSpecialChar ? "text-green-500" : "text-muted-foreground"}`}
+                      >
                         {passwordValidation.hasSpecialChar ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                         <span>Caractere especial</span>
                       </div>
@@ -481,9 +472,9 @@ const Auth = () => {
                       required
                       disabled={loading}
                       className={`pl-11 pr-11 h-12 text-base ${
-                        confirmPassword.length > 0 
-                          ? passwordsMatch 
-                            ? "border-green-500 focus-visible:ring-green-500" 
+                        confirmPassword.length > 0
+                          ? passwordsMatch
+                            ? "border-green-500 focus-visible:ring-green-500"
                             : "border-destructive focus-visible:ring-destructive"
                           : ""
                       }`}
@@ -607,11 +598,7 @@ const Auth = () => {
             )}
 
             {/* Botão de submit */}
-            <Button 
-              type="submit" 
-              className="w-full h-12 text-base font-semibold gap-2" 
-              disabled={loading}
-            >
+            <Button type="submit" className="w-full h-12 text-base font-semibold gap-2" disabled={loading}>
               {loading ? (
                 "Processando..."
               ) : (
@@ -628,9 +615,7 @@ const Auth = () => {
                 <Separator className="w-full" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  ou continue com
-                </span>
+                <span className="bg-background px-2 text-muted-foreground">ou continue com</span>
               </div>
             </div>
 
@@ -671,9 +656,7 @@ const Auth = () => {
                 className="text-primary hover:text-primary-light transition-colors font-medium text-base"
                 disabled={loading}
               >
-                {isLogin 
-                  ? "Não tem conta? Cadastre-se gratuitamente" 
-                  : "Já tem conta? Faça login"}
+                {isLogin ? "Não tem conta? Cadastre-se gratuitamente" : "Já tem conta? Faça login"}
               </button>
             </div>
           </motion.form>
