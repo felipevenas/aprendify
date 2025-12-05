@@ -139,7 +139,7 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
                   <span className="text-sm font-medium text-yellow-600">Assinatura Ativa</span>
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  Obrigado por apoiar o Learnify! Aproveite todos os recursos premium.
+                  Obrigado por apoiar o Aprendify! Aproveite todos os recursos premium.
                 </p>
               </div>
             ) : (
