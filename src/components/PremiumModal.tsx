@@ -14,7 +14,7 @@ type PlanType = "monthly" | "annual";
 
 const PLANS = {
   monthly: {
-    price: 19.90,
+    price: 19.9,
     period: "mês",
     mercadoPagoId: "2fab389d1e6546429376b4a50517acd2",
   },
@@ -67,7 +67,7 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
                 "w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center",
                 isPremium
                   ? "bg-gradient-to-br from-yellow-500 to-amber-500"
-                  : "bg-gradient-to-br from-primary to-primary/60"
+                  : "bg-gradient-to-br from-primary to-primary/60",
               )}
             >
               <Crown className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
@@ -77,7 +77,7 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
             {isPremium ? "Você é Premium!" : "Assine o Plano Premium"}
           </DialogTitle>
           <DialogDescription className="text-center text-sm sm:text-base">
-            {isPremium ? "Confira todos os benefícios que você possui" : "Desbloqueie todo o potencial do Learnify"}
+            {isPremium ? "Confira todos os benefícios que você possui" : "Desbloqueie todo o potencial do Aprendify"}
           </DialogDescription>
         </DialogHeader>
 
@@ -91,7 +91,7 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
                   "flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all",
                   selectedPlan === "monthly"
                     ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 Mensal
@@ -102,7 +102,7 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
                   "flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all relative",
                   selectedPlan === "annual"
                     ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 Anual
@@ -120,7 +120,7 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
                 <div
                   className={cn(
                     "w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5",
-                    isPremium ? "bg-green-500/20" : "bg-primary/10"
+                    isPremium ? "bg-green-500/20" : "bg-primary/10",
                   )}
                 >
                   <Check className={cn("w-2.5 h-2.5 sm:w-3 sm:h-3", isPremium ? "text-green-600" : "text-primary")} />
@@ -153,14 +153,17 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
                           R$ {(PLANS.monthly.price * 12).toFixed(2).replace(".", ",")}
                         </span>
                         <span className="px-2 py-0.5 text-xs font-bold bg-green-500/10 text-green-600 rounded-full">
-                          Economize R$ {((PLANS.monthly.price * 12) - PLANS.annual.price).toFixed(2).replace(".", ",")}
+                          Economize R$ {(PLANS.monthly.price * 12 - PLANS.annual.price).toFixed(2).replace(".", ",")}
                         </span>
                       </div>
                       <p className="text-3xl sm:text-4xl font-bold">
                         R$ {PLANS.annual.price.toFixed(2).replace(".", ",")}
                       </p>
                       <p className="text-xs sm:text-sm text-muted-foreground">
-                        por ano <span className="text-primary">(≈ R$ {PLANS.annual.monthlyEquivalent.toFixed(2).replace(".", ",")}/mês)</span>
+                        por ano{" "}
+                        <span className="text-primary">
+                          (≈ R$ {PLANS.annual.monthlyEquivalent.toFixed(2).replace(".", ",")}/mês)
+                        </span>
                       </p>
                     </>
                   ) : (
