@@ -135,17 +135,22 @@ const AdminUsers = () => {
             .eq("user_id", profile.id)
             .single();
 
+          // Busca subscription mais recente do usuário (qualquer status)
           const { data: subscriptionData } = await supabase
             .from("subscriptions")
-            .select("status")
+            .select("status, plan_id")
             .eq("user_id", profile.id)
-            .eq("status", "authorized")
+            .order("created_at", { ascending: false })
+            .limit(1)
             .maybeSingle();
+
+          // Premium = qualquer subscription com status "authorized"
+          const isPremium = subscriptionData?.status === "authorized";
 
           return {
             ...profile,
             role: roleData?.role || "user",
-            is_premium: !!subscriptionData,
+            is_premium: isPremium,
             subscription_status: subscriptionData?.status || null,
           };
         })
