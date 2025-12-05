@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /**
  * Edge function para corrigir redações no padrão ENEM usando Groq API
- * Free: 1 redação/mês | Premium: 4 redações/mês (1/semana)
+ * Free: 1 redação/mês | Premium: 12 redações/mês
  */
 
 const corsHeaders = {
@@ -18,7 +18,7 @@ interface EssayCorrectionRequest {
 
 // Limites de redações por tipo de usuário
 const FREE_MONTHLY_LIMIT = 1;
-const PREMIUM_MONTHLY_LIMIT = 4;
+const PREMIUM_MONTHLY_LIMIT = 12;
 
 // Prompt detalhado com rubrica oficial do ENEM e múltiplos exemplos de calibração
 const ENEM_RUBRIC_PROMPT = `Você é um corretor OFICIAL de redações do ENEM com 15+ anos de experiência na banca. Sua missão é avaliar redações com PRECISÃO e JUSTIÇA, reconhecendo textos de alta qualidade quando apresentados.
@@ -186,8 +186,8 @@ serve(async (req) => {
     // Verificar limite
     if (currentCount >= limit) {
       const message = isPremium
-        ? "Você atingiu o limite de 4 redações por mês. Aguarde o próximo mês para enviar mais."
-        : "Você atingiu o limite de 1 redação por mês no plano gratuito. Assine o Premium para corrigir até 4 redações por mês.";
+        ? "Você atingiu o limite de 12 redações por mês. Aguarde o próximo mês para enviar mais."
+        : "Você atingiu o limite de 1 redação por mês no plano gratuito. Assine o Premium para corrigir até 12 redações por mês.";
       
       return new Response(
         JSON.stringify({ error: message, limitReached: true }),
