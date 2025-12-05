@@ -89,25 +89,36 @@ serve(async (req) => {
       );
     }
 
-    // Montar prompt para explicação
+    // Montar prompt para explicação detalhada
     const alternativesText = question.alternatives
       .map((alt) => `${alt.letter.toUpperCase()}) ${alt.text}`)
       .join("\n");
 
-    const prompt = `Você é um professor especialista em preparação para o ENEM. Explique de forma MUITO BREVE e DIRETA (máximo 3-4 frases) por que a alternativa "${question.correctAlternative.toUpperCase()}" é a resposta correta para esta questão.
+    const prompt = `Você é um professor experiente e didático especializado em preparação para o ENEM. Explique DETALHADAMENTE por que a alternativa "${question.correctAlternative.toUpperCase()}" é a resposta correta.
 
-Questão (${question.discipline} - ENEM ${question.year}):
-${question.context || ""}
-${question.title || ""}
+## QUESTÃO (${question.discipline} - ENEM ${question.year}):
 
-Alternativas:
+${question.context ? `**Contexto/Texto de apoio:**\n${question.context}\n` : ""}
+**Enunciado:** ${question.title || ""}
+
+**Alternativas:**
 ${alternativesText}
 
-Resposta correta: ${question.correctAlternative.toUpperCase()}
+**Gabarito:** ${question.correctAlternative.toUpperCase()}
 
-Forneça uma explicação concisa e objetiva, focando apenas no motivo da resposta correta. Não repita o enunciado.`;
+## INSTRUÇÕES PARA SUA EXPLICAÇÃO:
 
-    // Chamar API da Groq
+1. **ANÁLISE DA QUESTÃO**: Comece identificando o que a questão está pedindo e qual conhecimento está sendo avaliado.
+
+2. **EXPLICAÇÃO DA RESPOSTA CORRETA**: Explique de forma clara e didática POR QUE a alternativa ${question.correctAlternative.toUpperCase()} está correta. Use exemplos, contextualize historicamente/cientificamente se necessário.
+
+3. **ANÁLISE DAS ALTERNATIVAS INCORRETAS**: Explique brevemente por que CADA uma das outras alternativas está errada (1-2 frases por alternativa).
+
+4. **DICA DE ESTUDO**: Finalize com uma dica prática sobre o tema ou conceito abordado para ajudar o estudante a fixar o conteúdo.
+
+Seja didático, use linguagem acessível, e ajude o estudante a realmente ENTENDER o conteúdo, não apenas memorizar a resposta.`;
+
+    // Chamar API da Groq com modelo mais capaz
     const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -115,16 +126,16 @@ Forneça uma explicação concisa e objetiva, focando apenas no motivo da respos
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
+        model: "llama-3.3-70b-versatile",
         messages: [
           {
             role: "system",
-            content: "Você é um professor especialista em ENEM. Suas explicações são sempre muito breves, diretas e fáceis de entender. Máximo de 3-4 frases."
+            content: "Você é um professor experiente do ENEM, conhecido por explicações claras e didáticas. Você ajuda estudantes a entenderem profundamente os conceitos, não apenas decorar respostas. Suas explicações são completas, organizadas e fáceis de seguir."
           },
           { role: "user", content: prompt }
         ],
-        max_tokens: 300,
-        temperature: 0.3,
+        max_tokens: 1500,
+        temperature: 0.4,
       }),
     });
 
