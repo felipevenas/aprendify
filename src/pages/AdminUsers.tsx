@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { 
@@ -15,9 +16,12 @@ import {
   UserX, 
   Ban, 
   MoreHorizontal,
-  CheckCircle,
   XCircle,
-  Users
+  Users,
+  Pencil,
+  RotateCcw,
+  FileText,
+  HelpCircle
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -38,6 +42,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -47,9 +59,6 @@ import {
 } from "@/components/ui/table";
 import Navbar from "@/components/Navbar";
 
-/**
- * Interface para dados do usuário
- */
 interface UserData {
   id: string;
   email: string;
@@ -61,10 +70,6 @@ interface UserData {
   subscription_status: string | null;
 }
 
-/**
- * Página de administração de usuários
- * Permite gerenciar usuários, conceder premium, banir, etc.
- */
 const AdminUsers = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -74,15 +79,21 @@ const AdminUsers = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   
-  // Estados para diálogos de confirmação
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
-    type: "premium" | "revoke" | "ban" | null;
+    type: "premium" | "revoke" | "ban" | "reset-essays" | "reset-questions" | null;
     userId: string;
     userName: string;
   }>({ open: false, type: null, userId: "", userName: "" });
 
-  // Verifica se o usuário é admin
+  const [editDialog, setEditDialog] = useState<{
+    open: boolean;
+    userId: string;
+    fullName: string;
+    username: string;
+    email: string;
+  }>({ open: false, userId: "", fullName: "", username: "", email: "" });
+
   useEffect(() => {
     const checkAdmin = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -91,7 +102,6 @@ const AdminUsers = () => {
         return;
       }
 
-      // Verifica role do usuário
       const { data: roleData } = await supabase.rpc("get_user_role", { _user_id: user.id });
       
       if (roleData !== "admin") {
@@ -107,11 +117,9 @@ const AdminUsers = () => {
     checkAdmin();
   }, [navigate]);
 
-  // Busca todos os usuários
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Busca perfis dos usuários
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("id, email, full_name, username, created_at")
@@ -119,17 +127,14 @@ const AdminUsers = () => {
 
       if (profilesError) throw profilesError;
 
-      // Para cada usuário, busca role e subscription
       const usersWithDetails = await Promise.all(
         (profiles || []).map(async (profile) => {
-          // Busca role
           const { data: roleData } = await supabase
             .from("user_roles")
             .select("role")
             .eq("user_id", profile.id)
             .single();
 
-          // Busca subscription
           const { data: subscriptionData } = await supabase
             .from("subscriptions")
             .select("status")
@@ -156,7 +161,6 @@ const AdminUsers = () => {
     }
   };
 
-  // Filtra usuários pelo termo de busca
   useEffect(() => {
     if (!searchTerm.trim()) {
       setFilteredUsers(users);
@@ -173,11 +177,9 @@ const AdminUsers = () => {
     setFilteredUsers(filtered);
   }, [searchTerm, users]);
 
-  // Concede premium ao usuário
   const grantPremium = async (userId: string) => {
     setActionLoading(userId);
     try {
-      // Verifica se já existe uma subscription para este usuário
       const { data: existingSubscription } = await supabase
         .from("subscriptions")
         .select("id")
@@ -185,7 +187,6 @@ const AdminUsers = () => {
         .maybeSingle();
 
       if (existingSubscription) {
-        // Atualiza subscription existente
         const { error } = await supabase
           .from("subscriptions")
           .update({
@@ -198,7 +199,6 @@ const AdminUsers = () => {
 
         if (error) throw error;
       } else {
-        // Cria nova subscription
         const { error } = await supabase
           .from("subscriptions")
           .insert({
@@ -223,7 +223,6 @@ const AdminUsers = () => {
     }
   };
 
-  // Revoga premium do usuário
   const revokePremium = async (userId: string) => {
     setActionLoading(userId);
     try {
@@ -245,11 +244,9 @@ const AdminUsers = () => {
     }
   };
 
-  // Bane usuário (desativa subscription e marca como banido)
   const banUser = async (userId: string) => {
     setActionLoading(userId);
     try {
-      // Cancela subscription se existir
       await supabase
         .from("subscriptions")
         .update({ status: "banned", end_date: new Date().toISOString() })
@@ -266,7 +263,76 @@ const AdminUsers = () => {
     }
   };
 
-  // Formata data para exibição
+  const resetEssayCounter = async (userId: string) => {
+    setActionLoading(userId);
+    try {
+      const { error } = await supabase
+        .from("essays")
+        .delete()
+        .eq("user_id", userId)
+        .gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
+
+      if (error) throw error;
+
+      toast.success("Contador de redações resetado!");
+    } catch (error) {
+      console.error("Erro ao resetar contador:", error);
+      toast.error("Erro ao resetar contador de redações");
+    } finally {
+      setActionLoading(null);
+      setConfirmDialog({ open: false, type: null, userId: "", userName: "" });
+    }
+  };
+
+  const resetQuestionCounter = async (userId: string) => {
+    setActionLoading(userId);
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const { error } = await supabase
+        .from("question_attempts")
+        .delete()
+        .eq("user_id", userId)
+        .gte("created_at", today.toISOString());
+
+      if (error) throw error;
+
+      toast.success("Contador de questões do dia resetado!");
+    } catch (error) {
+      console.error("Erro ao resetar contador:", error);
+      toast.error("Erro ao resetar contador de questões");
+    } finally {
+      setActionLoading(null);
+      setConfirmDialog({ open: false, type: null, userId: "", userName: "" });
+    }
+  };
+
+  const updateUserProfile = async () => {
+    setActionLoading(editDialog.userId);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: editDialog.fullName,
+          username: editDialog.username,
+          email: editDialog.email,
+        })
+        .eq("id", editDialog.userId);
+
+      if (error) throw error;
+
+      toast.success("Perfil atualizado com sucesso!");
+      setEditDialog({ open: false, userId: "", fullName: "", username: "", email: "" });
+      fetchUsers();
+    } catch (error) {
+      console.error("Erro ao atualizar perfil:", error);
+      toast.error("Erro ao atualizar perfil");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("pt-BR", {
       day: "2-digit",
@@ -296,7 +362,6 @@ const AdminUsers = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <div>
               <h1 className="text-3xl sm:text-4xl font-bold text-foreground flex items-center gap-3">
@@ -308,14 +373,12 @@ const AdminUsers = () => {
               </p>
             </div>
 
-            {/* Contador de usuários */}
             <Badge variant="secondary" className="text-sm px-4 py-2">
               <Users className="h-4 w-4 mr-2" />
               {users.length} usuários cadastrados
             </Badge>
           </div>
 
-          {/* Busca */}
           <Card className="mb-6">
             <CardContent className="pt-6">
               <div className="relative">
@@ -330,7 +393,6 @@ const AdminUsers = () => {
             </CardContent>
           </Card>
 
-          {/* Tabela de usuários */}
           <Card>
             <CardHeader>
               <CardTitle>Usuários</CardTitle>
@@ -404,7 +466,56 @@ const AdminUsers = () => {
                               <DropdownMenuLabel>Ações</DropdownMenuLabel>
                               <DropdownMenuSeparator />
                               
-                              {/* Conceder Premium */}
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  setEditDialog({
+                                    open: true,
+                                    userId: user.id,
+                                    fullName: user.full_name || "",
+                                    username: user.username || "",
+                                    email: user.email,
+                                  })
+                                }
+                                className="gap-2 cursor-pointer"
+                              >
+                                <Pencil className="h-4 w-4 text-blue-500" />
+                                Editar Perfil
+                              </DropdownMenuItem>
+
+                              <DropdownMenuSeparator />
+
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  setConfirmDialog({
+                                    open: true,
+                                    type: "reset-essays",
+                                    userId: user.id,
+                                    userName: user.full_name || user.email,
+                                  })
+                                }
+                                className="gap-2 cursor-pointer"
+                              >
+                                <FileText className="h-4 w-4 text-purple-500" />
+                                Resetar Redações (mês)
+                              </DropdownMenuItem>
+
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  setConfirmDialog({
+                                    open: true,
+                                    type: "reset-questions",
+                                    userId: user.id,
+                                    userName: user.full_name || user.email,
+                                  })
+                                }
+                                className="gap-2 cursor-pointer"
+                              >
+                                <HelpCircle className="h-4 w-4 text-green-500" />
+                                Resetar Questões (dia)
+                              </DropdownMenuItem>
+
+                              <DropdownMenuSeparator />
+                              
                               {!user.is_premium && user.subscription_status !== "banned" && (
                                 <DropdownMenuItem
                                   onClick={() =>
@@ -422,7 +533,6 @@ const AdminUsers = () => {
                                 </DropdownMenuItem>
                               )}
 
-                              {/* Revogar Premium */}
                               {user.is_premium && (
                                 <DropdownMenuItem
                                   onClick={() =>
@@ -440,7 +550,6 @@ const AdminUsers = () => {
                                 </DropdownMenuItem>
                               )}
 
-                              {/* Banir */}
                               {user.subscription_status !== "banned" && user.role !== "admin" && (
                                 <>
                                   <DropdownMenuSeparator />
@@ -481,7 +590,6 @@ const AdminUsers = () => {
         </motion.div>
       </main>
 
-      {/* Diálogo de Confirmação */}
       <AlertDialog
         open={confirmDialog.open}
         onOpenChange={(open) =>
@@ -494,6 +602,8 @@ const AdminUsers = () => {
               {confirmDialog.type === "premium" && "Conceder Premium"}
               {confirmDialog.type === "revoke" && "Revogar Premium"}
               {confirmDialog.type === "ban" && "Banir Usuário"}
+              {confirmDialog.type === "reset-essays" && "Resetar Redações"}
+              {confirmDialog.type === "reset-questions" && "Resetar Questões"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmDialog.type === "premium" &&
@@ -502,6 +612,10 @@ const AdminUsers = () => {
                 `Deseja revogar o acesso Premium de ${confirmDialog.userName}?`}
               {confirmDialog.type === "ban" &&
                 `Deseja banir ${confirmDialog.userName}? Esta ação irá revogar todos os acessos do usuário.`}
+              {confirmDialog.type === "reset-essays" &&
+                `Deseja deletar todas as redações de ${confirmDialog.userName} enviadas este mês? Isso irá zerar o contador mensal.`}
+              {confirmDialog.type === "reset-questions" &&
+                `Deseja deletar todas as tentativas de questões de ${confirmDialog.userName} de hoje? Isso irá zerar o contador diário.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -514,6 +628,10 @@ const AdminUsers = () => {
                   revokePremium(confirmDialog.userId);
                 } else if (confirmDialog.type === "ban") {
                   banUser(confirmDialog.userId);
+                } else if (confirmDialog.type === "reset-essays") {
+                  resetEssayCounter(confirmDialog.userId);
+                } else if (confirmDialog.type === "reset-questions") {
+                  resetQuestionCounter(confirmDialog.userId);
                 }
               }}
               className={
@@ -527,6 +645,63 @@ const AdminUsers = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog
+        open={editDialog.open}
+        onOpenChange={(open) =>
+          !open && setEditDialog({ open: false, userId: "", fullName: "", username: "", email: "" })
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Perfil</DialogTitle>
+            <DialogDescription>
+              Altere as informações do usuário abaixo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Nome Completo</Label>
+              <Input
+                id="fullName"
+                value={editDialog.fullName}
+                onChange={(e) => setEditDialog({ ...editDialog, fullName: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                value={editDialog.username}
+                onChange={(e) => setEditDialog({ ...editDialog, username: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={editDialog.email}
+                onChange={(e) => setEditDialog({ ...editDialog, email: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditDialog({ open: false, userId: "", fullName: "", username: "", email: "" })}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={updateUserProfile} disabled={actionLoading === editDialog.userId}>
+              {actionLoading === editDialog.userId ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
