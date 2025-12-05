@@ -24,34 +24,41 @@ serve(async (req) => {
     // Construir prompt com os dados do usuário
     const prompt = `Você é um tutor especialista em preparação para o ENEM. Analise os dados de estudo do aluno e forneça sugestões personalizadas e práticas.
 
-## DADOS DO ALUNO:
+DADOS DO ALUNO:
 
-### Questões:
+Questões:
 - Total de questões respondidas: ${stats.totalQuestions}
 - Acertos: ${stats.correctAnswers}
 - Erros: ${stats.wrongAnswers}
 - Taxa de acerto geral: ${stats.successRate}%
 
-### Desempenho por disciplina:
+Desempenho por disciplina:
 ${stats.disciplineStats?.map((d: any) => `- ${d.name}: ${d.accuracy}% de acerto (${d.total} questões)`).join('\n') || 'Sem dados'}
 
-### Disciplinas com mais erros:
+Disciplinas com mais erros:
 ${stats.topicStats?.map((t: any) => `- ${t.name}: ${t.count} erros`).join('\n') || 'Sem dados'}
 
-### Redações:
+Redações:
 - Total de redações enviadas: ${stats.totalEssays}
 - Média de nota: ${stats.averageEssayScore}/1000
 
-### Média por competência das redações:
+Média por competência das redações:
 ${stats.essayCompetencyData?.map((c: any) => `- ${c.competencia}: ${c.media}/200`).join('\n') || 'Sem dados'}
 
-## INSTRUÇÕES:
+INSTRUÇÕES:
 1. Faça uma análise breve do desempenho geral
 2. Identifique os pontos fortes e fracos
 3. Dê 3-5 sugestões práticas e específicas de estudo
 4. Se houver dados de redação, inclua dicas específicas para melhorar nas competências mais fracas
 5. Seja motivador mas realista
 6. Use linguagem clara e direta
+
+REGRAS DE FORMATAÇÃO OBRIGATÓRIAS:
+- NÃO use caracteres markdown como #, *, **, ---, etc.
+- Use apenas texto corrido com quebras de linha
+- Separe seções com linhas em branco
+- Use números ou hífens simples para listas
+- Mantenha a estrutura organizada mas sem formatação especial
 
 Responda em português brasileiro de forma organizada e concisa.`;
 
