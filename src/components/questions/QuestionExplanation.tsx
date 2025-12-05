@@ -41,8 +41,10 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
     setShowExplanation(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
         toast({
           title: "Erro",
@@ -52,26 +54,23 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
         return;
       }
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/question-explanation`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/question-explanation`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          question: {
+            title: question.title || question.alternativesIntroduction,
+            context: question.context,
+            alternatives: question.alternatives,
+            correctAlternative: question.correctAlternative,
+            discipline: question.discipline,
+            year: question.year,
           },
-          body: JSON.stringify({
-            question: {
-              title: question.title || question.alternativesIntroduction,
-              context: question.context,
-              alternatives: question.alternatives,
-              correctAlternative: question.correctAlternative,
-              discipline: question.discipline,
-              year: question.year,
-            },
-          }),
-        }
-      );
+        }),
+      });
 
       const data = await response.json();
 
@@ -97,7 +96,7 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
   if (!showResult) return null;
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
@@ -110,17 +109,14 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
             {isPremium ? "Quer entender a resolução?" : "Explicação por IA"}
           </span>
         </div>
-        
+
         {/* Botão para ver explicação */}
         <Button
           onClick={fetchExplanation}
           variant={isPremium ? "default" : "secondary"}
           size="sm"
           disabled={loading}
-          className={cn(
-            "gap-2",
-            isPremium && "bg-primary hover:bg-primary/90"
-          )}
+          className={cn("gap-2", isPremium && "bg-primary hover:bg-primary/90")}
         >
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -152,12 +148,10 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
               {loading ? (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">Gerando explicação com IA...</span>
+                  <span className="text-sm">Buscando a melhor explicação para você...</span>
                 </div>
               ) : (
-                <p className="text-sm text-foreground leading-relaxed">
-                  {explanation}
-                </p>
+                <p className="text-sm text-foreground leading-relaxed">{explanation}</p>
               )}
             </div>
           </motion.div>
