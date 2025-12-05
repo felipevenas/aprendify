@@ -244,7 +244,7 @@ const Auth = () => {
           {/* Logo fixo */}
           <div className="flex items-center gap-3 mb-6">
             <BookOpen className="h-12 w-12 text-white" />
-            <h1 className="text-5xl font-bold text-white">Estudify</h1>
+            <h1 className="text-5xl font-bold text-white">Aprendify</h1>
           </div>
 
           {/* Conteúdo que muda com animação */}
@@ -303,7 +303,7 @@ const Auth = () => {
           {/* Logo mobile */}
           <div className="flex lg:hidden items-center justify-center mb-8">
             <BookOpen className="h-10 w-10 text-primary mr-3" />
-            <h1 className="text-3xl font-bold text-primary">Estudify</h1>
+            <h1 className="text-3xl font-bold text-primary">Aprendify</h1>
           </div>
 
           {/* Header do formulário */}
