@@ -13,5 +13,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+    // Session timeout: 24 horas (padrão mais comum para apps web)
+    // Após 24h de inatividade, o usuário precisará fazer login novamente
   }
 });

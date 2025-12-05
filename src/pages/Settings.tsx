@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Upload, Loader2, Shield, Users, ChevronRight } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import TwoFactorAuth from "@/components/settings/TwoFactorAuth";
 
 /**
  * Página de configurações do usuário
@@ -296,6 +297,9 @@ const Settings = () => {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Autenticação em Dois Fatores */}
+            {user && <TwoFactorAuth userId={user.id} />}
 
             {/* Ferramentas de Administrador - Apenas para admins */}
             {isAdmin && (
