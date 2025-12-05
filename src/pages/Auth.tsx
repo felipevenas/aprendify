@@ -7,9 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, Mail, Lock, User, ArrowRight, Eye, EyeOff, Check, X } from "lucide-react";
+import { BookOpen, Mail, Lock, User, ArrowRight, Eye, EyeOff, Check, X, ShieldCheck } from "lucide-react";
 import authHero from "@/assets/auth-hero.jpg";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { z } from "zod";
+
+// Schema de validação com zod para segurança
+const emailSchema = z.string().trim().email("E-mail inválido").max(255, "E-mail muito longo");
+const usernameSchema = z.string().trim().min(3, "Mínimo 3 caracteres").max(30, "Máximo 30 caracteres").regex(/^[a-zA-Z0-9_]+$/, "Apenas letras, números e _");
+const phoneSchema = z.string().trim().regex(/^(\+?[0-9]{10,15})?$/, "Telefone inválido").optional();
 
 /**
  * Conteúdos dinâmicos que mudam na tela de login
@@ -143,7 +149,39 @@ const Auth = () => {
         toast.success("Login realizado com sucesso!");
         navigate("/dashboard");
       } else {
-        // Validações de cadastro
+        // Validações de cadastro com zod
+        try {
+          emailSchema.parse(email);
+        } catch (e) {
+          if (e instanceof z.ZodError) {
+            toast.error(e.errors[0].message);
+            setLoading(false);
+            return;
+          }
+        }
+
+        try {
+          usernameSchema.parse(username);
+        } catch (e) {
+          if (e instanceof z.ZodError) {
+            toast.error(e.errors[0].message);
+            setLoading(false);
+            return;
+          }
+        }
+
+        if (phone) {
+          try {
+            phoneSchema.parse(phone);
+          } catch (e) {
+            if (e instanceof z.ZodError) {
+              toast.error(e.errors[0].message);
+              setLoading(false);
+              return;
+            }
+          }
+        }
+
         if (!isPasswordStrong) {
           toast.error("A senha não atende aos requisitos mínimos de segurança.");
           setLoading(false);
@@ -157,7 +195,7 @@ const Auth = () => {
         }
 
         // Cria a conta com todos os dados do perfil
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -167,18 +205,43 @@ const Auth = () => {
               username: username,
               phone: phone,
               birthdate: birthdate || null,
-              role: "user", // Sempre usuário padrão
             },
           },
         });
 
         if (signUpError) throw signUpError;
 
-        toast.success("Cadastro realizado! Faça login para continuar.");
+        // Verificar se precisa confirmar email
+        if (signUpData?.user?.identities?.length === 0) {
+          toast.error("Este e-mail já está cadastrado. Tente fazer login.");
+          setLoading(false);
+          return;
+        }
+
+        toast.success(
+          "Cadastro realizado! Verifique seu e-mail para confirmar sua conta.",
+          {
+            duration: 6000,
+            icon: <ShieldCheck className="h-5 w-5 text-green-500" />,
+          }
+        );
         setIsLogin(true);
       }
     } catch (error: any) {
-      toast.error(error.message || "Ocorreu um erro. Tente novamente.");
+      // Mapeamento de erros para mensagens amigáveis
+      const errorMessages: Record<string, string> = {
+        "Invalid login credentials": "E-mail ou senha incorretos.",
+        "Email not confirmed": "Por favor, confirme seu e-mail antes de fazer login.",
+        "User already registered": "Este e-mail já está cadastrado.",
+        "Password should be at least 6 characters": "A senha deve ter no mínimo 6 caracteres.",
+        "Unable to validate email address: invalid format": "Formato de e-mail inválido.",
+        "Signup disabled": "Novos cadastros estão temporariamente desabilitados.",
+        "Email rate limit exceeded": "Muitas tentativas. Aguarde alguns minutos.",
+        "For security purposes, you can only request this once every 60 seconds": "Aguarde 60 segundos antes de tentar novamente.",
+      };
+      
+      const friendlyMessage = errorMessages[error.message] || error.message || "Ocorreu um erro. Tente novamente.";
+      toast.error(friendlyMessage);
     } finally {
       setLoading(false);
     }
