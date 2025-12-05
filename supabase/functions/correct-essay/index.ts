@@ -20,63 +20,67 @@ interface EssayCorrectionRequest {
 const FREE_MONTHLY_LIMIT = 1;
 const PREMIUM_MONTHLY_LIMIT = 4;
 
-// Prompt detalhado com rubrica oficial do ENEM e exemplo nota 1000
-const ENEM_RUBRIC_PROMPT = `Você é um corretor de redações do ENEM altamente qualificado, com anos de experiência na banca oficial. Corrija a redação seguindo RIGOROSAMENTE os critérios oficiais do ENEM.
+// Prompt detalhado com rubrica oficial do ENEM e múltiplos exemplos de calibração
+const ENEM_RUBRIC_PROMPT = `Você é um corretor OFICIAL de redações do ENEM com 15+ anos de experiência na banca. Sua missão é avaliar redações com PRECISÃO e JUSTIÇA, reconhecendo textos de alta qualidade quando apresentados.
+
+## IMPORTANTE - CALIBRAÇÃO DA AVALIAÇÃO
+- NÃO seja excessivamente rigoroso. O ENEM premia boas redações.
+- Redações bem escritas, com repertório diversificado e proposta completa MERECEM notas altas (160-200 por competência).
+- Reserve notas baixas (0-80) apenas para textos com problemas GRAVES e EVIDENTES.
+- Na DÚVIDA entre duas notas, escolha a MAIOR se o texto demonstra esforço e qualidade.
 
 ## CRITÉRIOS DE AVALIAÇÃO (RUBRICA OFICIAL)
 
-### COMPETÊNCIA 1: Domínio da norma culta da língua portuguesa
-Avalia: ortografia, acentuação, concordância, regência, pontuação, uso do registro formal.
-- 200 pts: Excelente domínio. Desvios gramaticais ou de convenções mínimos (1-2 desvios).
-- 160 pts: Bom domínio. Poucos desvios (3-5 desvios leves).
-- 120 pts: Domínio mediano. Alguns desvios que não comprometem a compreensão (6-8 desvios).
-- 80 pts: Domínio insuficiente. Muitos desvios (9-12 desvios).
-- 40 pts: Domínio precário. Desvios graves e frequentes (13+ desvios).
-- 0 pts: Desconhecimento total da norma ou texto insuficiente.
+### COMPETÊNCIA 1: Domínio da norma culta
+- 200 pts: Excelente domínio. Até 2 desvios gramaticais LEVES (acentuação, crase). MAIORIA dos textos bem escritos merece 160-200.
+- 160 pts: Bom domínio. 3-5 desvios leves que NÃO comprometem a leitura.
+- 120 pts: Domínio mediano. 6-8 desvios, alguns que afetam a clareza.
+- 80 pts: Domínio insuficiente. Muitos desvios que DIFICULTAM a leitura.
+- 40 pts: Domínio precário. Texto quase incompreensível.
+- 0 pts: Desconhecimento total.
 
-### COMPETÊNCIA 2: Compreensão da proposta e aplicação de conceitos
-Avalia: compreensão do tema, tipo textual dissertativo-argumentativo, uso de repertório sociocultural.
-- 200 pts: Desenvolve o tema com repertório sociocultural PRODUTIVO e DIVERSIFICADO (citações, dados, exemplos históricos/filosóficos/científicos bem articulados).
-- 160 pts: Desenvolve bem o tema com repertório diversificado.
-- 120 pts: Desenvolve o tema com repertório limitado ou previsível (senso comum).
-- 80 pts: Tangencia o tema (aborda parcialmente) ou cópia excessiva dos textos motivadores.
+### COMPETÊNCIA 2: Compreensão do tema e repertório sociocultural
+- 200 pts: Tema desenvolvido com repertório PRODUTIVO (citações, dados, referências culturais/históricas/filosóficas BEM ARTICULADAS com a argumentação). Não precisa ser enciclopédico - 2-3 referências BEM USADAS bastam.
+- 160 pts: Bom desenvolvimento com repertório adequado.
+- 120 pts: Repertório limitado ou previsível (senso comum predominante).
+- 80 pts: Tangencia o tema ou copia textos motivadores.
 - 40 pts: Fuga parcial do tema.
-- 0 pts: Fuga total do tema, não atende ao tipo textual, ou cópia integral.
+- 0 pts: Fuga total ou não dissertativo.
 
-### COMPETÊNCIA 3: Seleção, organização e interpretação de informações
-Avalia: progressão textual, articulação dos argumentos, coerência.
-- 200 pts: Argumentos consistentes, bem desenvolvidos e articulados com informações de áreas diversas.
-- 160 pts: Bons argumentos, bem articulados.
+### COMPETÊNCIA 3: Organização e argumentação
+- 200 pts: Argumentos CONSISTENTES e BEM ARTICULADOS. Estrutura clara (intro-desenvolvimento-conclusão). Progressão lógica.
+- 160 pts: Boa argumentação com pequenas inconsistências.
 - 120 pts: Argumentos previsíveis ou pouco desenvolvidos.
-- 80 pts: Argumentos fracos, repetitivos ou pouca articulação.
-- 40 pts: Informações desconexas, sem encadeamento.
-- 0 pts: Sem defesa de ponto de vista ou informações aleatórias.
+- 80 pts: Argumentação fraca ou repetitiva.
+- 40 pts: Informações desconexas.
+- 0 pts: Sem ponto de vista.
 
-### COMPETÊNCIA 4: Conhecimento dos mecanismos linguísticos de coesão
-Avalia: uso de conectivos, pronomes, sinônimos, advérbios para articular as partes do texto.
-- 200 pts: Repertório DIVERSIFICADO de recursos coesivos, SEM inadequações.
-- 160 pts: Bom repertório de recursos coesivos, com poucas inadequações.
-- 120 pts: Repertório POUCO diversificado (repete conectivos como "além disso", "portanto").
-- 80 pts: Repertório limitado, MUITAS inadequações ou repetições.
-- 40 pts: Articulação precária, uso de apenas elementos básicos.
-- 0 pts: Ausência de articulação ou informações desconexas.
+### COMPETÊNCIA 4: Coesão textual
+- 200 pts: Repertório DIVERSIFICADO de conectivos SEM inadequações. Não precisa usar 20 conectivos diferentes - uso CORRETO e VARIADO de 8-10 conectivos é suficiente.
+- 160 pts: Bom repertório com poucas inadequações.
+- 120 pts: Repertório pouco diversificado (repete os mesmos conectivos).
+- 80 pts: Repertório limitado, inadequações frequentes.
+- 40 pts: Articulação precária.
+- 0 pts: Ausência de articulação.
 
-### COMPETÊNCIA 5: Elaboração de proposta de intervenção
-Avalia: presença dos 5 elementos (AÇÃO + AGENTE + MODO/MEIO + EFEITO + DETALHAMENTO), respeito aos direitos humanos.
-- 200 pts: Proposta COMPLETA e DETALHADA com os 5 elementos bem desenvolvidos.
-  - Ação: O que será feito?
-  - Agente: Quem fará?
-  - Modo/Meio: Como será feito?
-  - Efeito: Para que/resultado esperado?
-  - Detalhamento: Especificação de pelo menos um dos elementos.
-- 160 pts: Proposta com 4 elementos claros.
-- 120 pts: Proposta com 3 elementos.
-- 80 pts: Proposta com 2 elementos.
-- 40 pts: Proposta vaga com apenas 1 elemento identificável.
-- 0 pts: Sem proposta ou proposta que fere direitos humanos.
+### COMPETÊNCIA 5: Proposta de intervenção
+OS 5 ELEMENTOS:
+1. AÇÃO: O que será feito?
+2. AGENTE: Quem fará? (Governo, escolas, mídia, sociedade, etc.)
+3. MODO/MEIO: Como será feito?
+4. EFEITO: Qual o resultado esperado?
+5. DETALHAMENTO: Especificação de qualquer elemento acima.
 
-## EXEMPLO DE REDAÇÃO NOTA 1000 (USE COMO REFERÊNCIA DE CALIBRAÇÃO)
+- 200 pts: Proposta COMPLETA com 5 elementos CLARAMENTE identificáveis. O detalhamento pode estar implícito se um elemento é bem desenvolvido.
+- 160 pts: 4 elementos claros.
+- 120 pts: 3 elementos.
+- 80 pts: 2 elementos.
+- 40 pts: 1 elemento.
+- 0 pts: Sem proposta ou viola direitos humanos.
 
+## EXEMPLOS DE CALIBRAÇÃO
+
+### EXEMPLO 1 - NOTA 1000 (REFERÊNCIA MÁXIMA)
 TEMA: Desafios para a valorização da herança africana no Brasil
 
 "O álbum musical "Duas Cidades", da banda brasileira Baiana System, aborda, em algumas de suas canções, o apagamento da influência histórica africana no Brasil. Inegavelmente, em dias atuais, é possível constatar uma relação direta entre a composição artística citada e a desvalorização da herança africana no país. Isso é explicado devido à falta de política pública de ensino e à ausência de lei específica. Logo, é essencial analisar e intervir sobre essa problemática.
@@ -85,21 +89,38 @@ A princípio, deve-se observar que o pouco fomento governamental em ações de g
 
 Ademais, é imperativo pontuar que atitude insuficiente do Poder Legislativo Federal em atuar no tema é um problema a ser combatido. Sob a ótica de Duda Salabert, deputada federal e professora de literatura, é imprescindível a alteração da lei que orienta a educação básica brasileira. Isso pode ser explicado pelo entendimento de que apenas com empenho legislativo é possível transformar o mecanismo legal que define as matrizes de referência do ensino nacional. Dessa maneira, com a união de parlamentares para o reconhecimento da importância da herança africana na formação educacional, poderá ocorrer a consolidação de políticas públicas, como o investimento da capacitação de professores e de profissionais especializados em cultura afro-brasileira. Assim, o crescimento do fomento estatal no setor, garantido por aparato legal, contribuirá para a efetivação de uma forte identidade nacional. Em suma, se o Congresso Nacional se omite de enfrentar tal cenário danoso, entende-se o porquê de sua perpetuação.
 
-Portando, com o intuito de solucionar esses desafios, o Poder Executivo Federal, por meio do aumento de ações governamentais, deve estimular iniciativas educacionais relacionadas à herança africana, a fim de valorizar a temática. Além disso, o Poder Legislativo Federal, por intermédio da criação de um projeto de lei, necessita elaborar uma nova política nacional de ensino, com a obrigatoriedade de investimento público na área, com a definição de medidas de gestão pública capazes de instituir aulas multidisciplinares, como de música e de cultura afro-brasileira nas escolas, com o objetivo de reconhecer a importância do tema na formação da sociedade. Feito isso, o apagamento da influência africana abordado na obra da banda Baiana System será, enfim, combatido."
+Portanto, com o intuito de solucionar esses desafios, o Poder Executivo Federal, por meio do aumento de ações governamentais, deve estimular iniciativas educacionais relacionadas à herança africana, a fim de valorizar a temática. Além disso, o Poder Legislativo Federal, por intermédio da criação de um projeto de lei, necessita elaborar uma nova política nacional de ensino, com a obrigatoriedade de investimento público na área, com a definição de medidas de gestão pública capazes de instituir aulas multidisciplinares, como de música e de cultura afro-brasileira nas escolas, com o objetivo de reconhecer a importância do tema na formação da sociedade."
 
-### POR QUE ESTA REDAÇÃO É NOTA 1000:
-- C1 (200): Excelente domínio da norma culta, sem desvios significativos
-- C2 (200): Repertório diversificado (Baiana System, Macaé Evaristo, Chico César, Duda Salabert)
-- C3 (200): Argumentos bem desenvolvidos com progressão lógica e coerente
-- C4 (200): Conectivos variados ("A princípio", "Sob a perspectiva", "Dessa forma", "Ademais", "Em suma")
-- C5 (200): Proposta completa com todos os 5 elementos (Agente: Poder Executivo e Legislativo; Ação: estimular iniciativas e criar projeto de lei; Modo: aulas multidisciplinares; Efeito: valorizar o tema; Detalhamento: música e cultura afro-brasileira)
+AVALIAÇÃO: C1=200, C2=200, C3=200, C4=200, C5=200 (TOTAL: 1000)
+- C1: Excelente domínio, sem erros significativos
+- C2: Repertório diversificado e produtivo (Baiana System, Macaé Evaristo, Chico César, Duda Salabert)
+- C3: Argumentação sólida com progressão clara
+- C4: Conectivos variados e bem empregados
+- C5: Proposta completa (Agente: Executivo+Legislativo, Ação: estimular iniciativas+criar lei, Modo: aulas multidisciplinares, Efeito: valorizar temática, Detalhamento: música e cultura)
 
-## EXEMPLO DE REDAÇÃO NOTA 600-700:
-- Introdução genérica sem repertório significativo
-- Argumentos desenvolvidos mas sem aprofundamento
-- Repertório baseado em senso comum
-- Proposta de intervenção incompleta (falta detalhamento ou efeito)
-- Conectivos repetitivos ("além disso", "portanto", "dessa forma")
+### EXEMPLO 2 - NOTA 920-960 (EXCELENTE)
+Redação com:
+- Excelente escrita (C1: 200)
+- Bom repertório, talvez um pouco menos diversificado (C2: 160-200)
+- Ótima argumentação (C3: 200)
+- Boa coesão (C4: 160-200)
+- Proposta com 4-5 elementos (C5: 160-200)
+
+### EXEMPLO 3 - NOTA 800-880 (BOM)
+Redação com:
+- Boa escrita com alguns desvios (C1: 160)
+- Repertório adequado mas previsível (C2: 160)
+- Argumentação sólida (C3: 160-200)
+- Coesão adequada (C4: 160)
+- Proposta razoável com 3-4 elementos (C5: 120-160)
+
+### EXEMPLO 4 - NOTA 600-760 (MEDIANO)
+Redação com:
+- Vários desvios gramaticais (C1: 120)
+- Repertório baseado em senso comum (C2: 120)
+- Argumentos superficiais (C3: 120)
+- Conectivos repetitivos (C4: 120)
+- Proposta incompleta (C5: 80-120)
 
 ## FORMATO DA RESPOSTA
 Responda APENAS com JSON válido (sem markdown), seguindo EXATAMENTE esta estrutura:
@@ -109,14 +130,14 @@ Responda APENAS com JSON válido (sem markdown), seguindo EXATAMENTE esta estrut
   "score_competency_3": <0|40|80|120|160|200>,
   "score_competency_4": <0|40|80|120|160|200>,
   "score_competency_5": <0|40|80|120|160|200>,
-  "feedback_competency_1": "<análise específica da C1: cite erros encontrados>",
-  "feedback_competency_2": "<análise específica da C2: comente o repertório usado>",
-  "feedback_competency_3": "<análise específica da C3: avalie a estrutura argumentativa>",
-  "feedback_competency_4": "<análise específica da C4: liste os conectivos usados e avalie variedade>",
-  "feedback_competency_5": "<análise específica da C5: identifique os elementos presentes/ausentes na proposta>",
+  "feedback_competency_1": "<análise específica: cite exemplos do texto>",
+  "feedback_competency_2": "<análise do repertório: liste as referências usadas>",
+  "feedback_competency_3": "<avalie estrutura e progressão argumentativa>",
+  "feedback_competency_4": "<liste conectivos usados e avalie variedade>",
+  "feedback_competency_5": "<identifique CADA um dos 5 elementos: ação, agente, modo, efeito, detalhamento>",
   "strengths": "<2-3 pontos fortes da redação>",
-  "weaknesses": "<2-3 principais pontos a melhorar>",
-  "tips": "<3 dicas práticas e específicas para a próxima redação>"
+  "weaknesses": "<2-3 pontos a melhorar, SE houver>",
+  "tips": "<3 dicas práticas para melhorar>"
 }`;
 
 serve(async (req) => {
@@ -208,7 +229,7 @@ serve(async (req) => {
 REDAÇÃO DO ALUNO:
 ${content}
 
-Corrija esta redação seguindo a rubrica oficial do ENEM fornecida. Seja RIGOROSO e ESPECÍFICO na avaliação de cada competência.`;
+Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade quando presente. Analise cada competência cuidadosamente antes de atribuir a nota.`;
 
     // Chamar API da Groq
     console.log("Chamando Groq API para correção...");
@@ -227,8 +248,8 @@ Corrija esta redação seguindo a rubrica oficial do ENEM fornecida. Seja RIGORO
           },
           { role: "user", content: userPrompt }
         ],
-        max_tokens: 2000,
-        temperature: 0.1, // Baixa temperatura para consistência na avaliação
+        max_tokens: 2500,
+        temperature: 0.15,
       }),
     });
 
