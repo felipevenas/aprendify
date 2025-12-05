@@ -106,7 +106,7 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
         <div className="flex items-center gap-2">
           <MessageCircle className="h-5 w-5 text-primary" />
           <span className="font-medium text-foreground">
-            {isPremium ? "Quer entender a resolução?" : "Explicação por IA"}
+            {isPremium ? "Quer entender a resolução?" : "Explicação detalhada"}
           </span>
         </div>
 
