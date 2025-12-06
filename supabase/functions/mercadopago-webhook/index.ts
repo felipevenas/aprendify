@@ -169,6 +169,16 @@ Deno.serve(async (req) => {
       const status = subscriptionData.status;
       const planId = subscriptionData.preapproval_plan_id;
 
+      // Mapeamento de plan_id para plan_type
+      // IDs conhecidos dos planos MercadoPago
+      const PLAN_TYPE_MAP: Record<string, 'monthly' | 'annual'> = {
+        '2fab389d1e6546429376b4a50517acd2': 'monthly',
+        'aa593ab5788f43a29726b7a45381baaa': 'annual',
+      };
+      const planType = PLAN_TYPE_MAP[planId] || 'monthly';
+
+      console.log(`Plan mapping: ${planId} -> ${planType}`);
+
       // Find user by email
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -185,7 +195,8 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Upsert subscription
+      // Upsert subscription com plan_type correto
+      // Usa user_id como conflict para garantir 1 subscription por usuário
       const { error: upsertError } = await supabase
         .from('subscriptions')
         .upsert({
@@ -194,10 +205,12 @@ Deno.serve(async (req) => {
           mercadopago_payer_email: payerEmail,
           status: status,
           plan_id: planId,
+          plan_type: planType,
           start_date: subscriptionData.date_created,
           end_date: subscriptionData.auto_recurring?.end_date || null,
+          updated_at: new Date().toISOString(),
         }, {
-          onConflict: 'mercadopago_subscription_id',
+          onConflict: 'user_id',
         });
 
       if (upsertError) {
@@ -208,7 +221,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      console.log('Subscription processed successfully for user:', profile.id);
+      console.log(`Subscription processed: user=${profile.id}, status=${status}, plan_type=${planType}`);
     }
 
     return new Response(JSON.stringify({ message: 'Webhook processed' }), {
