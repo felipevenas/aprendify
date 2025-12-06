@@ -134,7 +134,7 @@ const AddManualQuestionForm = ({ onSuccess }: AddManualQuestionFormProps) => {
    * Envia a questão para o banco de dados
    */
   const handleSubmit = async () => {
-    // Validação
+    // Client-side validation (also validated server-side)
     const validationError = validateForm();
     if (validationError) {
       toast.error(validationError);
@@ -172,33 +172,46 @@ const AddManualQuestionForm = ({ onSuccess }: AddManualQuestionFormProps) => {
         text: alternatives[key],
       }));
 
-      // Insere a questão no banco de dados
-      const { error: insertError } = await supabase
-        .from("enem_questions")
-        .insert({
-          year,
-          discipline,
-          index: parseInt(questionIndex),
-          title,
-          context: context.trim() || null,
-          alternatives_introduction: alternativesIntro.trim() || null,
-          alternatives: alternativesArray,
-          correct_alternative: correctAlternative,
-          files: imageUrl ? [imageUrl] : null,
-        });
+      // Prepare question data for server-side validation
+      const questionData = {
+        year,
+        discipline,
+        index: parseInt(questionIndex),
+        title,
+        context: context.trim() || null,
+        alternatives_introduction: alternativesIntro.trim() || null,
+        alternatives: alternativesArray,
+        correct_alternative: correctAlternative,
+        files: imageUrl ? [imageUrl] : null,
+      };
 
-      if (insertError) {
-        throw new Error(insertError.message);
+      // Use edge function with server-side validation
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) {
+        throw new Error("Sessão expirada. Faça login novamente.");
+      }
+
+      const { data, error: funcError } = await supabase.functions.invoke('add-manual-question', {
+        body: questionData,
+      });
+
+      if (funcError) {
+        throw new Error(funcError.message || "Erro ao adicionar questão");
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
       }
 
       setResult({ success: true });
       toast.success("Questão adicionada com sucesso!");
       resetForm();
       onSuccess?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Erro ao adicionar questão";
       console.error("Erro ao adicionar questão:", error);
-      setResult({ error: error.message });
-      toast.error(error.message || "Erro ao adicionar questão");
+      setResult({ error: errorMessage });
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }

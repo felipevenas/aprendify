@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.ai-study-suggestion]
 verify_jwt = false
+
+[functions.add-manual-question]
+verify_jwt = false
