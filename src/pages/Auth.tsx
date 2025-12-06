@@ -247,14 +247,20 @@ const Auth = () => {
     }
   };
 
-  // Handler para login com Google
+  // Handler para login com Google OAuth
+  // IMPORTANTE: O redirectTo deve usar a URL de callback do Supabase para funcionar corretamente
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
+          // Usa a URL de callback padrão do Supabase que redireciona para o site após autenticação
           redirectTo: `${window.location.origin}/dashboard`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
