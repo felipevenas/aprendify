@@ -16,6 +16,39 @@ interface QuestionExplanationProps {
   showResult: boolean;
 }
 
+/**
+ * Formata o texto da explicação para exibição com parágrafos e negrito
+ * Converte **texto** para <strong> e quebras de linha para parágrafos
+ */
+const formatExplanationText = (text: string): JSX.Element[] => {
+  // Divide por linhas em branco para criar parágrafos
+  const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim());
+  
+  return paragraphs.map((paragraph, index) => {
+    // Processa negrito (**texto**)
+    const parts = paragraph.split(/(\*\*[^*]+\*\*)/g);
+    
+    const formattedContent = parts.map((part, partIndex) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        // Remove os asteriscos e retorna em negrito
+        const boldText = part.slice(2, -2);
+        return (
+          <strong key={partIndex} className="font-semibold text-primary">
+            {boldText}
+          </strong>
+        );
+      }
+      return <span key={partIndex}>{part}</span>;
+    });
+
+    return (
+      <p key={index} className="text-sm text-foreground leading-relaxed mb-3 last:mb-0">
+        {formattedContent}
+      </p>
+    );
+  });
+};
+
 const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplanationProps) => {
   const [explanation, setExplanation] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -130,7 +163,7 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
         </Button>
       </div>
 
-      {/* Explicação */}
+      {/* Explicação formatada */}
       <AnimatePresence>
         {showExplanation && (
           <motion.div
@@ -141,7 +174,7 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
             className="overflow-hidden"
           >
             <div className="mt-4 p-4 bg-background border border-border rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-3">
                 <MessageCircle className="h-4 w-4 text-primary" />
                 <h4 className="font-semibold text-sm text-primary">Explicação</h4>
               </div>
@@ -151,7 +184,9 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
                   <span className="text-sm">Buscando a melhor explicação para você...</span>
                 </div>
               ) : (
-                <p className="text-sm text-foreground leading-relaxed">{explanation}</p>
+                <div className="space-y-1">
+                  {explanation && formatExplanationText(explanation)}
+                </div>
               )}
             </div>
           </motion.div>
