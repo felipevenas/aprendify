@@ -144,9 +144,9 @@ Deno.serve(async (req) => {
 
     if (!profile) return success({ message: "User not found" });
 
-    const planMap = {
+    const planMap: Record<string, string> = {
       "2fab389d1e6546429376b4a50517acd2": "monthly",
-      aa593ab5788f43a29726b7a45381baaa: "annual",
+      "aa593ab5788f43a29726b7a45381baaa": "annual",
     };
 
     const planType = planMap[sub.preapproval_plan_id] || "monthly";
