@@ -5,17 +5,21 @@ export interface PremiumStatus {
   isPremium: boolean;
   isLoading: boolean;
   dailyQuestionCount: number;
+  planType: string | null;
+  subscriptionEnd: string | null;
   refreshPremiumStatus: () => void;
 }
 
 /**
  * Hook to check if the current user has an active premium subscription
- * and get their daily question count
+ * Uses Stripe check-subscription function with fallback to local database
  */
 export const usePremium = (): PremiumStatus => {
   const [isPremium, setIsPremium] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [dailyQuestionCount, setDailyQuestionCount] = useState(0);
+  const [planType, setPlanType] = useState<string | null>(null);
+  const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
   const checkPremiumStatus = useCallback(async (uid?: string) => {
@@ -35,20 +39,49 @@ export const usePremium = (): PremiumStatus => {
       const currentUserId = targetUserId || userId;
       if (!currentUserId) return;
 
-      // Check if user has active subscription
-      const { data: subscriptions, error } = await supabase
-        .from("subscriptions")
-        .select("*")
-        .eq("user_id", currentUserId)
-        .eq("status", "authorized")
-        .or("end_date.is.null,end_date.gt." + new Date().toISOString())
-        .limit(1);
+      // Try to check subscription via Stripe function
+      try {
+        const { data, error } = await supabase.functions.invoke("check-subscription");
+        
+        if (!error && data) {
+          setIsPremium(data.subscribed === true);
+          setPlanType(data.plan_type || null);
+          setSubscriptionEnd(data.subscription_end || null);
+        } else {
+          // Fallback to local database check
+          const { data: subscriptions, error: subError } = await supabase
+            .from("subscriptions")
+            .select("*")
+            .eq("user_id", currentUserId)
+            .eq("status", "authorized")
+            .or("end_date.is.null,end_date.gt." + new Date().toISOString())
+            .limit(1);
 
-      if (error) {
-        console.error("Error checking premium status:", error);
-        setIsPremium(false);
-      } else {
-        setIsPremium(subscriptions && subscriptions.length > 0);
+          if (!subError && subscriptions && subscriptions.length > 0) {
+            setIsPremium(true);
+            setPlanType(subscriptions[0].plan_type || null);
+            setSubscriptionEnd(subscriptions[0].end_date || null);
+          } else {
+            setIsPremium(false);
+          }
+        }
+      } catch {
+        // Fallback to local database check
+        const { data: subscriptions } = await supabase
+          .from("subscriptions")
+          .select("*")
+          .eq("user_id", currentUserId)
+          .eq("status", "authorized")
+          .or("end_date.is.null,end_date.gt." + new Date().toISOString())
+          .limit(1);
+
+        if (subscriptions && subscriptions.length > 0) {
+          setIsPremium(true);
+          setPlanType(subscriptions[0].plan_type || null);
+          setSubscriptionEnd(subscriptions[0].end_date || null);
+        } else {
+          setIsPremium(false);
+        }
       }
 
       // Get daily question count
@@ -100,7 +133,6 @@ export const usePremium = (): PremiumStatus => {
           filter: `user_id=eq.${userId}`
         },
         () => {
-          // Re-check premium status when subscription changes
           checkPremiumStatus(userId);
         }
       )
@@ -111,11 +143,29 @@ export const usePremium = (): PremiumStatus => {
     };
   }, [userId, checkPremiumStatus]);
 
+  // Auto-refresh every minute
+  useEffect(() => {
+    if (!userId) return;
+
+    const interval = setInterval(() => {
+      checkPremiumStatus(userId);
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [userId, checkPremiumStatus]);
+
   const refreshPremiumStatus = useCallback(() => {
     if (userId) {
       checkPremiumStatus(userId);
     }
   }, [userId, checkPremiumStatus]);
 
-  return { isPremium, isLoading, dailyQuestionCount, refreshPremiumStatus };
+  return { 
+    isPremium, 
+    isLoading, 
+    dailyQuestionCount, 
+    planType, 
+    subscriptionEnd,
+    refreshPremiumStatus 
+  };
 };
