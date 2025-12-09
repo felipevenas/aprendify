@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Check, Crown, Star, Sparkles } from "lucide-react";
+import { Check, Crown, Star, Sparkles, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface PremiumModalProps {
   open: boolean;
@@ -16,24 +18,20 @@ const PLANS = {
   monthly: {
     price: 19.9,
     period: "mês",
-    mercadoPagoId: "2fab389d1e6546429376b4a50517acd2",
+    priceId: "price_1ScBwKBbpjcYJ0FGc4q0M28Y",
   },
   annual: {
-    price: 191.04, // 19.90 * 12 * 0.8 (20% discount)
+    price: 191.04,
     period: "ano",
-    mercadoPagoId: "aa593ab5788f43a29726b7a45381baaa",
-    monthlyEquivalent: 15.92, // 191.04 / 12
+    priceId: "price_1ScBwKBbpjcYJ0FGReZBg3qd",
+    monthlyEquivalent: 15.92,
     discount: 20,
   },
 };
 
-/**
- * Modal de Premium - mostra benefícios da assinatura
- * Se o usuário for premium, mostra os benefícios que ele já possui
- * Se não for, mostra opção de assinar
- */
 export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumModalProps) => {
   const [selectedPlan, setSelectedPlan] = useState<PlanType>("annual");
+  const [isLoading, setIsLoading] = useState(false);
 
   const benefits = [
     "Questões ilimitadas por dia",
@@ -47,15 +45,53 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
     "Novos recursos em primeira mão",
   ];
 
-  const handleSubscribe = () => {
-    const plan = PLANS[selectedPlan];
-    window.open(
-      `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${plan.mercadoPagoId}`,
-      "_blank",
-    );
+  const handleSubscribe = async () => {
+    setIsLoading(true);
+    try {
+      const plan = PLANS[selectedPlan];
+      
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: { priceId: plan.priceId },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      } else {
+        throw new Error("Não foi possível criar a sessão de checkout");
+      }
+    } catch (error) {
+      console.error("Erro ao criar checkout:", error);
+      toast.error("Erro ao iniciar o pagamento. Tente novamente.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const currentPlan = PLANS[selectedPlan];
+  const handleManageSubscription = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("customer-portal");
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      } else {
+        throw new Error("Não foi possível acessar o portal");
+      }
+    } catch (error) {
+      console.error("Erro ao acessar portal:", error);
+      toast.error("Erro ao acessar gerenciamento. Tente novamente.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -82,7 +118,6 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
         </DialogHeader>
 
         <div className="space-y-4 py-2 sm:py-3">
-          {/* Seletor de plano - apenas para não premium */}
           {!isPremium && (
             <div className="flex items-center justify-center gap-1 p-1 bg-muted rounded-lg">
               <button
@@ -113,7 +148,6 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
             </div>
           )}
 
-          {/* Lista de benefícios */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {benefits.map((benefit, index) => (
               <div key={index} className="flex items-start gap-2">
@@ -130,21 +164,30 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
             ))}
           </div>
 
-          {/* Seção inferior - diferente para premium e free */}
           <div className="pt-3 border-t">
             {isPremium ? (
-              <div className="text-center">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border border-yellow-500/30 mb-3">
+              <div className="text-center space-y-3">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border border-yellow-500/30">
                   <Star className="h-4 w-4 text-yellow-500" />
                   <span className="text-sm font-medium text-yellow-600">Assinatura Ativa</span>
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground">
                   Obrigado por apoiar o Aprendify! Aproveite todos os recursos premium.
                 </p>
+                <Button 
+                  onClick={handleManageSubscription} 
+                  variant="outline" 
+                  className="w-full"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : null}
+                  Gerenciar Assinatura
+                </Button>
               </div>
             ) : (
               <>
-                {/* Preço */}
                 <div className="text-center mb-4">
                   {selectedPlan === "annual" ? (
                     <>
@@ -176,13 +219,22 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
                   )}
                 </div>
 
-                <Button onClick={handleSubscribe} className="w-full h-11 text-sm sm:text-base" size="lg">
-                  <Sparkles className="w-4 h-4 mr-2" />
+                <Button 
+                  onClick={handleSubscribe} 
+                  className="w-full h-11 text-sm sm:text-base" 
+                  size="lg"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4 mr-2" />
+                  )}
                   {selectedPlan === "annual" ? "Assinar Plano Anual" : "Assinar Plano Mensal"}
                 </Button>
 
                 <p className="text-[10px] sm:text-xs text-center text-muted-foreground mt-2">
-                  Pagamento seguro via MercadoPago • Cancele quando quiser
+                  Pagamento seguro via Stripe • Cancele quando quiser
                 </p>
               </>
             )}

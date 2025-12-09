@@ -1,6 +1,6 @@
 project_id = "lvhfwbpivankwzzwvdjj"
 
-[functions.mercadopago-webhook]
+[functions.stripe-webhook]
 verify_jwt = false
 
 [functions.import-enem-questions]
