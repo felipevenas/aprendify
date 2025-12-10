@@ -428,8 +428,6 @@ export type Database = {
           created_at: string
           end_date: string | null
           id: string
-          mercadopago_payer_email: string | null
-          mercadopago_subscription_id: string | null
           plan_id: string | null
           plan_type: Database["public"]["Enums"]["plan_type"] | null
           start_date: string | null
@@ -443,8 +441,6 @@ export type Database = {
           created_at?: string
           end_date?: string | null
           id?: string
-          mercadopago_payer_email?: string | null
-          mercadopago_subscription_id?: string | null
           plan_id?: string | null
           plan_type?: Database["public"]["Enums"]["plan_type"] | null
           start_date?: string | null
@@ -458,8 +454,6 @@ export type Database = {
           created_at?: string
           end_date?: string | null
           id?: string
-          mercadopago_payer_email?: string | null
-          mercadopago_subscription_id?: string | null
           plan_id?: string | null
           plan_type?: Database["public"]["Enums"]["plan_type"] | null
           start_date?: string | null
