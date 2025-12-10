@@ -156,6 +156,20 @@ serve(async (req) => {
           
           if (userId) {
             await processSubscription(supabase, stripe, subscription, userId);
+          } else {
+            // Try to find user by customer email
+            const customer = await stripe.customers.retrieve(subscription.customer as string) as Stripe.Customer;
+            if (customer.email) {
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("id")
+                .eq("email", customer.email)
+                .maybeSingle();
+              
+              if (profile) {
+                await processSubscription(supabase, stripe, subscription, profile.id);
+              }
+            }
           }
         }
         break;
@@ -201,27 +215,49 @@ async function processSubscription(
   subscription: Stripe.Subscription,
   userId: string
 ) {
-  const priceId = subscription.items.data[0].price.id;
-  const price = await stripe.prices.retrieve(priceId);
-  const planType = price.recurring?.interval === "year" ? "annual" : "monthly";
-  
-  const status = subscription.status === "active" ? "authorized" : subscription.status;
-  
-  await supabase.from("subscriptions").upsert({
-    user_id: userId,
-    status: status,
-    plan_type: planType,
-    stripe_subscription_id: subscription.id,
-    stripe_customer_id: subscription.customer as string,
-    start_date: new Date(subscription.start_date * 1000).toISOString(),
-    end_date: new Date(subscription.current_period_end * 1000).toISOString(),
-    updated_at: new Date().toISOString(),
-  }, { onConflict: "user_id" });
+  try {
+    const priceId = subscription.items.data[0]?.price?.id;
+    if (!priceId) {
+      logStep("No price ID found in subscription");
+      return;
+    }
+    
+    const price = await stripe.prices.retrieve(priceId);
+    const planType = price.recurring?.interval === "year" ? "annual" : "monthly";
+    
+    const status = subscription.status === "active" ? "authorized" : subscription.status;
+    
+    // Safely handle dates - use current time as fallback for start_date
+    const startDate = subscription.start_date 
+      ? new Date(subscription.start_date * 1000).toISOString()
+      : new Date().toISOString();
+    
+    const endDate = subscription.current_period_end
+      ? new Date(subscription.current_period_end * 1000).toISOString()
+      : null;
 
-  logStep("Subscription processed", { 
-    userId, 
-    status, 
-    planType,
-    subscriptionId: subscription.id 
-  });
+    const { error } = await supabase.from("subscriptions").upsert({
+      user_id: userId,
+      status: status,
+      plan_type: planType,
+      stripe_subscription_id: subscription.id,
+      stripe_customer_id: subscription.customer as string,
+      start_date: startDate,
+      end_date: endDate,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id" });
+
+    if (error) {
+      logStep("Error upserting subscription", { error });
+    } else {
+      logStep("Subscription processed successfully", { 
+        userId, 
+        status, 
+        planType,
+        subscriptionId: subscription.id 
+      });
+    }
+  } catch (error) {
+    logStep("Error in processSubscription", { error: error instanceof Error ? error.message : String(error) });
+  }
 }

@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Settings, LogOut, Moon, Sun, BookOpen, Crown } from "lucide-react";
+import { Settings, LogOut, Moon, Sun, BookOpen, Crown, CreditCard } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
 import { usePremium } from "@/hooks/usePremium";
@@ -156,6 +156,10 @@ const Navbar = () => {
                 <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer">
                   <Settings className="h-4 w-4 mr-2" />
                   Configurações
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/subscription")} className="cursor-pointer">
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Minha Assinatura
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
