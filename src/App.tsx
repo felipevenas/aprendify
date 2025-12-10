@@ -18,6 +18,8 @@ import AdminImport from "./pages/AdminImport";
 import AdminUsers from "./pages/AdminUsers";
 import Flashcards from "./pages/Flashcards";
 import Essays from "./pages/Essays";
+import SubscriptionSuccess from "./pages/SubscriptionSuccess";
+import Subscription from "./pages/Subscription";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +44,8 @@ const App = () => (
             <Route path="/statistics" element={<Statistics />} />
             <Route path="/flashcards" element={<Flashcards />} />
             <Route path="/essays" element={<Essays />} />
+            <Route path="/subscription" element={<Subscription />} />
+            <Route path="/subscription/success" element={<SubscriptionSuccess />} />
             <Route path="/admin/import" element={<AdminImport />} />
             <Route path="/admin/users" element={<AdminUsers />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
