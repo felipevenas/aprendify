@@ -20,6 +20,9 @@ import Flashcards from "./pages/Flashcards";
 import Essays from "./pages/Essays";
 import SubscriptionSuccess from "./pages/SubscriptionSuccess";
 import Subscription from "./pages/Subscription";
+import Simulados from "./pages/Simulados";
+import SimuladoActive from "./pages/SimuladoActive";
+import SimuladoResults from "./pages/SimuladoResults";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +51,9 @@ const App = () => (
             <Route path="/subscription/success" element={<SubscriptionSuccess />} />
             <Route path="/admin/import" element={<AdminImport />} />
             <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/simulados" element={<Simulados />} />
+            <Route path="/simulados/:id" element={<SimuladoActive />} />
+            <Route path="/simulados/:id/resultado" element={<SimuladoResults />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
