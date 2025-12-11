@@ -136,7 +136,7 @@ const Dashboard = () => {
       iconBg: "bg-primary",
     },
     {
-      title: "Redação ENEM",
+      title: "Correção de Redação",
       description: "Escreva e receba correção automática com IA",
       icon: PenLine,
       path: "/essays",
