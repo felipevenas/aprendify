@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.add-manual-question]
 verify_jwt = false
+
+[functions.generate-essay-topic]
+verify_jwt = false
+
+[functions.analyze-simulado]
+verify_jwt = false

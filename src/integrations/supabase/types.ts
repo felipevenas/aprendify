@@ -385,6 +385,142 @@ export type Database = {
           },
         ]
       }
+      simulado_answers: {
+        Row: {
+          answered_at: string | null
+          correct_answer: string
+          created_at: string
+          discipline: string
+          id: string
+          is_correct: boolean | null
+          question_id: string
+          question_index: number
+          selected_answer: string | null
+          simulado_id: string
+        }
+        Insert: {
+          answered_at?: string | null
+          correct_answer: string
+          created_at?: string
+          discipline: string
+          id?: string
+          is_correct?: boolean | null
+          question_id: string
+          question_index: number
+          selected_answer?: string | null
+          simulado_id: string
+        }
+        Update: {
+          answered_at?: string | null
+          correct_answer?: string
+          created_at?: string
+          discipline?: string
+          id?: string
+          is_correct?: boolean | null
+          question_id?: string
+          question_index?: number
+          selected_answer?: string | null
+          simulado_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "simulado_answers_simulado_id_fkey"
+            columns: ["simulado_id"]
+            isOneToOne: false
+            referencedRelation: "simulados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      simulado_results: {
+        Row: {
+          created_at: string
+          id: string
+          simulado_id: string
+          strengths: Json | null
+          tips: string | null
+          total_correct: number
+          total_incorrect: number
+          total_unanswered: number
+          weaknesses: Json | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          simulado_id: string
+          strengths?: Json | null
+          tips?: string | null
+          total_correct?: number
+          total_incorrect?: number
+          total_unanswered?: number
+          weaknesses?: Json | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          simulado_id?: string
+          strengths?: Json | null
+          tips?: string | null
+          total_correct?: number
+          total_incorrect?: number
+          total_unanswered?: number
+          weaknesses?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "simulado_results_simulado_id_fkey"
+            columns: ["simulado_id"]
+            isOneToOne: true
+            referencedRelation: "simulados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      simulados: {
+        Row: {
+          created_at: string
+          duration_minutes: number
+          essay_topic: string | null
+          finished_at: string | null
+          id: string
+          started_at: string
+          status: string
+          total_questions: number
+          type: string
+          updated_at: string
+          user_id: string
+          year: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes?: number
+          essay_topic?: string | null
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          total_questions?: number
+          type: string
+          updated_at?: string
+          user_id: string
+          year?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number
+          essay_topic?: string | null
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          total_questions?: number
+          type?: string
+          updated_at?: string
+          user_id?: string
+          year?: string | null
+        }
+        Relationships: []
+      }
       subjects: {
         Row: {
           color: string
