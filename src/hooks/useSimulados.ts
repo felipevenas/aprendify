@@ -308,7 +308,7 @@ export const useSimulados = () => {
         .from("simulado_results")
         .select("*")
         .eq("simulado_id", simuladoId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return data as unknown as SimuladoResult;
