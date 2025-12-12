@@ -14,6 +14,7 @@ import {
   Layers,
   PenLine,
   Users,
+  ClipboardList,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
@@ -142,7 +143,15 @@ const Dashboard = () => {
       path: "/essays",
       gradient: "from-primary to-primary/80",
       iconBg: "bg-primary",
-      isNew: true,
+    },
+    {
+      title: "Simulados",
+      description: "Simule provas completas do ENEM",
+      icon: ClipboardList,
+      path: "/simulados",
+      gradient: "from-primary to-primary/80",
+      iconBg: "bg-primary",
+      isPremium: true,
     },
   ];
 
@@ -295,11 +304,11 @@ const Dashboard = () => {
                       >
                         <card.icon className="h-7 w-7 text-white" />
                       </div>
-                      {(card as any).isNew && (
-                        <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold rounded-full animate-pulse">
-                          Novidade
-                        </span>
-                      )}
+                    {(card as any).isPremium && (
+                      <span className="px-3 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-semibold rounded-full">
+                        Premium
+                      </span>
+                    )}
                     </div>
                     <CardTitle className="text-xl group-hover:text-primary transition-colors">{card.title}</CardTitle>
                     <CardDescription className="text-base">{card.description}</CardDescription>
