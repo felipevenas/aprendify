@@ -46,9 +46,37 @@ serve(async (req) => {
       throw new Error("Erro ao buscar respostas do simulado");
     }
 
+    // If no answers found, return empty results instead of error
     if (!answers || answers.length === 0) {
-      throw new Error("Nenhuma resposta encontrada para este simulado");
+      console.log("No answers found, returning empty results");
+      
+      // Save empty results to database
+      await supabase
+        .from("simulado_results")
+        .upsert({
+          simulado_id: simuladoId,
+          total_correct: 0,
+          total_incorrect: 0,
+          total_unanswered: 0,
+          strengths: [],
+          weaknesses: [],
+          tips: "Nenhuma questão foi respondida neste simulado."
+        }, { onConflict: "simulado_id" });
+
+      return new Response(JSON.stringify({
+        totalCorrect: 0,
+        totalIncorrect: 0,
+        totalUnanswered: 0,
+        disciplinePerformance: [],
+        strengths: [],
+        weaknesses: [],
+        tips: "Nenhuma questão foi respondida neste simulado."
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+
+    console.log(`Found ${answers.length} answers to analyze`);
 
     // Calculate statistics by discipline
     const disciplineStats: Record<string, { correct: number; incorrect: number; unanswered: number }> = {};
