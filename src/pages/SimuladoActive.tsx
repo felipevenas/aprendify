@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
@@ -64,96 +64,21 @@ const SimuladoActive = () => {
   const [showGridView, setShowGridView] = useState(false);
   const [finishing, setFinishing] = useState(false);
 
-  /**
-   * Fetch questions based on simulado type
-   */
-  const fetchQuestions = useCallback(async (sim: Simulado) => {
-    setLoadingQuestions(true);
-    try {
-      const disciplines = getDisciplinesForType(sim.type as SimuladoType);
-      let fetchedQuestions: QuestionData[] = [];
-
-      if (sim.year) {
-        // Official exam - fetch specific year questions
-        const { data, error } = await supabase
-          .from("enem_questions")
-          .select("*")
-          .eq("year", sim.year)
-          .in("discipline", disciplines)
-          .limit(sim.total_questions);
-
-        if (error) throw error;
-        fetchedQuestions = (data || []).map(q => ({
-          ...q,
-          alternatives: Array.isArray(q.alternatives) 
-            ? q.alternatives as unknown as Array<{ letter: string; text: string }>
-            : []
-        })) as unknown as QuestionData[];
-      } else {
-        // Custom simulado - fetch random questions from all years
-        const { data, error } = await supabase
-          .from("enem_questions")
-          .select("*")
-          .in("discipline", disciplines)
-          .limit(sim.total_questions * 3);
-
-        if (error) throw error;
-
-        const shuffled = (data || [])
-          .sort(() => Math.random() - 0.5)
-          .slice(0, sim.total_questions);
-
-        fetchedQuestions = shuffled.map(q => ({
-          ...q,
-          alternatives: Array.isArray(q.alternatives) 
-            ? q.alternatives as unknown as Array<{ letter: string; text: string }>
-            : []
-        })) as unknown as QuestionData[];
-      }
-
-      setQuestions(fetchedQuestions);
-
-      // Check if questions are already initialized
-      const existingAnswers = await getSimuladoAnswers(sim.id);
-      
-      if (existingAnswers.length === 0 && fetchedQuestions.length > 0) {
-        // Initialize questions in database
-        await initializeQuestions(
-          sim.id,
-          fetchedQuestions.map(q => ({
-            id: q.id,
-            discipline: q.discipline,
-            correct_alternative: q.correct_alternative
-          }))
-        );
-      } else {
-        // Load existing answers
-        const answersMap: Record<number, string> = {};
-        existingAnswers.forEach(a => {
-          if (a.selected_answer) {
-            answersMap[a.question_index] = a.selected_answer;
-          }
-        });
-        setAnswers(answersMap);
-      }
-    } catch (error) {
-      console.error("Error fetching questions:", error);
-      toast.error("Erro ao carregar questões");
-    } finally {
-      setLoadingQuestions(false);
-    }
-  }, [getSimuladoAnswers, initializeQuestions]);
 
   /**
-   * Load simulado data
+   * Load simulado data - only runs once on mount
    */
   useEffect(() => {
+    let isMounted = true;
+
     const loadSimulado = async () => {
       if (!id) return;
 
       try {
         const sim = await getSimulado(id);
         
+        if (!isMounted) return;
+
         if (!sim) {
           toast.error("Simulado não encontrado");
           navigate("/simulados");
@@ -166,17 +91,95 @@ const SimuladoActive = () => {
         }
 
         setSimulado(sim);
-        await fetchQuestions(sim);
+        
+        // Fetch questions inline to avoid dependency loop
+        setLoadingQuestions(true);
+        try {
+          const disciplines = getDisciplinesForType(sim.type as SimuladoType);
+          let fetchedQuestions: QuestionData[] = [];
+
+          if (sim.year) {
+            const { data, error } = await supabase
+              .from("enem_questions")
+              .select("*")
+              .eq("year", sim.year)
+              .in("discipline", disciplines)
+              .limit(sim.total_questions);
+
+            if (error) throw error;
+            fetchedQuestions = (data || []).map(q => ({
+              ...q,
+              alternatives: Array.isArray(q.alternatives) 
+                ? q.alternatives as unknown as Array<{ letter: string; text: string }>
+                : []
+            })) as unknown as QuestionData[];
+          } else {
+            const { data, error } = await supabase
+              .from("enem_questions")
+              .select("*")
+              .in("discipline", disciplines)
+              .limit(sim.total_questions * 3);
+
+            if (error) throw error;
+
+            const shuffled = (data || [])
+              .sort(() => Math.random() - 0.5)
+              .slice(0, sim.total_questions);
+
+            fetchedQuestions = shuffled.map(q => ({
+              ...q,
+              alternatives: Array.isArray(q.alternatives) 
+                ? q.alternatives as unknown as Array<{ letter: string; text: string }>
+                : []
+            })) as unknown as QuestionData[];
+          }
+
+          if (!isMounted) return;
+          setQuestions(fetchedQuestions);
+
+          const existingAnswers = await getSimuladoAnswers(sim.id);
+          
+          if (!isMounted) return;
+
+          if (existingAnswers.length === 0 && fetchedQuestions.length > 0) {
+            await initializeQuestions(
+              sim.id,
+              fetchedQuestions.map(q => ({
+                id: q.id,
+                discipline: q.discipline,
+                correct_alternative: q.correct_alternative
+              }))
+            );
+          } else {
+            const answersMap: Record<number, string> = {};
+            existingAnswers.forEach(a => {
+              if (a.selected_answer) {
+                answersMap[a.question_index] = a.selected_answer;
+              }
+            });
+            setAnswers(answersMap);
+          }
+        } catch (error) {
+          console.error("Error fetching questions:", error);
+          if (isMounted) toast.error("Erro ao carregar questões");
+        } finally {
+          if (isMounted) setLoadingQuestions(false);
+        }
       } catch (error) {
         console.error("Error loading simulado:", error);
-        toast.error("Erro ao carregar simulado");
+        if (isMounted) toast.error("Erro ao carregar simulado");
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     loadSimulado();
-  }, [id, getSimulado, navigate, fetchQuestions]);
+
+    return () => {
+      isMounted = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   /**
    * Handle answer selection
