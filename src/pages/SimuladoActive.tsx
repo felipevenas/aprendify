@@ -413,24 +413,25 @@ const SimuladoActive = () => {
 
 /**
  * Get disciplines based on simulado type
+ * Matches actual database discipline values
  */
 function getDisciplinesForType(type: SimuladoType): string[] {
   switch (type) {
     case "official_day1":
-      return ["linguagens", "ciencias-humanas"];
+      return ["humanas", "linguagens"];
     case "official_day2":
-      return ["matematica", "ciencias-da-natureza"];
+      return ["matematica", "natureza"];
     case "custom_naturezas":
-      return ["ciencias-da-natureza"];
+      return ["natureza"];
     case "custom_humanas":
-      return ["ciencias-humanas"];
+      return ["humanas"];
     case "custom_linguagens":
       return ["linguagens"];
     case "custom_matematica":
       return ["matematica"];
     case "custom_mixed":
     default:
-      return ["linguagens", "ciencias-humanas", "matematica", "ciencias-da-natureza"];
+      return ["humanas", "linguagens", "matematica", "natureza"];
   }
 }
 
