@@ -98,7 +98,10 @@ const SimuladoActive = () => {
           const disciplines = getDisciplinesForType(sim.type as SimuladoType);
           let fetchedQuestions: QuestionData[] = [];
 
-          if (sim.year) {
+          const yearNum = sim.year ? parseInt(sim.year) : 0;
+
+          if (sim.year && yearNum >= 2024) {
+            // Anos 2024+ usam banco local
             const { data, error } = await supabase
               .from("enem_questions")
               .select("*")
@@ -113,25 +116,17 @@ const SimuladoActive = () => {
                 ? q.alternatives as unknown as Array<{ letter: string; text: string }>
                 : []
             })) as unknown as QuestionData[];
+          } else if (sim.year && yearNum >= 2009 && yearNum < 2024) {
+            // Anos 2009-2023 usam API externa
+            fetchedQuestions = await fetchQuestionsFromAPI(sim.year, disciplines, sim.total_questions);
           } else {
-            const { data, error } = await supabase
-              .from("enem_questions")
-              .select("*")
-              .in("discipline", disciplines)
-              .limit(sim.total_questions * 3);
-
-            if (error) throw error;
-
-            const shuffled = (data || [])
+            // Simulado aleatório (sem ano específico) - mistura banco local e API
+            const localQuestions = await fetchLocalQuestions(disciplines, Math.ceil(sim.total_questions / 2));
+            const apiQuestions = await fetchQuestionsFromAPI("2023", disciplines, Math.floor(sim.total_questions / 2));
+            
+            fetchedQuestions = [...localQuestions, ...apiQuestions]
               .sort(() => Math.random() - 0.5)
               .slice(0, sim.total_questions);
-
-            fetchedQuestions = shuffled.map(q => ({
-              ...q,
-              alternatives: Array.isArray(q.alternatives) 
-                ? q.alternatives as unknown as Array<{ letter: string; text: string }>
-                : []
-            })) as unknown as QuestionData[];
           }
 
           if (!isMounted) return;
@@ -442,6 +437,108 @@ function getDisciplinesForType(type: SimuladoType): string[] {
     default:
       return ["humanas", "matematica", "natureza"];
   }
+}
+
+/**
+ * Map API discipline names to local database discipline names
+ */
+function mapAPIDisciplineToLocal(apiDiscipline: string): string {
+  const mapping: Record<string, string> = {
+    "ciencias-humanas": "humanas",
+    "ciencias-natureza": "natureza",
+    "matematica": "matematica",
+    "linguagens": "linguagens"
+  };
+  return mapping[apiDiscipline] || apiDiscipline;
+}
+
+/**
+ * Map local discipline names to API discipline names
+ */
+function mapLocalDisciplineToAPI(localDiscipline: string): string {
+  const mapping: Record<string, string> = {
+    "humanas": "ciencias-humanas",
+    "natureza": "ciencias-natureza",
+    "matematica": "matematica",
+    "linguagens": "linguagens"
+  };
+  return mapping[localDiscipline] || localDiscipline;
+}
+
+/**
+ * Fetch questions from external ENEM API (years 2009-2023)
+ */
+async function fetchQuestionsFromAPI(
+  year: string, 
+  disciplines: string[], 
+  limit: number
+): Promise<QuestionData[]> {
+  const allQuestions: QuestionData[] = [];
+  
+  for (const discipline of disciplines) {
+    const apiDiscipline = mapLocalDisciplineToAPI(discipline);
+    const questionsPerDiscipline = Math.ceil(limit / disciplines.length);
+    
+    try {
+      const url = `https://api.enem.dev/v1/exams/${year}/questions?discipline=${apiDiscipline}&limit=${questionsPerDiscipline}`;
+      const response = await fetch(url);
+      
+      if (!response.ok) continue;
+      
+      const data = await response.json();
+      
+      if (data.questions && data.questions.length > 0) {
+        const mappedQuestions = data.questions.map((q: any, idx: number) => ({
+          id: `api-${year}-${apiDiscipline}-${idx}`,
+          title: q.title || "",
+          context: q.context || null,
+          alternatives: q.alternatives || [],
+          alternatives_introduction: q.alternativesIntroduction || null,
+          discipline: discipline,
+          year: year,
+          index: q.index || idx,
+          files: q.files || null,
+          correct_alternative: q.correctAlternative || ""
+        }));
+        
+        allQuestions.push(...mappedQuestions);
+      }
+    } catch (error) {
+      console.error(`Error fetching from API for ${discipline}:`, error);
+    }
+  }
+  
+  return allQuestions.slice(0, limit);
+}
+
+/**
+ * Fetch questions from local database (2024+)
+ */
+async function fetchLocalQuestions(
+  disciplines: string[], 
+  limit: number
+): Promise<QuestionData[]> {
+  const { data, error } = await supabase
+    .from("enem_questions")
+    .select("*")
+    .in("discipline", disciplines)
+    .limit(limit * 2);
+
+  if (error) {
+    console.error("Error fetching local questions:", error);
+    return [];
+  }
+
+  const shuffled = (data || [])
+    .sort(() => Math.random() - 0.5)
+    .slice(0, limit);
+
+  return shuffled.map(q => ({
+    ...q,
+    alternatives: Array.isArray(q.alternatives) 
+      ? q.alternatives as unknown as Array<{ letter: string; text: string }>
+      : []
+  })) as unknown as QuestionData[];
 }
 
 export default SimuladoActive;
