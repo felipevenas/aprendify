@@ -234,7 +234,7 @@ const Dashboard = () => {
           </motion.div>
 
           {/* Grid de cards - primeira linha com Banco de Questões + Gráfico */}
-          <motion.div 
+          <motion.div
             variants={containerVariants}
             initial="hidden"
             animate="visible"
@@ -313,12 +313,8 @@ const Dashboard = () => {
                         >
                           <card.icon className="h-7 w-7 text-white" />
                         </div>
-                        {(card as any).isPremium && (
-                        )}
                       </div>
-                      <CardTitle className="text-xl group-hover:text-primary transition-colors">
-                        {card.title}
-                      </CardTitle>
+                      <CardTitle className="text-xl group-hover:text-primary transition-colors">{card.title}</CardTitle>
                       <CardDescription className="text-base">{card.description}</CardDescription>
                     </CardHeader>
                     <CardContent className="relative">
