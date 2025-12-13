@@ -314,9 +314,6 @@ const Dashboard = () => {
                           <card.icon className="h-7 w-7 text-white" />
                         </div>
                         {(card as any).isPremium && (
-                          <span className="px-3 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-semibold rounded-full">
-                            Premium
-                          </span>
                         )}
                       </div>
                       <CardTitle className="text-xl group-hover:text-primary transition-colors">
