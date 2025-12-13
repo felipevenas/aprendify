@@ -95,27 +95,32 @@ const Simulados = () => {
           className="max-w-6xl mx-auto space-y-8"
         >
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/dashboard")}
-                className="text-muted-foreground mt-1"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div>
-                <h1 className="text-3xl font-bold">Simulados ENEM</h1>
-                <p className="text-muted-foreground mt-1">
-                  Pratique com simulados completos e acompanhe seu progresso
-                </p>
-              </div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2">
+                Simulados ENEM
+              </h1>
+              <p className="text-muted-foreground text-base sm:text-lg">
+                Pratique com simulados completos e acompanhe seu progresso
+              </p>
             </div>
-            <Button onClick={() => setDialogOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Novo Simulado
-            </Button>
+            
+            {/* Ações no canto superior direito */}
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate("/dashboard")} 
+                className="gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Voltar</span>
+              </Button>
+              <Button onClick={() => setDialogOpen(true)} size="sm" className="gap-2">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Novo Simulado</span>
+              </Button>
+            </div>
           </div>
 
         {/* In Progress Simulados */}
