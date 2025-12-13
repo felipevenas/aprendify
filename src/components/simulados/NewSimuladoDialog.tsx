@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, FileText, BookOpen, Calculator, Beaker, Users, Globe, Loader2 } from "lucide-react";
+import { Clock, FileText, BookOpen, Calculator, Beaker, Users, Loader2 } from "lucide-react";
 import { useSimulados, SimuladoType } from "@/hooks/useSimulados";
 import { toast } from "sonner";
 
@@ -90,7 +90,7 @@ export const NewSimuladoDialog = ({ open, onOpenChange }: NewSimuladoDialogProps
     }
   };
 
-  // Custom type options with icons and descriptions
+  // Custom type options with icons and descriptions (only available disciplines)
   const customOptions = [
     {
       type: "custom_naturezas" as SimuladoType,
@@ -105,13 +105,6 @@ export const NewSimuladoDialog = ({ open, onOpenChange }: NewSimuladoDialogProps
       description: "História, Geografia, Filosofia e Sociologia",
       icon: Users,
       color: "text-blue-500"
-    },
-    {
-      type: "custom_linguagens" as SimuladoType,
-      label: "Linguagens",
-      description: "Português, Literatura, Artes e Inglês/Espanhol",
-      icon: Globe,
-      color: "text-purple-500"
     },
     {
       type: "custom_matematica" as SimuladoType,
@@ -187,7 +180,7 @@ export const NewSimuladoDialog = ({ open, onOpenChange }: NewSimuladoDialogProps
                     </CardHeader>
                     <CardContent className="pt-0">
                       <p className="text-sm text-muted-foreground">
-                        Linguagens, Humanas e Redação
+                        Ciências Humanas
                       </p>
                       <Badge variant="secondary" className="mt-2">
                         <Clock className="h-3 w-3 mr-1" />

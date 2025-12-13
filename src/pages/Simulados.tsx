@@ -222,7 +222,6 @@ function getSimuladoTitle(simulado: Simulado): string {
     official_day2: "ENEM Oficial - Dia 2",
     custom_naturezas: "Ciências da Natureza",
     custom_humanas: "Ciências Humanas",
-    custom_linguagens: "Linguagens",
     custom_matematica: "Matemática",
     custom_mixed: "Simulado Misto"
   };
