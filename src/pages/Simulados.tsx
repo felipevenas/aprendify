@@ -11,7 +11,8 @@ import {
   ChevronRight,
   Lock,
   History,
-  Target
+  Target,
+  ArrowLeft
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import { SimuladoHistoryCard } from "@/components/simulados/SimuladoHistoryCard"
 import { formatDisciplineName } from "@/lib/formatters";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import Navbar from "@/components/Navbar";
 
 /**
  * Main Simulados page
@@ -39,31 +41,43 @@ const Simulados = () => {
   // Check for premium access
   if (!premiumLoading && !isPremium) {
     return (
-      <div className="min-h-screen bg-background p-4 md:p-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-2xl mx-auto"
-        >
-          <Card className="border-dashed">
-            <CardHeader className="text-center">
-              <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <Lock className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <CardTitle>Recurso Premium</CardTitle>
-              <CardDescription>
-                Os Simulados são exclusivos para usuários Premium. 
-                Faça upgrade para acessar simulados completos do ENEM com correção detalhada.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex justify-center">
-              <Button onClick={() => navigate("/subscription")}>
-                Ver Planos Premium
-              </Button>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
+      <>
+        <Navbar />
+        <div className="min-h-screen bg-background p-4 md:p-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-2xl mx-auto"
+          >
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/dashboard")}
+              className="mb-4 text-muted-foreground"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
+            <Card className="border-dashed">
+              <CardHeader className="text-center">
+                <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <Lock className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <CardTitle>Recurso Premium</CardTitle>
+                <CardDescription>
+                  Os Simulados são exclusivos para usuários Premium. 
+                  Faça upgrade para acessar simulados completos do ENEM com correção detalhada.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex justify-center">
+                <Button onClick={() => navigate("/subscription")}>
+                  Ver Planos Premium
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+      </>
     );
   }
 
@@ -72,25 +86,37 @@ const Simulados = () => {
   const inProgressSimulados = simulados.filter(s => s.status === "in_progress");
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-6xl mx-auto space-y-8"
-      >
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">Simulados ENEM</h1>
-            <p className="text-muted-foreground mt-1">
-              Pratique com simulados completos e acompanhe seu progresso
-            </p>
+    <>
+      <Navbar />
+      <div className="min-h-screen bg-background p-4 md:p-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-6xl mx-auto space-y-8"
+        >
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate("/dashboard")}
+                className="text-muted-foreground mt-1"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold">Simulados ENEM</h1>
+                <p className="text-muted-foreground mt-1">
+                  Pratique com simulados completos e acompanhe seu progresso
+                </p>
+              </div>
+            </div>
+            <Button onClick={() => setDialogOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Novo Simulado
+            </Button>
           </div>
-          <Button onClick={() => setDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Novo Simulado
-          </Button>
-        </div>
 
         {/* In Progress Simulados */}
         {inProgressSimulados.length > 0 && (
@@ -210,6 +236,7 @@ const Simulados = () => {
         />
       </motion.div>
     </div>
+    </>
   );
 };
 
