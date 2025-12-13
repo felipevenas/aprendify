@@ -46,8 +46,7 @@ export type SimuladoType =
   | "official_day1" 
   | "official_day2" 
   | "custom_naturezas" 
-  | "custom_humanas" 
-  | "custom_linguagens" 
+  | "custom_humanas"
   | "custom_matematica"
   | "custom_mixed";
 
@@ -104,8 +103,7 @@ export const useSimulados = () => {
 
       // Determine duration based on type (day 1 = 330min, day 2 = 300min)
       const isDay1 = config.type === "official_day1" || 
-                     config.type === "custom_humanas" || 
-                     config.type === "custom_linguagens";
+                     config.type === "custom_humanas";
       const durationMinutes = isDay1 ? 330 : 300;
 
       // Generate essay topic for day 1 simulados

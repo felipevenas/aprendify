@@ -271,31 +271,42 @@ const SimuladoActive = () => {
 
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header Actions */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <Button
-            variant="ghost"
+            variant="outline"
             onClick={() => setShowExitDialog(true)}
-            className="text-muted-foreground"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
           >
             <LogOut className="h-4 w-4 mr-2" />
-            Sair
+            Sair do Simulado
           </Button>
 
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => setShowGridView(!showGridView)}
+              className="hidden sm:flex"
             >
               <Grid3X3 className="h-4 w-4 mr-1" />
               Visão Geral
             </Button>
             <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowGridView(!showGridView)}
+              className="sm:hidden"
+            >
+              <Grid3X3 className="h-4 w-4" />
+            </Button>
+            <Button
               onClick={() => setShowFinishDialog(true)}
               disabled={answeredCount === 0}
+              className="bg-primary"
             >
               <CheckCircle className="h-4 w-4 mr-2" />
-              Finalizar
+              <span className="hidden sm:inline">Finalizar</span>
+              <span className="sm:hidden">Fim</span>
             </Button>
           </div>
         </div>
@@ -413,25 +424,23 @@ const SimuladoActive = () => {
 
 /**
  * Get disciplines based on simulado type
- * Matches actual database discipline values
+ * Matches actual database discipline values: humanas, matematica, natureza
  */
 function getDisciplinesForType(type: SimuladoType): string[] {
   switch (type) {
     case "official_day1":
-      return ["humanas", "linguagens"];
+      return ["humanas"];
     case "official_day2":
       return ["matematica", "natureza"];
     case "custom_naturezas":
       return ["natureza"];
     case "custom_humanas":
       return ["humanas"];
-    case "custom_linguagens":
-      return ["linguagens"];
     case "custom_matematica":
       return ["matematica"];
     case "custom_mixed":
     default:
-      return ["humanas", "linguagens", "matematica", "natureza"];
+      return ["humanas", "matematica", "natureza"];
   }
 }
 
