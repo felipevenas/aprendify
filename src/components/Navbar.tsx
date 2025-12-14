@@ -80,41 +80,41 @@ const Navbar = () => {
   if (!user) return null;
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-border bg-card/80 backdrop-blur-md">
+    <nav className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl shadow-sm">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-14 sm:h-16">
+        <div className="flex justify-between items-center h-16 sm:h-18">
           {/* Logo */}
           <div
-            className="flex items-center gap-2 sm:gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2.5 sm:gap-3 cursor-pointer group"
             onClick={() => navigate("/dashboard")}
           >
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-300">
+              <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
             </div>
-            <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <span className="text-xl sm:text-2xl font-bold text-gradient">
               Aprendify
             </span>
           </div>
 
           {/* Menu do usuário */}
-          <div className="flex items-center gap-1.5 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Badge Premium ou Free baseado no status de assinatura */}
             {!isLoading &&
               (isPremium ? (
                 <Badge
                   onClick={() => setShowPremiumModal(true)}
-                  className="bg-gradient-to-r from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-white border-0 px-2 sm:px-4 py-1.5 shadow-lg flex items-center cursor-pointer transition-transform hover:scale-105"
+                  className="bg-gradient-to-r from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-white border-0 px-3 sm:px-4 py-1.5 shadow-md hover:shadow-lg flex items-center cursor-pointer transition-all duration-300 hover:scale-105 rounded-full"
                 >
-                  <Crown className="h-4 w-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Premium</span>
+                  <Crown className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
+                  <span className="hidden sm:inline font-semibold">Premium</span>
                 </Badge>
               ) : (
                 <Badge
                   onClick={() => setShowPremiumModal(true)}
-                  className="bg-gradient-to-r from-zinc-400 to-zinc-600 hover:from-zinc-500 hover:to-zinc-700 text-white border-0 px-2 sm:px-4 py-1.5 cursor-pointer shadow-lg flex items-center transition-transform hover:scale-105"
+                  className="bg-gradient-to-r from-muted-foreground/60 to-muted-foreground/80 hover:from-muted-foreground/70 hover:to-muted-foreground/90 text-white border-0 px-3 sm:px-4 py-1.5 cursor-pointer shadow-sm hover:shadow-md flex items-center transition-all duration-300 hover:scale-105 rounded-full"
                 >
-                  <Crown className="h-4 w-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Free</span>
+                  <Crown className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
+                  <span className="hidden sm:inline font-medium">Free</span>
                 </Badge>
               ))}
             {/* Botão de tema */}
@@ -122,12 +122,12 @@ const Navbar = () => {
               variant="ghost"
               size="icon"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="rounded-full hover:bg-accent/10 h-9 w-9 sm:h-10 sm:w-10"
+              className="rounded-full hover:bg-primary/10 h-10 w-10 transition-all duration-300"
             >
               {theme === "dark" ? (
-                <Sun className="h-4 w-4 sm:h-5 sm:w-5" />
+                <Sun className="h-5 w-5 text-amber-400" />
               ) : (
-                <Moon className="h-4 w-4 sm:h-5 sm:w-5" />
+                <Moon className="h-5 w-5 text-primary" />
               )}
             </Button>
 
@@ -136,37 +136,36 @@ const Navbar = () => {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="flex items-center gap-2 hover:bg-accent/10 rounded-full pr-2 sm:pr-4 pl-1 sm:pl-3"
+                  className="flex items-center gap-2 hover:bg-primary/10 rounded-full pr-3 sm:pr-4 pl-1.5 sm:pl-2 h-10 sm:h-11 transition-all duration-300"
                 >
-                  <Avatar className="h-8 w-8">
+                  <Avatar className="h-8 w-8 sm:h-9 sm:w-9 ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
                     <AvatarImage src={user.user_metadata?.avatar_url} />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-sm">
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-sm font-semibold">
                       {getInitials(userName)}
                     </AvatarFallback>
                   </Avatar>
                   <span className="text-sm font-medium hidden sm:inline">{userName}</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <div className="px-2 py-2">
-                  <p className="text-sm font-medium">{userName}</p>
-                  <p className="text-xs text-muted-foreground">{user.email}</p>
+              <DropdownMenuContent align="end" className="w-60 p-2 rounded-xl shadow-xl border-border/50">
+                <div className="px-3 py-3 bg-muted/50 rounded-lg mb-2">
+                  <p className="text-sm font-semibold">{userName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                 </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer">
-                  <Settings className="h-4 w-4 mr-2" />
+                <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer rounded-lg py-2.5 px-3">
+                  <Settings className="h-4 w-4 mr-3 text-muted-foreground" />
                   Configurações
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/subscription")} className="cursor-pointer">
-                  <CreditCard className="h-4 w-4 mr-2" />
+                <DropdownMenuItem onClick={() => navigate("/subscription")} className="cursor-pointer rounded-lg py-2.5 px-3">
+                  <CreditCard className="h-4 w-4 mr-3 text-muted-foreground" />
                   Minha Assinatura
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="my-2" />
                 <DropdownMenuItem
                   onClick={handleLogout}
-                  className="cursor-pointer text-destructive focus:text-destructive"
+                  className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10 rounded-lg py-2.5 px-3"
                 >
-                  <LogOut className="h-4 w-4 mr-2" />
+                  <LogOut className="h-4 w-4 mr-3" />
                   Sair
                 </DropdownMenuItem>
               </DropdownMenuContent>
