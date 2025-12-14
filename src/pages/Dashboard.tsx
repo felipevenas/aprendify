@@ -193,42 +193,46 @@ const Dashboard = () => {
 
   return (
     <PageLoader loading={loading} message="Preparando seu dashboard...">
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
+      <div className="min-h-screen bg-background">
+        {/* Gradiente sutil de fundo */}
+        <div className="fixed inset-0 bg-gradient-to-br from-primary/3 via-transparent to-accent/3 pointer-events-none" />
+        
         <Navbar />
 
         {/* Conteúdo principal */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           {/* Header com boas-vindas e animação */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="mb-8 sm:mb-12"
+            className="mb-10 sm:mb-14"
           >
             <motion.div
-              className="flex items-center gap-2 mb-2"
+              className="flex items-center gap-2.5 mb-3"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
               <motion.div
-                animate={{ rotate: [0, 15, -15, 0] }}
-                transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                className="p-1.5 rounded-lg bg-primary/10"
+                animate={{ rotate: [0, 10, -10, 0] }}
+                transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 4 }}
               >
-                <Sparkles className="h-5 w-5 text-primary" />
+                <Sparkles className="h-4 w-4 text-primary" />
               </motion.div>
               <motion.span
-                className="text-sm font-medium text-primary"
+                className="text-sm font-semibold text-primary tracking-wide"
                 animate={{ opacity: [1, 0.7, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                Bem-vindo de volta!
+                Bem-vindo de volta
               </motion.span>
             </motion.div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-3">
-              Olá, {user?.user_metadata?.full_name?.split(" ")[0] || "Estudante"}!
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 tracking-tight">
+              Olá, <span className="text-gradient">{user?.user_metadata?.full_name?.split(" ")[0] || "Estudante"}</span>!
             </h1>
-            <p className="text-muted-foreground text-base sm:text-lg max-w-2xl">
+            <p className="text-muted-foreground text-base sm:text-lg max-w-2xl leading-relaxed">
               Continue sua jornada de estudos. Gerencie suas atividades e pratique com questões reais do ENEM.
             </p>
           </motion.div>
@@ -238,36 +242,39 @@ const Dashboard = () => {
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 mb-5 sm:mb-6"
           >
             {/* Banco de Questões - ocupa 2 colunas */}
             <motion.div variants={itemVariants} className="md:col-span-2">
               <Card
-                className="group cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-border/50 overflow-hidden relative h-full"
+                className="group cursor-pointer border-primary/20 overflow-hidden relative h-full bg-gradient-to-br from-card to-card/80"
                 onClick={() => navigate("/questions")}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/80 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                {/* Efeito de brilho no hover */}
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/10 transition-colors duration-500" />
 
-                <CardHeader className="relative">
+                <CardHeader className="relative pb-2">
                   <div className="flex items-start justify-between">
-                    <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                      <Brain className="h-7 w-7 text-white" />
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300">
+                      <Brain className="h-7 w-7 sm:h-8 sm:w-8 text-primary-foreground" />
                     </div>
-                    <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full">
+                    <span className="px-3 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-full tracking-wide uppercase">
                       Destaque
                     </span>
                   </div>
-                  <CardTitle className="text-xl sm:text-2xl group-hover:text-primary transition-colors">
+                  <CardTitle className="text-xl sm:text-2xl group-hover:text-primary transition-colors duration-300">
                     Banco de Questões
                   </CardTitle>
                   <CardDescription className="text-base sm:text-lg">
                     Pratique com questões reais do ENEM
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="relative">
-                  <div className="flex items-center text-primary font-medium group-hover:gap-3 gap-2 transition-all">
-                    <span>Acessar</span>
+                <CardContent className="relative pt-4">
+                  <div className="flex items-center text-primary font-semibold group-hover:gap-3 gap-2 transition-all duration-300">
+                    <span>Começar a praticar</span>
                     <motion.div
+                      className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center"
                       animate={{ x: [0, 4, 0] }}
                       transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                     >
@@ -291,41 +298,39 @@ const Dashboard = () => {
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6"
           >
             {cards
               .filter((card) => !card.featured)
-              .map((card) => (
+              .map((card, index) => (
                 <motion.div key={card.path} variants={itemVariants}>
                   <Card
-                    className="group cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-border/50 overflow-hidden relative h-full"
+                    className="group cursor-pointer border-border/50 overflow-hidden relative h-full bg-card hover:border-primary/30"
                     onClick={() => navigate(card.path)}
                   >
                     {/* Gradiente de fundo animado no hover */}
-                    <div
-                      className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}
-                    />
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/3 to-accent/3 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                    <CardHeader className="relative">
+                    <CardHeader className="relative pb-2">
                       <div className="flex items-start justify-between">
                         <div
-                          className={`w-14 h-14 rounded-2xl ${card.iconBg} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
+                          className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-md transition-all duration-300"
                         >
-                          <card.icon className="h-7 w-7 text-white" />
+                          <card.icon className="h-6 w-6 sm:h-7 sm:w-7 text-primary-foreground" />
                         </div>
+                        {card.isPremium && (
+                          <span className="px-2.5 py-1 bg-gradient-to-r from-amber-400/20 to-amber-600/20 text-amber-600 dark:text-amber-400 text-xs font-bold rounded-full">
+                            Premium
+                          </span>
+                        )}
                       </div>
-                      <CardTitle className="text-xl group-hover:text-primary transition-colors">{card.title}</CardTitle>
-                      <CardDescription className="text-base">{card.description}</CardDescription>
+                      <CardTitle className="text-lg sm:text-xl group-hover:text-primary transition-colors duration-300">{card.title}</CardTitle>
+                      <CardDescription className="text-sm sm:text-base">{card.description}</CardDescription>
                     </CardHeader>
-                    <CardContent className="relative">
-                      <div className="flex items-center text-primary font-medium group-hover:gap-3 gap-2 transition-all">
+                    <CardContent className="relative pt-2">
+                      <div className="flex items-center text-primary font-medium group-hover:gap-3 gap-2 transition-all duration-300 text-sm">
                         <span>Acessar</span>
-                        <motion.div
-                          animate={{ x: [0, 4, 0] }}
-                          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                        >
-                          →
-                        </motion.div>
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">→</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -339,52 +344,47 @@ const Dashboard = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
-              className="mt-8"
+              className="mt-10"
             >
-              <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
-                <span className="px-2 py-1 bg-amber-500/10 text-amber-600 text-xs font-semibold rounded-full">
+              <div className="flex items-center gap-3 mb-5">
+                <span className="px-3 py-1.5 bg-gradient-to-r from-amber-400/20 to-amber-600/20 text-amber-600 dark:text-amber-400 text-xs font-bold rounded-full uppercase tracking-wide">
                   Admin
                 </span>
-                Ferramentas de Administração
-              </h2>
+                <h2 className="text-xl font-semibold text-foreground">
+                  Ferramentas de Administração
+                </h2>
+              </div>
               <motion.div
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6"
               >
                 {adminCards.map((card) => (
                   <motion.div key={card.path} variants={itemVariants} className="h-full">
                     <Card
-                      className="h-full group cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-amber-500/30 overflow-hidden relative"
+                      className="h-full group cursor-pointer border-amber-500/30 overflow-hidden relative bg-gradient-to-br from-amber-50/50 to-orange-50/50 dark:from-amber-950/20 dark:to-orange-950/20 hover:border-amber-500/50"
                       onClick={() => navigate(card.path)}
                     >
-                      <div
-                        className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300`}
-                      />
+                      <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                      <CardHeader className="relative">
+                      <CardHeader className="relative pb-2">
                         <div className="flex items-start justify-between">
                           <div
-                            className={`w-14 h-14 rounded-2xl ${card.iconBg} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
+                            className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-md transition-all duration-300"
                           >
-                            <card.icon className="h-7 w-7 text-white" />
+                            <card.icon className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
                           </div>
                         </div>
-                        <CardTitle className="text-xl group-hover:text-amber-500 transition-colors">
+                        <CardTitle className="text-lg sm:text-xl group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors duration-300">
                           {card.title}
                         </CardTitle>
-                        <CardDescription className="text-base">{card.description}</CardDescription>
+                        <CardDescription className="text-sm sm:text-base">{card.description}</CardDescription>
                       </CardHeader>
-                      <CardContent className="relative">
-                        <div className="flex items-center text-amber-500 font-medium group-hover:gap-3 gap-2 transition-all">
+                      <CardContent className="relative pt-2">
+                        <div className="flex items-center text-amber-600 dark:text-amber-400 font-medium group-hover:gap-3 gap-2 transition-all duration-300 text-sm">
                           <span>Acessar</span>
-                          <motion.div
-                            animate={{ x: [0, 4, 0] }}
-                            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                          >
-                            →
-                          </motion.div>
+                          <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">→</span>
                         </div>
                       </CardContent>
                     </Card>
