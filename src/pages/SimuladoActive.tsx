@@ -467,66 +467,69 @@ function mapLocalDisciplineToAPI(localDiscipline: string): string {
 
 /**
  * Fetch questions from external ENEM API (years 2009-2023)
+ * Note: API discipline filter doesn't work properly, so we fetch all and filter client-side
  */
 async function fetchQuestionsFromAPI(
   year: string, 
   disciplines: string[], 
   limit: number
 ): Promise<QuestionData[]> {
-  const allQuestions: QuestionData[] = [];
-  const questionsPerDiscipline = Math.ceil(limit / disciplines.length);
-  
-  // Fetch all disciplines in parallel
-  const fetchPromises = disciplines.map(async (discipline) => {
-    const apiDiscipline = mapLocalDisciplineToAPI(discipline);
+  try {
+    // Convert local discipline names to API format for filtering
+    const apiDisciplines = disciplines.map(d => mapLocalDisciplineToAPI(d));
     
-    try {
-      // API uses offset for pagination, fetch more to ensure we have enough
-      const url = `https://api.enem.dev/v1/exams/${year}/questions?discipline=${apiDiscipline}&limit=${questionsPerDiscipline + 10}`;
-      console.log(`Fetching from API: ${url}`);
-      
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        console.error(`API response not ok: ${response.status} for ${apiDiscipline}`);
-        return [];
-      }
-      
-      const data = await response.json();
-      console.log(`API response for ${apiDiscipline}:`, data.metadata);
-      
-      if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
-        return data.questions.map((q: any, idx: number) => ({
-          id: `api-${year}-${q.discipline || apiDiscipline}-${q.index || idx}`,
-          title: q.title || "",
-          context: q.context || null,
-          alternatives: Array.isArray(q.alternatives) ? q.alternatives.map((alt: any) => ({
-            letter: alt.letter || "",
-            text: alt.text || ""
-          })) : [],
-          alternatives_introduction: q.alternativesIntroduction || null,
-          discipline: discipline, // Use our local discipline name
-          year: String(q.year || year),
-          index: q.index || idx,
-          files: Array.isArray(q.files) ? q.files : null,
-          correct_alternative: q.correctAlternative || ""
-        }));
-      }
-      
-      return [];
-    } catch (error) {
-      console.error(`Error fetching from API for ${discipline}:`, error);
+    // Fetch all questions for the year (API filter doesn't work reliably)
+    const url = `https://api.enem.dev/v1/exams/${year}/questions?limit=200`;
+    console.log(`Fetching from API: ${url}`);
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.error(`API response not ok: ${response.status}`);
       return [];
     }
-  });
-  
-  const results = await Promise.all(fetchPromises);
-  results.forEach(questions => allQuestions.push(...questions));
-  
-  // Shuffle and limit
-  return allQuestions
-    .sort(() => Math.random() - 0.5)
-    .slice(0, limit);
+    
+    const data = await response.json();
+    console.log(`API response:`, data.metadata);
+    
+    if (!data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
+      console.error("No questions in API response");
+      return [];
+    }
+    
+    // Filter questions by the requested disciplines (client-side filtering)
+    const filteredQuestions = data.questions.filter((q: any) => 
+      apiDisciplines.includes(q.discipline)
+    );
+    
+    console.log(`Filtered ${filteredQuestions.length} questions from ${data.questions.length} total for disciplines: ${apiDisciplines.join(", ")}`);
+    
+    // Map to our format
+    const mappedQuestions: QuestionData[] = filteredQuestions.map((q: any, idx: number) => ({
+      id: `api-${year}-${q.discipline}-${q.index || idx}`,
+      title: q.title || "",
+      context: q.context || null,
+      alternatives: Array.isArray(q.alternatives) ? q.alternatives.map((alt: any) => ({
+        letter: alt.letter || "",
+        text: alt.text || ""
+      })) : [],
+      alternatives_introduction: q.alternativesIntroduction || null,
+      discipline: mapAPIDisciplineToLocal(q.discipline), // Map back to local discipline name
+      year: String(q.year || year),
+      index: q.index || idx,
+      files: Array.isArray(q.files) ? q.files : null,
+      correct_alternative: q.correctAlternative || ""
+    }));
+    
+    // Shuffle and limit
+    return mappedQuestions
+      .sort(() => Math.random() - 0.5)
+      .slice(0, limit);
+      
+  } catch (error) {
+    console.error(`Error fetching from API:`, error);
+    return [];
+  }
 }
 
 /**
