@@ -99,28 +99,20 @@ const SimuladoActive = () => {
           let fetchedQuestions: QuestionData[] = [];
 
           const yearNum = sim.year ? parseInt(sim.year) : 0;
+          
+          console.log(`[Simulado] Loading questions for year: ${sim.year}, type: ${sim.type}, disciplines: ${disciplines.join(", ")}`);
 
           if (sim.year && yearNum >= 2024) {
-            // Anos 2024+ usam banco local
-            const { data, error } = await supabase
-              .from("enem_questions")
-              .select("*")
-              .eq("year", sim.year)
-              .in("discipline", disciplines)
-              .limit(sim.total_questions);
-
-            if (error) throw error;
-            fetchedQuestions = (data || []).map(q => ({
-              ...q,
-              alternatives: Array.isArray(q.alternatives) 
-                ? q.alternatives as unknown as Array<{ letter: string; text: string }>
-                : []
-            })) as unknown as QuestionData[];
+            // ===== ANOS 2024+ USAM BANCO DE DADOS LOCAL =====
+            console.log("[Simulado] Fetching from LOCAL DATABASE (2024+)");
+            fetchedQuestions = await fetchLocalQuestionsByYear(sim.year, disciplines, sim.total_questions);
           } else if (sim.year && yearNum >= 2009 && yearNum < 2024) {
-            // Anos 2009-2023 usam API externa
+            // ===== ANOS 2009-2023 USAM API EXTERNA =====
+            console.log("[Simulado] Fetching from ENEM API (2009-2023)");
             fetchedQuestions = await fetchQuestionsFromAPI(sim.year, disciplines, sim.total_questions);
           } else {
-            // Simulado aleatório (sem ano específico) - mistura banco local e API
+            // ===== SIMULADO PERSONALIZADO (SEM ANO) - MISTURA FONTES =====
+            console.log("[Simulado] Mixed sources (no specific year)");
             const localQuestions = await fetchLocalQuestions(disciplines, Math.ceil(sim.total_questions / 2));
             const apiQuestions = await fetchQuestionsFromAPI("2023", disciplines, Math.floor(sim.total_questions / 2));
             
@@ -128,6 +120,8 @@ const SimuladoActive = () => {
               .sort(() => Math.random() - 0.5)
               .slice(0, sim.total_questions);
           }
+          
+          console.log(`[Simulado] Loaded ${fetchedQuestions.length} questions`);
 
           if (!isMounted) return;
           setQuestions(fetchedQuestions);
@@ -533,12 +527,50 @@ async function fetchQuestionsFromAPI(
 }
 
 /**
- * Fetch questions from local database (2024+)
+ * Fetch questions from local database for a specific year (2024+)
+ */
+async function fetchLocalQuestionsByYear(
+  year: string,
+  disciplines: string[], 
+  limit: number
+): Promise<QuestionData[]> {
+  console.log(`[LOCAL DB] Fetching year=${year}, disciplines=${disciplines.join(",")}, limit=${limit}`);
+  
+  const { data, error } = await supabase
+    .from("enem_questions")
+    .select("*")
+    .eq("year", year)
+    .in("discipline", disciplines)
+    .limit(limit * 2);
+
+  if (error) {
+    console.error("[LOCAL DB] Error fetching questions:", error);
+    return [];
+  }
+
+  console.log(`[LOCAL DB] Found ${data?.length || 0} questions`);
+
+  const shuffled = (data || [])
+    .sort(() => Math.random() - 0.5)
+    .slice(0, limit);
+
+  return shuffled.map(q => ({
+    ...q,
+    alternatives: Array.isArray(q.alternatives) 
+      ? q.alternatives as unknown as Array<{ letter: string; text: string }>
+      : []
+  })) as unknown as QuestionData[];
+}
+
+/**
+ * Fetch questions from local database (any year 2024+)
  */
 async function fetchLocalQuestions(
   disciplines: string[], 
   limit: number
 ): Promise<QuestionData[]> {
+  console.log(`[LOCAL DB] Fetching any year, disciplines=${disciplines.join(",")}, limit=${limit}`);
+  
   const { data, error } = await supabase
     .from("enem_questions")
     .select("*")
@@ -546,9 +578,11 @@ async function fetchLocalQuestions(
     .limit(limit * 2);
 
   if (error) {
-    console.error("Error fetching local questions:", error);
+    console.error("[LOCAL DB] Error fetching questions:", error);
     return [];
   }
+
+  console.log(`[LOCAL DB] Found ${data?.length || 0} questions`);
 
   const shuffled = (data || [])
     .sort(() => Math.random() - 0.5)
