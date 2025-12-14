@@ -474,41 +474,59 @@ async function fetchQuestionsFromAPI(
   limit: number
 ): Promise<QuestionData[]> {
   const allQuestions: QuestionData[] = [];
+  const questionsPerDiscipline = Math.ceil(limit / disciplines.length);
   
-  for (const discipline of disciplines) {
+  // Fetch all disciplines in parallel
+  const fetchPromises = disciplines.map(async (discipline) => {
     const apiDiscipline = mapLocalDisciplineToAPI(discipline);
-    const questionsPerDiscipline = Math.ceil(limit / disciplines.length);
     
     try {
-      const url = `https://api.enem.dev/v1/exams/${year}/questions?discipline=${apiDiscipline}&limit=${questionsPerDiscipline}`;
+      // API uses offset for pagination, fetch more to ensure we have enough
+      const url = `https://api.enem.dev/v1/exams/${year}/questions?discipline=${apiDiscipline}&limit=${questionsPerDiscipline + 10}`;
+      console.log(`Fetching from API: ${url}`);
+      
       const response = await fetch(url);
       
-      if (!response.ok) continue;
+      if (!response.ok) {
+        console.error(`API response not ok: ${response.status} for ${apiDiscipline}`);
+        return [];
+      }
       
       const data = await response.json();
+      console.log(`API response for ${apiDiscipline}:`, data.metadata);
       
-      if (data.questions && data.questions.length > 0) {
-        const mappedQuestions = data.questions.map((q: any, idx: number) => ({
-          id: `api-${year}-${apiDiscipline}-${idx}`,
+      if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
+        return data.questions.map((q: any, idx: number) => ({
+          id: `api-${year}-${q.discipline || apiDiscipline}-${q.index || idx}`,
           title: q.title || "",
           context: q.context || null,
-          alternatives: q.alternatives || [],
+          alternatives: Array.isArray(q.alternatives) ? q.alternatives.map((alt: any) => ({
+            letter: alt.letter || "",
+            text: alt.text || ""
+          })) : [],
           alternatives_introduction: q.alternativesIntroduction || null,
-          discipline: discipline,
-          year: year,
+          discipline: discipline, // Use our local discipline name
+          year: String(q.year || year),
           index: q.index || idx,
-          files: q.files || null,
+          files: Array.isArray(q.files) ? q.files : null,
           correct_alternative: q.correctAlternative || ""
         }));
-        
-        allQuestions.push(...mappedQuestions);
       }
+      
+      return [];
     } catch (error) {
       console.error(`Error fetching from API for ${discipline}:`, error);
+      return [];
     }
-  }
+  });
   
-  return allQuestions.slice(0, limit);
+  const results = await Promise.all(fetchPromises);
+  results.forEach(questions => allQuestions.push(...questions));
+  
+  // Shuffle and limit
+  return allQuestions
+    .sort(() => Math.random() - 0.5)
+    .slice(0, limit);
 }
 
 /**
