@@ -110,13 +110,25 @@ const SimuladoActive = () => {
             // ===== ANOS 2009-2023 USAM API EXTERNA =====
             console.log("[Simulado] Fetching from ENEM API (2009-2023)");
             fetchedQuestions = await fetchQuestionsFromAPI(sim.year, disciplines, sim.total_questions);
+            
+            // Se não encontrou questões na API, tenta fallback para banco local
+            if (fetchedQuestions.length === 0) {
+              console.warn("[Simulado] API returned no questions, trying local database fallback");
+              fetchedQuestions = await fetchLocalQuestions(disciplines, sim.total_questions);
+            }
           } else {
             // ===== SIMULADO PERSONALIZADO (SEM ANO) - MISTURA FONTES =====
             console.log("[Simulado] Mixed sources (no specific year)");
-            const localQuestions = await fetchLocalQuestions(disciplines, Math.ceil(sim.total_questions / 2));
-            const apiQuestions = await fetchQuestionsFromAPI("2023", disciplines, Math.floor(sim.total_questions / 2));
             
-            fetchedQuestions = [...localQuestions, ...apiQuestions]
+            // Primeiro tenta buscar da API
+            const apiQuestions = await fetchQuestionsFromAPI("2023", disciplines, Math.ceil(sim.total_questions / 2));
+            console.log(`[Simulado] Got ${apiQuestions.length} questions from API`);
+            
+            // Depois busca do banco local
+            const localQuestions = await fetchLocalQuestions(disciplines, Math.ceil(sim.total_questions / 2));
+            console.log(`[Simulado] Got ${localQuestions.length} questions from local DB`);
+            
+            fetchedQuestions = [...apiQuestions, ...localQuestions]
               .sort(() => Math.random() - 0.5)
               .slice(0, sim.total_questions);
           }
@@ -448,6 +460,11 @@ function mapAPIDisciplineToLocal(apiDiscipline: string): string {
 
 /**
  * Map local discipline names to API discipline names
+ * Note: The ENEM API uses these exact values:
+ * - "linguagens" (for languages and codes questions)
+ * - "ciencias-humanas" (for human sciences)
+ * - "ciencias-natureza" (for natural sciences)  
+ * - "matematica" (for mathematics)
  */
 function mapLocalDisciplineToAPI(localDiscipline: string): string {
   const mapping: Record<string, string> = {
@@ -474,46 +491,84 @@ async function fetchQuestionsFromAPI(
     
     // Fetch all questions for the year (API filter doesn't work reliably)
     const url = `https://api.enem.dev/v1/exams/${year}/questions?limit=200`;
-    console.log(`Fetching from API: ${url}`);
+    console.log(`[API] Fetching from: ${url}`);
+    console.log(`[API] Looking for disciplines: ${apiDisciplines.join(", ")}`);
     
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
     
     if (!response.ok) {
-      console.error(`API response not ok: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`[API] Response not ok: ${response.status} ${response.statusText}`, errorText);
       return [];
     }
     
-    const data = await response.json();
-    console.log(`API response:`, data.metadata);
-    
-    if (!data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
-      console.error("No questions in API response");
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      console.error("[API] Error parsing JSON response:", parseError);
       return [];
     }
+    
+    console.log(`[API] Response metadata:`, data.metadata);
+    
+    if (!data.questions || !Array.isArray(data.questions)) {
+      console.error("[API] Invalid response structure - questions not found or not an array");
+      console.log("[API] Response data:", JSON.stringify(data).slice(0, 500));
+      return [];
+    }
+    
+    if (data.questions.length === 0) {
+      console.error("[API] Empty questions array in response");
+      return [];
+    }
+
+    console.log(`[API] Total questions received: ${data.questions.length}`);
+    console.log(`[API] Sample question disciplines:`, data.questions.slice(0, 5).map((q: any) => q.discipline));
     
     // Filter questions by the requested disciplines (client-side filtering)
-    const filteredQuestions = data.questions.filter((q: any) => 
-      apiDisciplines.includes(q.discipline)
-    );
+    const filteredQuestions = data.questions.filter((q: any) => {
+      const match = apiDisciplines.includes(q.discipline);
+      return match;
+    });
     
-    console.log(`Filtered ${filteredQuestions.length} questions from ${data.questions.length} total for disciplines: ${apiDisciplines.join(", ")}`);
+    console.log(`[API] Filtered ${filteredQuestions.length} questions for disciplines: ${apiDisciplines.join(", ")}`);
     
-    // Map to our format
-    const mappedQuestions: QuestionData[] = filteredQuestions.map((q: any, idx: number) => ({
-      id: `api-${year}-${q.discipline}-${q.index || idx}`,
-      title: q.title || "",
-      context: q.context || null,
-      alternatives: Array.isArray(q.alternatives) ? q.alternatives.map((alt: any) => ({
-        letter: alt.letter || "",
-        text: alt.text || ""
-      })) : [],
-      alternatives_introduction: q.alternativesIntroduction || null,
-      discipline: mapAPIDisciplineToLocal(q.discipline), // Map back to local discipline name
-      year: String(q.year || year),
-      index: q.index || idx,
-      files: Array.isArray(q.files) ? q.files : null,
-      correct_alternative: q.correctAlternative || ""
-    }));
+    if (filteredQuestions.length === 0) {
+      console.warn(`[API] No questions found for disciplines: ${apiDisciplines.join(", ")}`);
+      // Log all available disciplines in the response
+      const availableDisciplines = [...new Set(data.questions.map((q: any) => q.discipline))];
+      console.log(`[API] Available disciplines in response: ${availableDisciplines.join(", ")}`);
+    }
+    
+    // Map to our format - API uses camelCase
+    const mappedQuestions: QuestionData[] = filteredQuestions.map((q: any, idx: number) => {
+      // Parse alternatives - API returns array of objects with letter, text, file, isCorrect
+      const alternatives = Array.isArray(q.alternatives) 
+        ? q.alternatives.map((alt: any) => ({
+            letter: alt.letter || "",
+            text: alt.text || ""
+          }))
+        : [];
+
+      return {
+        id: `api-${year}-${q.discipline}-${q.index || idx}`,
+        title: q.title || "",
+        context: q.context || null,
+        alternatives,
+        alternatives_introduction: q.alternativesIntroduction || null,
+        discipline: mapAPIDisciplineToLocal(q.discipline),
+        year: String(q.year || year),
+        index: q.index || idx,
+        files: Array.isArray(q.files) && q.files.length > 0 ? q.files : null,
+        correct_alternative: q.correctAlternative || ""
+      };
+    });
     
     // Shuffle and limit
     return mappedQuestions
@@ -521,7 +576,7 @@ async function fetchQuestionsFromAPI(
       .slice(0, limit);
       
   } catch (error) {
-    console.error(`Error fetching from API:`, error);
+    console.error(`[API] Error fetching:`, error);
     return [];
   }
 }
