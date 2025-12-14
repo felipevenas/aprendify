@@ -478,6 +478,7 @@ function mapLocalDisciplineToAPI(localDiscipline: string): string {
 
 /**
  * Fetch questions from external ENEM API (years 2009-2023)
+ * Note: API has max limit of 50 per request, so we paginate
  * Note: API discipline filter doesn't work properly, so we fetch all and filter client-side
  */
 async function fetchQuestionsFromAPI(
@@ -488,61 +489,78 @@ async function fetchQuestionsFromAPI(
   try {
     // Convert local discipline names to API format for filtering
     const apiDisciplines = disciplines.map(d => mapLocalDisciplineToAPI(d));
-    
-    // Fetch all questions for the year (API filter doesn't work reliably)
-    const url = `https://api.enem.dev/v1/exams/${year}/questions?limit=200`;
-    console.log(`[API] Fetching from: ${url}`);
     console.log(`[API] Looking for disciplines: ${apiDisciplines.join(", ")}`);
     
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
+    // API has max limit of 50 per request, so we need to paginate
+    const API_PAGE_LIMIT = 50;
+    let allQuestions: any[] = [];
+    let offset = 0;
+    let hasMore = true;
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[API] Response not ok: ${response.status} ${response.statusText}`, errorText);
+    // Fetch pages until we have enough questions or no more available
+    while (hasMore) {
+      const url = `https://api.enem.dev/v1/exams/${year}/questions?limit=${API_PAGE_LIMIT}&offset=${offset}`;
+      console.log(`[API] Fetching from: ${url}`);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[API] Response not ok: ${response.status}`, errorText);
+        break;
+      }
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error("[API] Error parsing JSON response:", parseError);
+        break;
+      }
+      
+      if (!data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
+        hasMore = false;
+        break;
+      }
+      
+      allQuestions = [...allQuestions, ...data.questions];
+      console.log(`[API] Page fetched: ${data.questions.length} questions, total so far: ${allQuestions.length}`);
+      
+      // Check if there are more pages
+      if (data.questions.length < API_PAGE_LIMIT) {
+        hasMore = false;
+      } else {
+        offset += API_PAGE_LIMIT;
+      }
+      
+      // Safety limit to avoid infinite loops
+      if (offset > 500) {
+        hasMore = false;
+      }
+    }
+    
+    if (allQuestions.length === 0) {
+      console.error("[API] No questions fetched from API");
       return [];
     }
     
-    let data;
-    try {
-      data = await response.json();
-    } catch (parseError) {
-      console.error("[API] Error parsing JSON response:", parseError);
-      return [];
-    }
-    
-    console.log(`[API] Response metadata:`, data.metadata);
-    
-    if (!data.questions || !Array.isArray(data.questions)) {
-      console.error("[API] Invalid response structure - questions not found or not an array");
-      console.log("[API] Response data:", JSON.stringify(data).slice(0, 500));
-      return [];
-    }
-    
-    if (data.questions.length === 0) {
-      console.error("[API] Empty questions array in response");
-      return [];
-    }
-
-    console.log(`[API] Total questions received: ${data.questions.length}`);
-    console.log(`[API] Sample question disciplines:`, data.questions.slice(0, 5).map((q: any) => q.discipline));
+    console.log(`[API] Sample disciplines:`, allQuestions.slice(0, 5).map((q: any) => q.discipline));
     
     // Filter questions by the requested disciplines (client-side filtering)
-    const filteredQuestions = data.questions.filter((q: any) => {
-      const match = apiDisciplines.includes(q.discipline);
-      return match;
+    const filteredQuestions = allQuestions.filter((q: any) => {
+      return apiDisciplines.includes(q.discipline);
     });
     
     console.log(`[API] Filtered ${filteredQuestions.length} questions for disciplines: ${apiDisciplines.join(", ")}`);
     
     if (filteredQuestions.length === 0) {
       console.warn(`[API] No questions found for disciplines: ${apiDisciplines.join(", ")}`);
-      // Log all available disciplines in the response
-      const availableDisciplines = [...new Set(data.questions.map((q: any) => q.discipline))];
+      const availableDisciplines = [...new Set(allQuestions.map((q: any) => q.discipline))];
       console.log(`[API] Available disciplines in response: ${availableDisciplines.join(", ")}`);
     }
     
