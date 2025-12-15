@@ -16,21 +16,21 @@ serve(async (req) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY não está configurada");
+    const groqApiKey = Deno.env.get("GROQ_API_KEY");
+    if (!groqApiKey) {
+      throw new Error("GROQ_API_KEY não está configurada");
     }
 
-    console.log("Generating ENEM-style essay topic...");
+    console.log("Generating ENEM-style essay topic using Groq...");
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${groqApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "llama-3.3-70b-versatile",
         messages: [
           {
             role: "system",
@@ -56,12 +56,14 @@ Retorne no seguinte formato JSON:
             content: "Gere um tema de redação ENEM original e atual."
           }
         ],
+        max_tokens: 2000,
+        temperature: 0.8,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("Groq API error:", response.status, errorText);
       throw new Error("Erro ao gerar tema de redação");
     }
 
