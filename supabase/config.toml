@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.analyze-simulado]
 verify_jwt = false
+
+[functions.generate-study-schedule]
+verify_jwt = false
