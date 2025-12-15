@@ -120,11 +120,11 @@ serve(async (req) => {
       .filter(d => d.percentage < 50)
       .map(d => ({ discipline: d.discipline, percentage: d.percentage }));
 
-    // Generate AI tips
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    // Generate AI tips using Groq API
+    const groqApiKey = Deno.env.get("GROQ_API_KEY");
     let tips = "";
 
-    if (LOVABLE_API_KEY) {
+    if (groqApiKey) {
       try {
         const promptData = {
           totalQuestions: answers.length,
@@ -136,14 +136,14 @@ serve(async (req) => {
           weaknesses
         };
 
-        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const aiResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            Authorization: `Bearer ${groqApiKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
+            model: "llama-3.3-70b-versatile",
             messages: [
               {
                 role: "system",
@@ -173,18 +173,23 @@ Pontos fortes: ${promptData.strengths.length > 0 ? promptData.strengths.map(s =>
 Pontos fracos: ${promptData.weaknesses.length > 0 ? promptData.weaknesses.map(w => w.discipline).join(', ') : 'Nenhum identificado'}`
               }
             ],
+            max_tokens: 800,
+            temperature: 0.7,
           }),
         });
 
         if (aiResponse.ok) {
           const aiData = await aiResponse.json();
           tips = aiData.choices?.[0]?.message?.content || "";
+        } else {
+          console.error("Groq API error:", await aiResponse.text());
         }
       } catch (aiError) {
         console.error("AI tips generation error:", aiError);
         tips = "Continue praticando! Foque nas disciplinas com menor desempenho e revise os conceitos fundamentais.";
       }
     } else {
+      console.warn("GROQ_API_KEY não configurada");
       tips = "Continue praticando! Foque nas disciplinas com menor desempenho e revise os conceitos fundamentais.";
     }
 
