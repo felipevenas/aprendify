@@ -331,40 +331,88 @@ export type Database = {
           },
         ]
       }
-      schedule_items: {
+      schedule_generations: {
         Row: {
           created_at: string
-          day_of_week: number
-          end_time: string
+          generated_at: string
           id: string
-          notes: string | null
-          start_time: string
-          subject_id: string | null
-          title: string
-          updated_at: string
+          next_regeneration_at: string
+          performance_snapshot: Json | null
           user_id: string
         }
         Insert: {
           created_at?: string
-          day_of_week: number
-          end_time: string
+          generated_at?: string
           id?: string
-          notes?: string | null
-          start_time: string
-          subject_id?: string | null
-          title: string
-          updated_at?: string
+          next_regeneration_at?: string
+          performance_snapshot?: Json | null
           user_id: string
         }
         Update: {
           created_at?: string
+          generated_at?: string
+          id?: string
+          next_regeneration_at?: string
+          performance_snapshot?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      schedule_items: {
+        Row: {
+          activities: string | null
+          created_at: string
+          day_of_week: number
+          end_time: string
+          estimated_duration: number | null
+          id: string
+          is_ai_generated: boolean | null
+          notes: string | null
+          priority: string | null
+          scheduled_date: string | null
+          start_time: string
+          study_tips: string | null
+          subject_id: string | null
+          title: string
+          topic: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activities?: string | null
+          created_at?: string
+          day_of_week: number
+          end_time: string
+          estimated_duration?: number | null
+          id?: string
+          is_ai_generated?: boolean | null
+          notes?: string | null
+          priority?: string | null
+          scheduled_date?: string | null
+          start_time: string
+          study_tips?: string | null
+          subject_id?: string | null
+          title: string
+          topic?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activities?: string | null
+          created_at?: string
           day_of_week?: number
           end_time?: string
+          estimated_duration?: number | null
           id?: string
+          is_ai_generated?: boolean | null
           notes?: string | null
+          priority?: string | null
+          scheduled_date?: string | null
           start_time?: string
+          study_tips?: string | null
           subject_id?: string | null
           title?: string
+          topic?: string | null
           updated_at?: string
           user_id?: string
         }
