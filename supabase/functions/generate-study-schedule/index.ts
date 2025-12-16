@@ -297,16 +297,19 @@ Responda APENAS com um JSON válido no seguinte formato (sem markdown, sem expli
       });
     }
 
-    // Registrar geração do cronograma
+    // Registrar geração do cronograma (delete old + insert new)
     await supabase
       .from("schedule_generations")
-      .upsert({
+      .delete()
+      .eq("user_id", user.id);
+
+    await supabase
+      .from("schedule_generations")
+      .insert({
         user_id: user.id,
         generated_at: new Date().toISOString(),
         next_regeneration_at: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
         performance_snapshot: performanceData,
-      }, {
-        onConflict: "user_id",
       });
 
     console.log(`[generate-study-schedule] Cronograma gerado com ${newItems.length} itens`);

@@ -11,6 +11,7 @@ import MonthlyCalendar from "@/components/schedule/MonthlyCalendar";
 import DayScheduleDetail from "@/components/schedule/DayScheduleDetail";
 import GenerateScheduleButton from "@/components/schedule/GenerateScheduleButton";
 import AddScheduleItemDialog from "@/components/schedule/AddScheduleItemDialog";
+import WeeklyAdherenceReport from "@/components/schedule/WeeklyAdherenceReport";
 
 interface ScheduleItem {
   id: string;
@@ -24,6 +25,8 @@ interface ScheduleItem {
   priority?: string;
   estimated_duration?: number;
   is_ai_generated?: boolean;
+  completed?: boolean;
+  completed_at?: string;
   subject_id?: string;
   subjects?: {
     name: string;
@@ -141,6 +144,25 @@ const Schedule = () => {
     setDialogOpen(true);
   };
 
+  const handleToggleComplete = async (id: string, completed: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("schedule_items")
+        .update({
+          completed,
+          completed_at: completed ? new Date().toISOString() : null,
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+      
+      toast.success(completed ? "Sessão concluída!" : "Sessão desmarcada");
+    } catch (error) {
+      console.error("Error toggling complete:", error);
+      toast.error("Erro ao atualizar sessão");
+    }
+  };
+
   const handleGenerated = () => {
     fetchSchedule();
     fetchLastGeneration();
@@ -216,7 +238,7 @@ const Schedule = () => {
           {/* Layout do Calendário */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Calendário Mensal */}
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 space-y-4">
               <MonthlyCalendar
                 items={items}
                 selectedDate={selectedDate}
@@ -224,7 +246,7 @@ const Schedule = () => {
               />
               
               {/* Stats rápidas */}
-              <div className="mt-4 p-4 bg-card rounded-lg border border-border">
+              <div className="p-4 bg-card rounded-lg border border-border">
                 <h3 className="font-medium text-sm mb-3">Resumo do Mês</h3>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
@@ -232,13 +254,16 @@ const Schedule = () => {
                     <p className="text-2xl font-bold text-primary">{items.length}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Geradas por IA</p>
-                    <p className="text-2xl font-bold text-primary">
-                      {items.filter(i => i.is_ai_generated).length}
+                    <p className="text-muted-foreground">Concluídas</p>
+                    <p className="text-2xl font-bold text-green-500">
+                      {items.filter(i => i.completed).length}
                     </p>
                   </div>
                 </div>
               </div>
+
+              {/* Weekly Report */}
+              <WeeklyAdherenceReport items={items} />
             </div>
 
             {/* Detalhes do Dia Selecionado */}
@@ -249,6 +274,7 @@ const Schedule = () => {
                   items={selectedDateItems}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
+                  onToggleComplete={handleToggleComplete}
                 />
               )}
             </div>
