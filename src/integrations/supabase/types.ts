@@ -361,6 +361,8 @@ export type Database = {
       schedule_items: {
         Row: {
           activities: string | null
+          completed: boolean | null
+          completed_at: string | null
           created_at: string
           day_of_week: number
           end_time: string
@@ -380,6 +382,8 @@ export type Database = {
         }
         Insert: {
           activities?: string | null
+          completed?: boolean | null
+          completed_at?: string | null
           created_at?: string
           day_of_week: number
           end_time: string
@@ -399,6 +403,8 @@ export type Database = {
         }
         Update: {
           activities?: string | null
+          completed?: boolean | null
+          completed_at?: string | null
           created_at?: string
           day_of_week?: number
           end_time?: string

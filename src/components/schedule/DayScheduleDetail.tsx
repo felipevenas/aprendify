@@ -1,6 +1,6 @@
-import { format } from "date-fns";
+import { format, isPast, isToday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, BookOpen, Lightbulb, Trash2, Pencil, Sparkles } from "lucide-react";
+import { Clock, BookOpen, Lightbulb, Trash2, Pencil, Sparkles, CheckCircle2, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,8 @@ interface ScheduleItem {
   priority?: string;
   estimated_duration?: number;
   is_ai_generated?: boolean;
+  completed?: boolean;
+  completed_at?: string;
   subjects?: {
     name: string;
     color: string;
@@ -29,10 +31,13 @@ interface DayScheduleDetailProps {
   items: ScheduleItem[];
   onEdit: (item: ScheduleItem) => void;
   onDelete: (id: string) => void;
+  onToggleComplete: (id: string, completed: boolean) => void;
 }
 
-const DayScheduleDetail = ({ date, items, onEdit, onDelete }: DayScheduleDetailProps) => {
+const DayScheduleDetail = ({ date, items, onEdit, onDelete, onToggleComplete }: DayScheduleDetailProps) => {
   const sortedItems = [...items].sort((a, b) => a.start_time.localeCompare(b.start_time));
+  const completedCount = items.filter((i) => i.completed).length;
+  const dateIsPast = isPast(date) && !isToday(date);
 
   const getPriorityBadge = (priority?: string) => {
     switch (priority) {
@@ -71,38 +76,80 @@ const DayScheduleDetail = ({ date, items, onEdit, onDelete }: DayScheduleDetailP
           <CardTitle className="text-lg capitalize">
             {format(date, "EEEE, d 'de' MMMM", { locale: ptBR })}
           </CardTitle>
-          <Badge variant="outline" className="text-xs">
-            {items.length} {items.length === 1 ? "sessão" : "sessões"}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {completedCount > 0 && (
+              <Badge variant="secondary" className="text-xs gap-1 bg-green-500/10 text-green-600">
+                <CheckCircle2 className="h-3 w-3" />
+                {completedCount}/{items.length}
+              </Badge>
+            )}
+            <Badge variant="outline" className="text-xs">
+              {items.length} {items.length === 1 ? "sessão" : "sessões"}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {sortedItems.map((item, index) => (
+        {sortedItems.map((item) => (
           <div
             key={item.id}
             className={cn(
               "rounded-lg border bg-background p-4 transition-all hover:shadow-md group",
-              item.priority === "alta" && "border-l-4 border-l-destructive",
-              item.priority === "média" && "border-l-4 border-l-amber-500",
-              (!item.priority || item.priority === "normal") && "border-l-4 border-l-primary"
+              item.completed && "bg-green-500/5 border-green-500/30",
+              !item.completed && item.priority === "alta" && "border-l-4 border-l-destructive",
+              !item.completed && item.priority === "média" && "border-l-4 border-l-amber-500",
+              !item.completed && (!item.priority || item.priority === "normal") && "border-l-4 border-l-primary"
             )}
           >
             {/* Header */}
             <div className="flex items-start justify-between mb-3">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-semibold text-foreground">{item.title}</h3>
-                  {item.is_ai_generated && (
-                    <Badge variant="secondary" className="text-xs gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      IA
-                    </Badge>
+              <div className="flex items-start gap-3 flex-1">
+                {/* Check-in Button */}
+                <button
+                  onClick={() => onToggleComplete(item.id, !item.completed)}
+                  className={cn(
+                    "mt-0.5 shrink-0 transition-all hover:scale-110",
+                    item.completed ? "text-green-500" : "text-muted-foreground hover:text-primary"
                   )}
-                  {getPriorityBadge(item.priority)}
+                  title={item.completed ? "Marcar como não concluída" : "Marcar como concluída"}
+                >
+                  {item.completed ? (
+                    <CheckCircle2 className="h-5 w-5" />
+                  ) : (
+                    <Circle className="h-5 w-5" />
+                  )}
+                </button>
+
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className={cn(
+                      "font-semibold text-foreground",
+                      item.completed && "line-through text-muted-foreground"
+                    )}>
+                      {item.title}
+                    </h3>
+                    {item.is_ai_generated && (
+                      <Badge variant="secondary" className="text-xs gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        IA
+                      </Badge>
+                    )}
+                    {item.completed && (
+                      <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-600">
+                        Concluída
+                      </Badge>
+                    )}
+                    {!item.completed && getPriorityBadge(item.priority)}
+                  </div>
+                  {item.topic && item.topic !== item.title && (
+                    <p className={cn(
+                      "text-sm text-muted-foreground mt-1",
+                      item.completed && "line-through"
+                    )}>
+                      {item.topic}
+                    </p>
+                  )}
                 </div>
-                {item.topic && item.topic !== item.title && (
-                  <p className="text-sm text-muted-foreground mt-1">{item.topic}</p>
-                )}
               </div>
               
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -126,7 +173,7 @@ const DayScheduleDetail = ({ date, items, onEdit, onDelete }: DayScheduleDetailP
             </div>
 
             {/* Horário e duração */}
-            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3 pl-8">
               <div className="flex items-center gap-1.5">
                 <Clock className="h-4 w-4" />
                 <span>
@@ -141,8 +188,8 @@ const DayScheduleDetail = ({ date, items, onEdit, onDelete }: DayScheduleDetailP
             </div>
 
             {/* Atividades */}
-            {item.activities && (
-              <div className="mb-3">
+            {item.activities && !item.completed && (
+              <div className="mb-3 pl-8">
                 <div className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
                   <BookOpen className="h-4 w-4 text-primary" />
                   <span>Atividades</span>
@@ -154,8 +201,8 @@ const DayScheduleDetail = ({ date, items, onEdit, onDelete }: DayScheduleDetailP
             )}
 
             {/* Dicas de estudo */}
-            {item.study_tips && (
-              <div className="bg-primary/5 rounded-lg p-3 mt-3">
+            {item.study_tips && !item.completed && (
+              <div className="bg-primary/5 rounded-lg p-3 mt-3 ml-8">
                 <div className="flex items-center gap-1.5 text-sm font-medium text-primary mb-1">
                   <Lightbulb className="h-4 w-4" />
                   <span>Dica</span>
@@ -177,6 +224,11 @@ const DayScheduleDetail = ({ date, items, onEdit, onDelete }: DayScheduleDetailP
               {items.reduce((acc, item) => acc + (item.estimated_duration || 60), 0) % 60}min
             </span>
           </div>
+          {dateIsPast && completedCount < items.length && (
+            <p className="text-xs text-amber-500 mt-2">
+              {items.length - completedCount} sessão(ões) não concluída(s) neste dia.
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>
