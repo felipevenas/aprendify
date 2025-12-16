@@ -39,11 +39,20 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("generate-study-schedule");
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const accessToken = session?.access_token;
+
+      const { data, error } = await supabase.functions.invoke("generate-study-schedule", {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      });
 
       if (error) {
         console.error("Error generating schedule:", error);
-        toast.error("Erro ao gerar cronograma. Tente novamente.");
+        const msg = (error as any)?.message || "Erro ao gerar cronograma. Tente novamente.";
+        toast.error(msg);
         return;
       }
 
@@ -56,7 +65,7 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
       onGenerated();
     } catch (error) {
       console.error("Error:", error);
-      toast.error("Erro ao gerar cronograma");
+      toast.error(error instanceof Error ? error.message : "Erro ao gerar cronograma");
     } finally {
       setLoading(false);
     }
