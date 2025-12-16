@@ -87,7 +87,7 @@ const Dashboard = () => {
       featured: false,
     },
     {
-      title: "Cronograma Semanal",
+      title: "Cronograma Mensal",
       description: "Organize suas aulas e sessões de estudo",
       icon: Calendar,
       path: "/schedule",
@@ -196,7 +196,7 @@ const Dashboard = () => {
       <div className="min-h-screen bg-background">
         {/* Gradiente sutil de fundo */}
         <div className="fixed inset-0 bg-gradient-to-br from-primary/3 via-transparent to-accent/3 pointer-events-none" />
-        
+
         <Navbar />
 
         {/* Conteúdo principal */}
@@ -230,7 +230,8 @@ const Dashboard = () => {
               </motion.span>
             </motion.div>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 tracking-tight">
-              Olá, <span className="text-gradient">{user?.user_metadata?.full_name?.split(" ")[0] || "Estudante"}</span>!
+              Olá, <span className="text-gradient">{user?.user_metadata?.full_name?.split(" ")[0] || "Estudante"}</span>
+              !
             </h1>
             <p className="text-muted-foreground text-base sm:text-lg max-w-2xl leading-relaxed">
               Continue sua jornada de estudos. Gerencie suas atividades e pratique com questões reais do ENEM.
@@ -313,9 +314,7 @@ const Dashboard = () => {
 
                     <CardHeader className="relative pb-2">
                       <div className="flex items-start justify-between">
-                        <div
-                          className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-md transition-all duration-300"
-                        >
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
                           <card.icon className="h-6 w-6 sm:h-7 sm:w-7 text-primary-foreground" />
                         </div>
                         {card.isPremium && (
@@ -324,7 +323,9 @@ const Dashboard = () => {
                           </span>
                         )}
                       </div>
-                      <CardTitle className="text-lg sm:text-xl group-hover:text-primary transition-colors duration-300">{card.title}</CardTitle>
+                      <CardTitle className="text-lg sm:text-xl group-hover:text-primary transition-colors duration-300">
+                        {card.title}
+                      </CardTitle>
                       <CardDescription className="text-sm sm:text-base">{card.description}</CardDescription>
                     </CardHeader>
                     <CardContent className="relative pt-2">
@@ -350,9 +351,7 @@ const Dashboard = () => {
                 <span className="px-3 py-1.5 bg-gradient-to-r from-amber-400/20 to-amber-600/20 text-amber-600 dark:text-amber-400 text-xs font-bold rounded-full uppercase tracking-wide">
                   Admin
                 </span>
-                <h2 className="text-xl font-semibold text-foreground">
-                  Ferramentas de Administração
-                </h2>
+                <h2 className="text-xl font-semibold text-foreground">Ferramentas de Administração</h2>
               </div>
               <motion.div
                 variants={containerVariants}
@@ -370,9 +369,7 @@ const Dashboard = () => {
 
                       <CardHeader className="relative pb-2">
                         <div className="flex items-start justify-between">
-                          <div
-                            className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-md transition-all duration-300"
-                          >
+                          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
                             <card.icon className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
                           </div>
                         </div>
