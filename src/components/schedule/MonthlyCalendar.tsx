@@ -145,7 +145,7 @@ const MonthlyCalendar = ({ items, selectedDate, onSelectDate }: MonthlyCalendarP
                         className={cn("w-1 h-1 rounded-full", isSelected ? "bg-primary-foreground" : "bg-primary")}
                       />
                     ))}
-                  {itemCount > 3 && <span className="text-[8px] text-white">+{itemCount - 3}</span>}
+                  {itemCount > 3 && <span className="text-[8px] text-muted-foreground">+{itemCount - 3}</span>}
                 </div>
               )}
             </button>
