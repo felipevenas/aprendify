@@ -239,7 +239,10 @@ const Schedule = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.1 }}
                 className="p-4 bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 shadow-sm"
-              ></motion.div>
+              >
+                <p className="text-xs text-muted-foreground mb-1">Sessões</p>
+                <p className="text-2xl font-bold text-foreground">{items.length}</p>
+              </motion.div>
 
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
