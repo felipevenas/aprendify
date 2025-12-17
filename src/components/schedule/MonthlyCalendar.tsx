@@ -1,5 +1,15 @@
 import { useState, useMemo } from "react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths } from "date-fns";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameMonth,
+  isSameDay,
+  isToday,
+  addMonths,
+  subMonths,
+} from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -59,7 +69,7 @@ const MonthlyCalendar = ({ items, selectedDate, onSelectDate }: MonthlyCalendarP
   const getPriorityColor = (date: Date) => {
     const dateKey = format(date, "yyyy-MM-dd");
     const dayItems = items.filter((item) => item.scheduled_date === dateKey);
-    
+
     if (dayItems.some((item) => item.priority === "alta")) {
       return "bg-destructive/20 border-destructive/40";
     }
@@ -76,21 +86,11 @@ const MonthlyCalendar = ({ items, selectedDate, onSelectDate }: MonthlyCalendarP
     <div className="bg-card rounded-lg border border-border p-4">
       {/* Header com navegação */}
       <div className="flex items-center justify-between mb-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-        >
+        <Button variant="ghost" size="sm" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <h2 className="text-lg font-semibold capitalize">
-          {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
-        </h2>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-        >
+        <h2 className="text-lg font-semibold capitalize">{format(currentMonth, "MMMM yyyy", { locale: ptBR })}</h2>
+        <Button variant="ghost" size="sm" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -98,10 +98,7 @@ const MonthlyCalendar = ({ items, selectedDate, onSelectDate }: MonthlyCalendarP
       {/* Dias da semana */}
       <div className="grid grid-cols-7 gap-1 mb-2">
         {WEEKDAYS.map((day) => (
-          <div
-            key={day}
-            className="text-center text-xs font-medium text-muted-foreground py-2"
-          >
+          <div key={day} className="text-center text-xs font-medium text-muted-foreground py-2">
             {day}
           </div>
         ))}
@@ -131,32 +128,25 @@ const MonthlyCalendar = ({ items, selectedDate, onSelectDate }: MonthlyCalendarP
                 isToday(day) && "ring-2 ring-primary",
                 isSelected && "bg-primary text-primary-foreground hover:bg-primary/90",
                 !isSelected && priorityClass,
-                day.getDay() === 0 && "text-muted-foreground"
+                day.getDay() === 0 && "text-muted-foreground",
               )}
             >
               <span className={cn("font-medium", isToday(day) && !isSelected && "text-primary")}>
                 {format(day, "d")}
               </span>
-              
+
               {itemCount > 0 && !isSelected && (
                 <div className="flex gap-0.5 mt-0.5">
-                  {Array(Math.min(itemCount, 3)).fill(0).map((_, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "w-1 h-1 rounded-full",
-                        isSelected ? "bg-primary-foreground" : "bg-primary"
-                      )}
-                    />
-                  ))}
-                  {itemCount > 3 && (
-                    <span className="text-[8px] text-muted-foreground">+{itemCount - 3}</span>
-                  )}
+                  {Array(Math.min(itemCount, 3))
+                    .fill(0)
+                    .map((_, i) => (
+                      <div
+                        key={i}
+                        className={cn("w-1 h-1 rounded-full", isSelected ? "bg-primary-foreground" : "bg-primary")}
+                      />
+                    ))}
+                  {itemCount > 3 && <span className="text-[8px] text-muted-foreground">+{itemCount - 3}</span>}
                 </div>
-              )}
-
-              {isSelected && itemCount > 0 && (
-                <span className="text-[10px] mt-0.5">{itemCount} sessões</span>
               )}
             </button>
           );
