@@ -123,10 +123,10 @@ serve(async (req) => {
     // Ordenar por prioridade (pior desempenho primeiro)
     weaknesses.sort((a, b) => a.percentage - b.percentage);
 
-    // Gerar datas para os próximos 15 dias (excluindo domingos)
+    // Gerar datas para os próximos 7 dias (excluindo domingos) - reduzido para evitar truncamento
     const today = new Date();
     const scheduleDates: string[] = [];
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 10 && scheduleDates.length < 7; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       // Pular domingos (0)
@@ -143,59 +143,30 @@ serve(async (req) => {
         total: stats.total,
         percentage: stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0,
       })),
-      weaknesses: weaknesses.slice(0, 10),
-      strengths: strengths.slice(0, 5),
+      weaknesses: weaknesses.slice(0, 5),
+      strengths: strengths.slice(0, 3),
       userSubjects: subjects?.map(s => s.name) || [],
     };
 
     console.log("[generate-study-schedule] Performance data:", JSON.stringify(performanceData, null, 2));
 
-    const prompt = `Você é um especialista em educação e preparação para o ENEM. Baseado no desempenho do aluno, gere um cronograma de estudos personalizado para os próximos 15 dias.
+    const prompt = `Gere um cronograma COMPACTO de estudos para ENEM.
 
-DADOS DE DESEMPENHO DO ALUNO:
-- Total de questões respondidas: ${performanceData.totalQuestionsAnswered}
-- Desempenho por disciplina:
-${performanceData.disciplineStats.map(d => `  - ${d.discipline}: ${d.percentage}% de acertos (${d.correct}/${d.total})`).join("\n")}
+DESEMPENHO:
+${performanceData.disciplineStats.map(d => `${d.discipline}: ${d.percentage}%`).join(", ")}
 
-- Pontos fracos identificados (prioridade de estudo):
-${performanceData.weaknesses.length > 0 ? performanceData.weaknesses.map(w => `  - ${w.discipline}${w.topic ? ` > ${w.topic}` : ""}: ${w.percentage.toFixed(1)}%`).join("\n") : "  Nenhum identificado ainda"}
+PRIORIZAR: ${performanceData.weaknesses.slice(0, 3).map(w => w.discipline).join(", ") || "Todas as disciplinas"}
 
-- Pontos fortes:
-${performanceData.strengths.length > 0 ? performanceData.strengths.map(s => `  - ${s.discipline}${s.topic ? ` > ${s.topic}` : ""}: ${s.percentage.toFixed(1)}%`).join("\n") : "  Dados insuficientes"}
+DATAS: ${scheduleDates.join(", ")}
 
-- Matérias cadastradas pelo aluno: ${performanceData.userSubjects.length > 0 ? performanceData.userSubjects.join(", ") : "Nenhuma"}
+REGRAS:
+- 2 a 3 sessões por dia
+- Sessões de 45-60 min
+- Foco nos pontos fracos
+- Tópicos específicos
 
-DATAS DISPONÍVEIS: ${scheduleDates.join(", ")}
-
-REGRAS PARA O CRONOGRAMA:
-1. Priorize as disciplinas com pior desempenho (pontos fracos)
-2. Cada dia deve ter de 2 a 4 sessões de estudo
-3. Alterne entre disciplinas diferentes no mesmo dia
-4. Sessões variam de 30 a 90 minutos
-5. Inclua pausas implícitas entre sessões
-6. Sábados podem ter mais sessões (dia de estudo intensivo)
-7. Seja específico nos tópicos (ex: "Cinemática - MRU e MRUV", não apenas "Física")
-8. Sugira atividades práticas (resolução de questões, resumos, mapas mentais)
-
-Responda APENAS com um JSON válido no seguinte formato (sem markdown, sem explicações):
-{
-  "schedule": [
-    {
-      "date": "YYYY-MM-DD",
-      "items": [
-        {
-          "discipline": "Nome da Disciplina",
-          "topic": "Tópico Específico",
-          "duration_minutes": 60,
-          "start_time": "08:00",
-          "activities": "Descrição das atividades (ex: Resolver 15 questões de cinemática, revisar conceitos de MRU)",
-          "tips": "Dica de estudo específica para esse tópico",
-          "priority": "alta" | "média" | "normal"
-        }
-      ]
-    }
-  ]
-}`;
+Responda APENAS JSON (sem markdown):
+{"schedule":[{"date":"YYYY-MM-DD","items":[{"discipline":"Nome","topic":"Tópico","duration_minutes":60,"start_time":"08:00","activities":"Atividades curtas","tips":"Dica curta","priority":"alta"}]}]}`;
 
     const aiResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -208,15 +179,15 @@ Responda APENAS com um JSON válido no seguinte formato (sem markdown, sem expli
         messages: [
           {
             role: "system",
-            content: "Você é um assistente especializado em educação que gera cronogramas de estudo personalizados. Responda APENAS com JSON válido, sem markdown ou texto adicional."
+            content: "Responda APENAS com JSON válido e compacto. Sem markdown. Sem explicações. Máximo 7 dias, 2-3 sessões por dia."
           },
           {
             role: "user",
             content: prompt
           }
         ],
-        max_tokens: 4000,
-        temperature: 0.7,
+        max_tokens: 2500,
+        temperature: 0.5,
       }),
     });
 
@@ -232,17 +203,35 @@ Responda APENAS com um JSON válido no seguinte formato (sem markdown, sem expli
     const aiData = await aiResponse.json();
     const aiContent = aiData.choices?.[0]?.message?.content || "";
     
-    console.log("[generate-study-schedule] AI Response:", aiContent);
+    console.log("[generate-study-schedule] AI Response length:", aiContent.length);
 
     // Parse do JSON da IA
     let scheduleData;
     try {
       // Remove possíveis marcadores de código markdown
-      const cleanedContent = aiContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      let cleanedContent = aiContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      
+      // Tentar encontrar JSON válido mesmo se truncado
+      if (!cleanedContent.endsWith("}")) {
+        // Tenta fechar o JSON truncado
+        const lastBracket = cleanedContent.lastIndexOf("}");
+        if (lastBracket > 0) {
+          cleanedContent = cleanedContent.substring(0, lastBracket + 1);
+          // Conta brackets para fechar corretamente
+          const openBrackets = (cleanedContent.match(/\[/g) || []).length;
+          const closeBrackets = (cleanedContent.match(/\]/g) || []).length;
+          cleanedContent += "]".repeat(openBrackets - closeBrackets);
+          if (!cleanedContent.endsWith("}}")) {
+            cleanedContent += "}";
+          }
+        }
+      }
+      
       scheduleData = JSON.parse(cleanedContent);
     } catch (parseError) {
       console.error("[generate-study-schedule] Error parsing AI response:", parseError);
-      return new Response(JSON.stringify({ error: "Erro ao processar resposta da IA" }), {
+      console.error("[generate-study-schedule] Raw content:", aiContent.substring(0, 500));
+      return new Response(JSON.stringify({ error: "Erro ao processar resposta da IA. Tente novamente." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
