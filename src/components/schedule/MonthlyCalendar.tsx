@@ -146,7 +146,7 @@ const MonthlyCalendar = ({ items, selectedDate, onSelectDate }: MonthlyCalendarP
                       />
                     ))}
                   {itemCount > 3 && (
-                    <span className="text-[8px] text-white text-muted-foreground">+{itemCount - 3}</span>
+                    <span className="text-[8px] text-primary text-muted-foreground">+{itemCount - 3}</span>
                   )}
                 </div>
               )}
