@@ -65,6 +65,47 @@ const Schedule = () => {
     checkAuth();
   }, [navigate]);
 
+  // Auto-regeneração: verifica se passou o período de 7 dias e regenera automaticamente
+  useEffect(() => {
+    const checkAutoRegeneration = async () => {
+      if (!lastGeneration) return;
+      
+      const nextRegen = new Date(lastGeneration.next_regeneration_at);
+      const now = new Date();
+      
+      if (now >= nextRegen) {
+        console.log("[Schedule] Auto-regeneração ativada - período de 7 dias completado");
+        toast.info("Gerando novo cronograma baseado no seu desempenho...");
+        
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const accessToken = session?.access_token;
+
+          const { data, error } = await supabase.functions.invoke("generate-study-schedule", {
+            headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+          });
+
+          if (error) {
+            console.error("Erro na auto-regeneração:", error);
+            return;
+          }
+
+          if (data?.success) {
+            toast.success(`Novo cronograma gerado com ${data.itemsCreated} sessões!`);
+            fetchSchedule();
+            fetchLastGeneration();
+          }
+        } catch (error) {
+          console.error("Erro na auto-regeneração:", error);
+        }
+      }
+    };
+
+    if (!loading && lastGeneration) {
+      checkAutoRegeneration();
+    }
+  }, [loading, lastGeneration]);
+
   // Real-time subscription
   useEffect(() => {
     const channel = supabase
