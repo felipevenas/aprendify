@@ -372,7 +372,8 @@ const Statistics = () => {
     }
   };
 
-  if (loading) {
+  // Aguarda carregar tanto os dados quanto o status premium
+  if (loading || premiumLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
         <div className="flex flex-col items-center gap-4">
