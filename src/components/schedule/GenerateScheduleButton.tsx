@@ -107,7 +107,7 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
             <AlertDialogHeader>
               <AlertDialogTitle>Regenerar cronograma agora?</AlertDialogTitle>
               <AlertDialogDescription>
-                O cronograma será regenerado antes do prazo de 15 dias. 
+                O cronograma será regenerado antes do prazo de 7 dias. 
                 Isso irá substituir todas as sessões de estudo geradas pela IA.
                 Sessões adicionadas manualmente serão mantidas.
               </AlertDialogDescription>
@@ -142,7 +142,8 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
           <AlertDialogDescription className="text-left space-y-3">
             <p>
               A IA vai analisar seu desempenho nas questões e simulados para criar um 
-              cronograma personalizado de 15 dias.
+              cronograma personalizado de 7 dias. Após completar os 7 dias, a IA gerará 
+              automaticamente o próximo período com base no seu progresso.
             </p>
             <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm">
               <p className="font-medium text-foreground">O cronograma incluirá:</p>

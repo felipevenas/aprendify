@@ -297,7 +297,7 @@ Responda APENAS JSON (sem markdown):
       .insert({
         user_id: user.id,
         generated_at: new Date().toISOString(),
-        next_regeneration_at: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+        next_regeneration_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         performance_snapshot: performanceData,
       });
 
