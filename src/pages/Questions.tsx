@@ -61,6 +61,32 @@ const Questions = () => {
     }
   }, [isPremium, dailyQuestionCount, fetchQuestion, selectedYear, selectedDiscipline, selectedLanguage]);
 
+  // Extrai o tópico específico da questão via IA
+  const extractQuestionTopic = async (): Promise<string | null> => {
+    if (!currentQuestion) return null;
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("extract-question-topic", {
+        body: {
+          discipline: currentQuestion.discipline,
+          context: currentQuestion.context,
+          title: currentQuestion.title,
+          alternatives: currentQuestion.alternatives,
+        },
+      });
+
+      if (error) {
+        console.error("Erro ao extrair tópico:", error);
+        return null;
+      }
+
+      return data?.topic || null;
+    } catch (error) {
+      console.error("Erro ao chamar extract-question-topic:", error);
+      return null;
+    }
+  };
+
   // Salva resposta do usuário no banco
   const handleAnswerSubmit = async (questionId: string, selectedAnswer: string, correctAnswer: string, isCorrect: boolean) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -71,6 +97,10 @@ const Questions = () => {
     }
 
     try {
+      // Extrai o tópico específico via IA (em paralelo com feedback visual)
+      const topicPromise = extractQuestionTopic();
+      
+      // Salva a tentativa imediatamente com tópico pendente
       const attemptData = {
         user_id: user.id,
         question_id: questionId,
@@ -79,19 +109,37 @@ const Questions = () => {
         selected_answer: selectedAnswer,
         correct_answer: correctAnswer,
         is_correct: isCorrect,
-        topic: currentQuestion?.context || null,
+        topic: null, // Será atualizado após extração
         language: currentQuestion?.language || null,
       };
       
-      const { error } = await supabase
+      const { data: insertedAttempt, error } = await supabase
         .from("question_attempts")
-        .insert(attemptData);
+        .insert(attemptData)
+        .select("id")
+        .single();
       
       if (error) {
         console.error("Erro ao salvar tentativa:", error);
         toast.error(`Erro ao salvar: ${error.message}`);
-      } else {
-        toast.success("Resposta registrada!");
+        return;
+      }
+      
+      toast.success("Resposta registrada!");
+
+      // Atualiza o tópico quando a IA retornar
+      const extractedTopic = await topicPromise;
+      if (extractedTopic && insertedAttempt?.id) {
+        const { error: updateError } = await supabase
+          .from("question_attempts")
+          .update({ topic: extractedTopic })
+          .eq("id", insertedAttempt.id);
+        
+        if (updateError) {
+          console.error("Erro ao atualizar tópico:", updateError);
+        } else {
+          console.log(`Tópico extraído e salvo: ${extractedTopic}`);
+        }
       }
     } catch (error) {
       console.error("Erro inesperado:", error);

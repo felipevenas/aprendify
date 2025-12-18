@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.generate-study-schedule]
 verify_jwt = false
+
+[functions.extract-question-topic]
+verify_jwt = false

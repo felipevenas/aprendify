@@ -56,6 +56,7 @@ const Statistics = () => {
   const [wrongAnswers, setWrongAnswers] = useState(0);
   const [disciplineStats, setDisciplineStats] = useState<any[]>([]);
   const [topicStats, setTopicStats] = useState<any[]>([]);
+  const [specificTopicStats, setSpecificTopicStats] = useState<any[]>([]); // Novos tópicos específicos extraídos por IA
   const [periodFilter, setPeriodFilter] = useState<"all" | "week" | "month" | "today">("all");
   const [monthlyStats, setMonthlyStats] = useState<any[]>([]);
   const [disciplineChartData, setDisciplineChartData] = useState<any[]>([]);
@@ -259,6 +260,41 @@ const Statistics = () => {
 
       disciplineErrors.sort((a, b) => b.count - a.count);
       setTopicStats(disciplineErrors.slice(0, 5)); // Top 5 disciplinas com mais erros
+
+      // Agrupa por tópico específico (extraído pela IA)
+      const topicMap = new Map<string, { correct: number; wrong: number; total: number; discipline: string }>();
+      attempts.forEach((attempt) => {
+        if (attempt.topic && attempt.topic.length > 0 && attempt.topic.length < 100) {
+          const key = `${attempt.topic}|${attempt.discipline}`;
+          if (!topicMap.has(key)) {
+            topicMap.set(key, { correct: 0, wrong: 0, total: 0, discipline: attempt.discipline });
+          }
+          const stats = topicMap.get(key)!;
+          stats.total++;
+          if (attempt.is_correct) {
+            stats.correct++;
+          } else {
+            stats.wrong++;
+          }
+        }
+      });
+
+      const specificTopics = Array.from(topicMap.entries())
+        .map(([key, stats]) => {
+          const [topic, discipline] = key.split("|");
+          return {
+            topic,
+            discipline: formatDisciplineName(discipline),
+            correct: stats.correct,
+            wrong: stats.wrong,
+            total: stats.total,
+            accuracy: stats.total > 0 ? ((stats.correct / stats.total) * 100).toFixed(1) : "0",
+          };
+        })
+        .filter(t => t.total >= 2) // Mínimo de 2 questões para aparecer
+        .sort((a, b) => parseFloat(a.accuracy) - parseFloat(b.accuracy)); // Pior desempenho primeiro
+      
+      setSpecificTopicStats(specificTopics.slice(0, 10)); // Top 10 tópicos
 
       // Prepara dados para gráfico mensal (últimos 30 dias)
       const last30Days = Array.from({ length: 30 }, (_, i) => {
@@ -651,6 +687,47 @@ const Statistics = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Tópicos Específicos que Precisam de Atenção */}
+          {specificTopicStats.length > 0 && (
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-primary" />
+                  Assuntos Específicos para Focar
+                </CardTitle>
+                <CardDescription>
+                  Tópicos identificados pela IA onde você precisa melhorar
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-2">
+                  {specificTopicStats.map((item, index) => (
+                    <div
+                      key={`${item.topic}-${index}`}
+                      className="flex items-start gap-3 p-4 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
+                    >
+                      <div className={`flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 font-bold text-sm ${
+                        parseFloat(item.accuracy) < 50 
+                          ? "bg-red-500/10 text-red-600" 
+                          : parseFloat(item.accuracy) < 70 
+                            ? "bg-amber-500/10 text-amber-600" 
+                            : "bg-green-500/10 text-green-600"
+                      }`}>
+                        {item.accuracy}%
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{item.topic}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {item.discipline} • {item.total} questões • {item.correct} acertos • {item.wrong} erros
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Gráficos de Questões */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
