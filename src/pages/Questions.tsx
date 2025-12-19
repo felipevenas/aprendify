@@ -62,16 +62,21 @@ const Questions = () => {
   }, [isPremium, dailyQuestionCount, fetchQuestion, selectedYear, selectedDiscipline, selectedLanguage]);
 
   // Extrai o tópico específico da questão via IA
-  const extractQuestionTopic = async (): Promise<string | null> => {
-    if (!currentQuestion) return null;
+  const extractQuestionTopic = async (question: typeof currentQuestion): Promise<string | null> => {
+    if (!question || !question.discipline) {
+      console.log("Questão ou disciplina não disponível para extração de tópico");
+      return null;
+    }
     
     try {
+      console.log(`Extraindo tópico para disciplina: ${question.discipline}`);
+      
       const { data, error } = await supabase.functions.invoke("extract-question-topic", {
         body: {
-          discipline: currentQuestion.discipline,
-          context: currentQuestion.context,
-          title: currentQuestion.title,
-          alternatives: currentQuestion.alternatives,
+          discipline: question.discipline,
+          context: question.context || "",
+          title: question.title || "",
+          alternatives: question.alternatives || [],
         },
       });
 
@@ -80,6 +85,7 @@ const Questions = () => {
         return null;
       }
 
+      console.log("Tópico extraído com sucesso:", data?.topic);
       return data?.topic || null;
     } catch (error) {
       console.error("Erro ao chamar extract-question-topic:", error);
@@ -97,8 +103,11 @@ const Questions = () => {
     }
 
     try {
+      // Captura a questão atual antes de qualquer operação assíncrona
+      const questionToExtract = currentQuestion;
+      
       // Extrai o tópico específico via IA (em paralelo com feedback visual)
-      const topicPromise = extractQuestionTopic();
+      const topicPromise = extractQuestionTopic(questionToExtract);
       
       // Salva a tentativa imediatamente com tópico pendente
       const attemptData = {
