@@ -14,7 +14,7 @@ const Subjects = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const navigate = useNavigate();
-  const { isPremium } = usePremium();
+  const { isPremium, isLoading: premiumLoading } = usePremium();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -29,7 +29,7 @@ const Subjects = () => {
     checkAuth();
   }, [navigate]);
 
-  if (loading) {
+  if (loading || premiumLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
         <div className="flex flex-col items-center gap-4">
