@@ -691,43 +691,152 @@ const Statistics = () => {
 
           {/* Tópicos Específicos que Precisam de Atenção */}
           {specificTopicStats.length > 0 && (
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5 text-primary" />
-                  Assuntos Específicos para Focar
-                </CardTitle>
-                <CardDescription>
-                  Tópicos identificados pela IA onde você precisa melhorar
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-2">
-                  {specificTopicStats.map((item, index) => (
-                    <div
-                      key={`${item.topic}-${index}`}
-                      className="flex items-start gap-3 p-4 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
-                    >
-                      <div className={`flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 font-bold text-sm ${
-                        parseFloat(item.accuracy) < 50 
-                          ? "bg-red-500/10 text-red-600" 
-                          : parseFloat(item.accuracy) < 70 
-                            ? "bg-amber-500/10 text-amber-600" 
-                            : "bg-green-500/10 text-green-600"
-                      }`}>
-                        {item.accuracy}%
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">{item.topic}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {item.discipline} • {item.total} questões • {item.correct} acertos • {item.wrong} erros
+            <>
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                <Target className="h-6 w-6 text-primary" />
+                Assuntos Específicos
+              </h2>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                {/* Gráfico de barras - Tópicos com mais erros */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Tópicos com Mais Erros</CardTitle>
+                    <CardDescription>Assuntos que precisam de mais atenção</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart
+                        layout="vertical"
+                        data={specificTopicStats.slice(0, 8).map(t => ({
+                          topic: t.topic.length > 20 ? t.topic.substring(0, 20) + "..." : t.topic,
+                          erros: t.wrong,
+                          acertos: t.correct,
+                        }))}
+                        margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" horizontal={true} vertical={false} />
+                        <XAxis type="number" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} />
+                        <YAxis 
+                          type="category" 
+                          dataKey="topic" 
+                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                          width={75}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--popover))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "0.5rem",
+                            fontSize: "12px",
+                          }}
+                        />
+                        <Bar dataKey="erros" stackId="a" fill="hsl(var(--destructive))" name="Erros" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="acertos" stackId="a" fill="hsl(var(--success, 142 76% 36%))" name="Acertos" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+
+                {/* Lista de tópicos com taxa de acerto */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Desempenho por Assunto</CardTitle>
+                    <CardDescription>Taxa de acerto em cada tópico identificado pela IA</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                      {specificTopicStats.map((item, index) => {
+                        const accuracy = parseFloat(item.accuracy);
+                        const colorClass = accuracy < 50 
+                          ? "text-red-600 bg-red-500/10" 
+                          : accuracy < 70 
+                            ? "text-amber-600 bg-amber-500/10" 
+                            : "text-green-600 bg-green-500/10";
+                        const progressColor = accuracy < 50 
+                          ? "bg-red-500" 
+                          : accuracy < 70 
+                            ? "bg-amber-500" 
+                            : "bg-green-500";
+                        
+                        return (
+                          <div key={`${item.topic}-${index}`} className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${colorClass}`}>
+                                  {item.accuracy}%
+                                </span>
+                                <span className="text-sm font-medium truncate">{item.topic}</span>
+                              </div>
+                              <span className="text-xs text-muted-foreground ml-2 flex-shrink-0">
+                                {item.discipline}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full ${progressColor} transition-all`} 
+                                  style={{ width: `${accuracy}%` }} 
+                                />
+                              </div>
+                              <span className="text-xs text-muted-foreground w-20 text-right">
+                                {item.correct}/{item.total} acertos
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Resumo de Áreas Críticas */}
+              <Card className="mb-8 border-destructive/20 bg-gradient-to-br from-destructive/5 to-background">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-destructive">
+                    <AlertCircle className="h-5 w-5" />
+                    Áreas Críticas para Revisão
+                  </CardTitle>
+                  <CardDescription>
+                    Tópicos com menos de 50% de acerto que precisam de atenção urgente
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {specificTopicStats.filter(t => parseFloat(t.accuracy) < 50).length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {specificTopicStats
+                        .filter(t => parseFloat(t.accuracy) < 50)
+                        .slice(0, 6)
+                        .map((item, index) => (
+                          <div 
+                            key={`critical-${item.topic}-${index}`}
+                            className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20"
+                          >
+                            <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{item.topic}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {item.discipline} • {item.accuracy}% de acerto
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                      <CheckCircle2 className="h-6 w-6 text-green-600 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-green-600">Parabéns!</p>
+                        <p className="text-sm text-muted-foreground">
+                          Você não tem tópicos com taxa de acerto abaixo de 50%.
                         </p>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                  )}
+                </CardContent>
+              </Card>
+            </>
           )}
 
           {/* Gráficos de Questões */}
