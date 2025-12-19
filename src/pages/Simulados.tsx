@@ -38,8 +38,23 @@ const Simulados = () => {
   const { simulados, loading } = useSimulados();
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  // Aguarda carregar o status premium antes de verificar acesso
+  if (premiumLoading || loading) {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <p className="text-muted-foreground">Carregando...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   // Check for premium access
-  if (!premiumLoading && !isPremium) {
+  if (!isPremium) {
     return (
       <>
         <Navbar />
