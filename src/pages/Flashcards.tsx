@@ -40,7 +40,7 @@ const Flashcards = () => {
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [activeTab, setActiveTab] = useState("practice");
   
-  const { isPremium } = usePremium();
+  const { isPremium, isLoading: premiumLoading } = usePremium();
   const { 
     currentFlashcard, 
     flashcardCount, 
@@ -83,7 +83,7 @@ const Flashcards = () => {
     setDialogOpen(true);
   };
 
-  if (loading || flashcardsLoading) {
+  if (loading || flashcardsLoading || premiumLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
         <div className="flex flex-col items-center gap-4">
