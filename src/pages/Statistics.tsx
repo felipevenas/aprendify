@@ -690,13 +690,14 @@ const Statistics = () => {
           </div>
 
           {/* Tópicos Específicos que Precisam de Atenção */}
-          {specificTopicStats.length > 0 && (
-            <>
-              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <Target className="h-6 w-6 text-primary" />
-                Assuntos Específicos
-              </h2>
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+            <Target className="h-6 w-6 text-primary" />
+            Assuntos Específicos
+            <span className="text-sm font-normal text-muted-foreground ml-2">(identificados por IA)</span>
+          </h2>
 
+          {specificTopicStats.length > 0 ? (
+            <>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 {/* Gráfico de barras - Tópicos com mais erros */}
                 <Card>
@@ -837,6 +838,25 @@ const Statistics = () => {
                 </CardContent>
               </Card>
             </>
+          ) : (
+            <Card className="mb-8 border-primary/20 bg-gradient-to-br from-primary/5 to-background">
+              <CardContent className="pt-6">
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                    <Sparkles className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">Análise de Tópicos por IA</h3>
+                  <p className="text-muted-foreground max-w-md mb-4">
+                    À medida que você responde questões, nossa IA identifica automaticamente os assuntos específicos 
+                    de cada pergunta para mostrar seu desempenho detalhado aqui.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Continue praticando no <span className="font-medium text-primary">Banco de Questões</span> para 
+                    começar a ver estatísticas por tópico. Mínimo de 2 questões por tópico.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Gráficos de Questões */}
