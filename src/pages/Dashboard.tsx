@@ -257,8 +257,8 @@ const Dashboard = () => {
 
                 <CardHeader className="relative pb-2">
                   <div className="flex items-start justify-between">
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300">
-                      <Brain className="h-7 w-7 sm:h-8 sm:w-8 text-primary-foreground" />
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/15 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-primary/20 transition-all duration-300">
+                      <Brain className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
                     </div>
                     <span className="px-3 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-full tracking-wide uppercase">
                       Destaque
@@ -314,8 +314,8 @@ const Dashboard = () => {
 
                     <CardHeader className="relative pb-2">
                       <div className="flex items-start justify-between">
-                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
-                          <card.icon className="h-6 w-6 sm:h-7 sm:w-7 text-primary-foreground" />
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-primary/15 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-primary/20 transition-all duration-300">
+                          <card.icon className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
                         </div>
                         {card.isPremium && (
                           <span className="px-2.5 py-1 bg-gradient-to-r from-amber-400/20 to-amber-600/20 text-amber-600 dark:text-amber-400 text-xs font-bold rounded-full">
