@@ -73,7 +73,7 @@ const Dashboard = () => {
       description: "Pratique com questões reais do ENEM",
       icon: Brain,
       path: "/questions",
-      gradient: "from-primary via-primary to-primary/80",
+      gradient: "from-primary to-primary/80",
       iconBg: "bg-primary",
       featured: true,
     },
@@ -252,7 +252,7 @@ const Dashboard = () => {
                 onClick={() => navigate("/questions")}
               >
                 {/* Gradiente diagonal decorativo */}
-                <div 
+                <div
                   className="absolute inset-0 pointer-events-none"
                   style={{
                     background: `repeating-linear-gradient(
@@ -261,7 +261,7 @@ const Dashboard = () => {
                       transparent 8px,
                       hsl(var(--primary) / 0.03) 8px,
                       hsl(var(--primary) / 0.03) 16px
-                    )`
+                    )`,
                   }}
                 />
                 {/* Efeito de brilho no hover */}
