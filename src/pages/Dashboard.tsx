@@ -251,19 +251,6 @@ const Dashboard = () => {
                 className="group cursor-pointer border-primary/20 overflow-hidden relative h-full bg-card"
                 onClick={() => navigate("/questions")}
               >
-                {/* Gradiente diagonal decorativo */}
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    background: `repeating-linear-gradient(
-                      -45deg,
-                      transparent,
-                      transparent 8px,
-                      hsl(var(--primary) / 0.03) 8px,
-                      hsl(var(--primary) / 0.03) 16px
-                    )`,
-                  }}
-                />
                 {/* Efeito de brilho no hover */}
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/10 transition-colors duration-500" />
