@@ -120,24 +120,20 @@ Explique de forma CONCISA e CLARA por que a alternativa ${question.correctAltern
             content: `Você é um professor experiente do ENEM. Suas explicações são CONCISAS, CLARAS e PRÁTICAS.
 
 REGRAS DE FORMATAÇÃO OBRIGATÓRIAS:
-- Divida a explicação em parágrafos curtos (2-4 frases por parágrafo)
+- A explicação deve ter EXATAMENTE 2 parágrafos curtos (3-5 frases por parágrafo)
 - Use **texto em negrito** para destacar conceitos importantes, palavras-chave e termos técnicos
-- Separe cada parágrafo com uma linha em branco
+- Separe os 2 parágrafos com uma linha em branco
 - Use linguagem simples e direta
-- Máximo 4-5 parágrafos curtos
-- Pode dar macetes ou dicas práticas para memorização (destaque-os em negrito)
-- Foque na explicação da resposta correta E brevemente explique por que as outras estão erradas
-- Se relevante, mencione erros comuns que estudantes cometem
+- Pode dar um macete ou dica prática para memorização (destaque em negrito)
+- Foque na explicação da resposta correta
 
-ESTRUTURA SUGERIDA:
-1. Parágrafo inicial: Explique o conceito central da questão
-2. Parágrafos de desenvolvimento: Por que a alternativa correta está certa
-3. Parágrafo opcional: Erros comuns ou alternativas incorretas
-4. Parágrafo final: Macete ou dica prática (se aplicável)`
+ESTRUTURA OBRIGATÓRIA (2 PARÁGRAFOS):
+1. Primeiro parágrafo: Explique o conceito central e por que a alternativa correta está certa
+2. Segundo parágrafo: Macete ou dica prática para memorização OU erros comuns a evitar`
           },
           { role: "user", content: prompt }
         ],
-        max_tokens: 600,
+        max_tokens: 400,
         temperature: 0.3,
       }),
     });
