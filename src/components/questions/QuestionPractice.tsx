@@ -3,10 +3,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import { CheckCircle2, XCircle, ChevronRight } from "lucide-react";
+import { CheckCircle2, XCircle, ChevronRight, StickyNote } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDisciplineName, cleanMarkdownArtifacts, separateTextAndReference } from "@/lib/formatters";
 import QuestionExplanation from "./QuestionExplanation";
+import AddQuestionNoteDialog from "./AddQuestionNoteDialog";
 
 /**
  * Componente de prática de questões
@@ -22,6 +23,7 @@ interface QuestionPracticeProps {
 const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: QuestionPracticeProps) => {
   const [selectedAlternative, setSelectedAlternative] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
 
   // Processa o contexto para separar texto da referência
   const processedContext = useMemo(() => {
@@ -284,6 +286,17 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
 
         {/* Botões de ação */}
         <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
+          {/* Botão de anotação - sempre visível */}
+          <Button
+            onClick={() => setNoteDialogOpen(true)}
+            variant="outline"
+            size="lg"
+            className="w-full sm:w-auto gap-2"
+          >
+            <StickyNote className="h-4 w-4" />
+            Anotar
+          </Button>
+
           {!showResult ? (
             <>
               <Button
@@ -316,6 +329,18 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
           )}
         </div>
       </Card>
+
+      {/* Diálogo para adicionar anotação */}
+      <AddQuestionNoteDialog
+        open={noteDialogOpen}
+        onOpenChange={setNoteDialogOpen}
+        questionContext={{
+          year: question.year || new Date().getFullYear().toString(),
+          discipline: question.discipline || "",
+          index: question.index || 0,
+          context: question.context,
+        }}
+      />
     </motion.div>
   );
 };
