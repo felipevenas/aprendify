@@ -1,6 +1,19 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+/**
+ * Edge function para gerar cronograma de estudos personalizado com IA
+ * 
+ * Usa dados de desempenho do usuário (questões respondidas, tópicos com erros)
+ * para criar um cronograma focado nas áreas que precisam de mais atenção.
+ * 
+ * Fluxo:
+ * 1. Busca tentativas de questões do usuário
+ * 2. Analisa desempenho por disciplina e tópico específico
+ * 3. Identifica pontos fracos (< 60% acerto) e tópicos críticos (< 50%)
+ * 4. Gera cronograma priorizando essas áreas
+ */
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -44,7 +57,7 @@ serve(async (req) => {
 
     console.log(`[generate-study-schedule] Gerando cronograma para usuário ${user.id}`);
 
-    // Buscar desempenho do usuário em questões
+    // Buscar desempenho do usuário em questões (últimos 30 dias têm mais peso)
     const { data: questionAttempts } = await supabase
       .from("question_attempts")
       .select("discipline, is_correct, topic, created_at")
@@ -72,11 +85,19 @@ serve(async (req) => {
       .select("id, name, color")
       .eq("user_id", user.id);
 
-    // Analisar desempenho por disciplina
-    const disciplineStats: Record<string, { correct: number; total: number; topics: Record<string, { correct: number; total: number }> }> = {};
+    // Análise de desempenho por disciplina e tópico específico
+    const disciplineStats: Record<string, { 
+      correct: number; 
+      total: number; 
+      topics: Record<string, { correct: number; total: number }> 
+    }> = {};
+    
+    // Tópicos específicos que precisam de atenção (extraídos por IA)
+    const topicPriorities: { topic: string; discipline: string; accuracy: number; total: number }[] = [];
     
     if (questionAttempts) {
       for (const attempt of questionAttempts) {
+        // Estatísticas por disciplina
         if (!disciplineStats[attempt.discipline]) {
           disciplineStats[attempt.discipline] = { correct: 0, total: 0, topics: {} };
         }
@@ -85,8 +106,8 @@ serve(async (req) => {
           disciplineStats[attempt.discipline].correct++;
         }
 
-        // Rastrear tópicos
-        if (attempt.topic) {
+        // Rastrear tópicos específicos (apenas tópicos válidos - não textos longos)
+        if (attempt.topic && attempt.topic.length > 2 && attempt.topic.length < 60) {
           if (!disciplineStats[attempt.discipline].topics[attempt.topic]) {
             disciplineStats[attempt.discipline].topics[attempt.topic] = { correct: 0, total: 0 };
           }
@@ -98,32 +119,50 @@ serve(async (req) => {
       }
     }
 
-    // Identificar pontos fracos (abaixo de 60% de acerto)
-    const weaknesses: { discipline: string; topic?: string; percentage: number }[] = [];
-    const strengths: { discipline: string; topic?: string; percentage: number }[] = [];
+    // Identificar pontos fracos por disciplina (abaixo de 60% de acerto)
+    const weakDisciplines: { discipline: string; percentage: number }[] = [];
+    const strongDisciplines: { discipline: string; percentage: number }[] = [];
 
     for (const [discipline, stats] of Object.entries(disciplineStats)) {
       const percentage = stats.total > 0 ? (stats.correct / stats.total) * 100 : 0;
       
       if (percentage < 60) {
-        weaknesses.push({ discipline, percentage });
+        weakDisciplines.push({ discipline, percentage: Math.round(percentage) });
       } else if (percentage >= 70) {
-        strengths.push({ discipline, percentage });
+        strongDisciplines.push({ discipline, percentage: Math.round(percentage) });
       }
 
-      // Analisar tópicos específicos
+      // Identificar tópicos específicos com baixo desempenho (extraídos por IA)
       for (const [topic, topicStats] of Object.entries(stats.topics)) {
-        const topicPercentage = topicStats.total > 0 ? (topicStats.correct / topicStats.total) * 100 : 0;
-        if (topicPercentage < 50 && topicStats.total >= 3) {
-          weaknesses.push({ discipline, topic, percentage: topicPercentage });
+        if (topicStats.total >= 2) { // Mínimo 2 questões para considerar
+          const topicPercentage = (topicStats.correct / topicStats.total) * 100;
+          topicPriorities.push({
+            topic,
+            discipline,
+            accuracy: Math.round(topicPercentage),
+            total: topicStats.total,
+          });
         }
       }
     }
 
-    // Ordenar por prioridade (pior desempenho primeiro)
-    weaknesses.sort((a, b) => a.percentage - b.percentage);
+    // Ordenar tópicos por prioridade (pior desempenho primeiro)
+    topicPriorities.sort((a, b) => a.accuracy - b.accuracy);
+    weakDisciplines.sort((a, b) => a.percentage - b.percentage);
 
-    // Gerar datas para os próximos 7 dias (excluindo domingos) - reduzido para evitar truncamento
+    // Tópicos críticos: menos de 50% de acerto com pelo menos 2 questões
+    const criticalTopics = topicPriorities
+      .filter(t => t.accuracy < 50)
+      .slice(0, 10);
+
+    // Tópicos que precisam de atenção: entre 50-70% de acerto
+    const attentionTopics = topicPriorities
+      .filter(t => t.accuracy >= 50 && t.accuracy < 70)
+      .slice(0, 5);
+
+    console.log(`[generate-study-schedule] Tópicos críticos: ${criticalTopics.length}, Tópicos atenção: ${attentionTopics.length}`);
+
+    // Gerar datas para os próximos 7 dias (excluindo domingos)
     const today = new Date();
     const scheduleDates: string[] = [];
     for (let i = 0; i < 10 && scheduleDates.length < 7; i++) {
@@ -135,6 +174,7 @@ serve(async (req) => {
       }
     }
 
+    // Montar dados de performance para a IA
     const performanceData = {
       totalQuestionsAnswered: questionAttempts?.length || 0,
       disciplineStats: Object.entries(disciplineStats).map(([discipline, stats]) => ({
@@ -143,30 +183,42 @@ serve(async (req) => {
         total: stats.total,
         percentage: stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0,
       })),
-      weaknesses: weaknesses.slice(0, 5),
-      strengths: strengths.slice(0, 3),
+      weakDisciplines: weakDisciplines.slice(0, 5),
+      strongDisciplines: strongDisciplines.slice(0, 3),
+      criticalTopics: criticalTopics.map(t => `${t.topic} (${t.discipline}: ${t.accuracy}%)`),
+      attentionTopics: attentionTopics.map(t => `${t.topic} (${t.discipline}: ${t.accuracy}%)`),
       userSubjects: subjects?.map(s => s.name) || [],
     };
 
     console.log("[generate-study-schedule] Performance data:", JSON.stringify(performanceData, null, 2));
 
-    const prompt = `Gere um cronograma COMPACTO de estudos para ENEM.
+    // Prompt otimizado para incluir tópicos específicos
+    const prompt = `Gere um cronograma PERSONALIZADO de estudos para ENEM baseado no desempenho do aluno.
 
-DESEMPENHO:
+DESEMPENHO POR DISCIPLINA:
 ${performanceData.disciplineStats.map(d => `${d.discipline}: ${d.percentage}%`).join(", ")}
 
-PRIORIZAR: ${performanceData.weaknesses.slice(0, 3).map(w => w.discipline).join(", ") || "Todas as disciplinas"}
+DISCIPLINAS PRIORITÁRIAS (< 60% acerto):
+${weakDisciplines.length > 0 ? weakDisciplines.map(d => `${d.discipline} (${d.percentage}%)`).join(", ") : "Nenhuma disciplina crítica"}
 
-DATAS: ${scheduleDates.join(", ")}
+TÓPICOS ESPECÍFICOS CRÍTICOS (< 50% acerto) - PRIORIDADE MÁXIMA:
+${criticalTopics.length > 0 ? criticalTopics.map(t => `${t.topic} em ${t.discipline}`).join(", ") : "Nenhum tópico crítico identificado"}
+
+TÓPICOS QUE PRECISAM DE ATENÇÃO (50-70% acerto):
+${attentionTopics.length > 0 ? attentionTopics.map(t => `${t.topic} em ${t.discipline}`).join(", ") : "Nenhum tópico identificado"}
+
+DATAS DISPONÍVEIS: ${scheduleDates.join(", ")}
 
 REGRAS:
 - 2 a 3 sessões por dia
-- Sessões de 45-60 min
-- Foco nos pontos fracos
-- Tópicos específicos
+- Sessões de 45-60 minutos
+- PRIORIZAR tópicos críticos identificados pela IA
+- Incluir atividades práticas específicas para cada tópico
+- Sugerir exercícios e técnicas de estudo
+- Variar disciplinas ao longo da semana
 
-Responda APENAS JSON (sem markdown):
-{"schedule":[{"date":"YYYY-MM-DD","items":[{"discipline":"Nome","topic":"Tópico","duration_minutes":60,"start_time":"08:00","activities":"Atividades curtas","tips":"Dica curta","priority":"alta"}]}]}`;
+Responda APENAS com JSON válido (sem markdown):
+{"schedule":[{"date":"YYYY-MM-DD","items":[{"discipline":"Nome da Disciplina","topic":"Tópico Específico","duration_minutes":60,"start_time":"08:00","activities":"Atividades práticas detalhadas","tips":"Dica de estudo","priority":"alta|media|normal"}]}]}`;
 
     const aiResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",

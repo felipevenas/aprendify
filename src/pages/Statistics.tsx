@@ -56,7 +56,8 @@ const Statistics = () => {
   const [wrongAnswers, setWrongAnswers] = useState(0);
   const [disciplineStats, setDisciplineStats] = useState<any[]>([]);
   const [topicStats, setTopicStats] = useState<any[]>([]);
-  const [specificTopicStats, setSpecificTopicStats] = useState<any[]>([]); // Novos tópicos específicos extraídos por IA
+  const [specificTopicStats, setSpecificTopicStats] = useState<any[]>([]); // Tópicos específicos extraídos por IA
+  const [topicDisciplineFilter, setTopicDisciplineFilter] = useState<string>("all"); // Filtro de disciplina para tópicos
   const [periodFilter, setPeriodFilter] = useState<"all" | "week" | "month" | "today">("all");
   const [monthlyStats, setMonthlyStats] = useState<any[]>([]);
   const [disciplineChartData, setDisciplineChartData] = useState<any[]>([]);
@@ -690,13 +691,38 @@ const Statistics = () => {
           </div>
 
           {/* Tópicos Específicos que Precisam de Atenção */}
-          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-            <Target className="h-6 w-6 text-primary" />
-            Assuntos Específicos
-            <span className="text-sm font-normal text-muted-foreground ml-2">(identificados por IA)</span>
-          </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <Target className="h-6 w-6 text-primary" />
+              Assuntos Específicos
+              <span className="text-sm font-normal text-muted-foreground ml-2">(identificados por IA)</span>
+            </h2>
+            
+            {/* Filtro por disciplina */}
+            {specificTopicStats.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Filtrar:</span>
+                <select
+                  value={topicDisciplineFilter}
+                  onChange={(e) => setTopicDisciplineFilter(e.target.value)}
+                  className="text-sm border border-border rounded-md px-3 py-1.5 bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                >
+                  <option value="all">Todas as disciplinas</option>
+                  {[...new Set(specificTopicStats.map(t => t.discipline))].map(disc => (
+                    <option key={disc} value={disc}>{disc}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
 
-          {specificTopicStats.length > 0 ? (
+          {(() => {
+            // Filtra os tópicos pela disciplina selecionada
+            const filteredTopics = topicDisciplineFilter === "all" 
+              ? specificTopicStats 
+              : specificTopicStats.filter(t => t.discipline === topicDisciplineFilter);
+            
+            return filteredTopics.length > 0 ? (
             <>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 {/* Gráfico de barras - Tópicos com mais erros */}
@@ -709,7 +735,7 @@ const Statistics = () => {
                     <ResponsiveContainer width="100%" height={300}>
                       <BarChart
                         layout="vertical"
-                        data={specificTopicStats.slice(0, 8).map(t => ({
+                        data={filteredTopics.slice(0, 8).map(t => ({
                           topic: t.topic.length > 20 ? t.topic.substring(0, 20) + "..." : t.topic,
                           erros: t.wrong,
                           acertos: t.correct,
@@ -747,7 +773,7 @@ const Statistics = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                      {specificTopicStats.map((item, index) => {
+                      {filteredTopics.map((item, index) => {
                         const accuracy = parseFloat(item.accuracy);
                         const colorClass = accuracy < 50 
                           ? "text-red-600 bg-red-500/10" 
@@ -804,9 +830,9 @@ const Statistics = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {specificTopicStats.filter(t => parseFloat(t.accuracy) < 50).length > 0 ? (
+                  {filteredTopics.filter(t => parseFloat(t.accuracy) < 50).length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {specificTopicStats
+                      {filteredTopics
                         .filter(t => parseFloat(t.accuracy) < 50)
                         .slice(0, 6)
                         .map((item, index) => (
@@ -858,6 +884,7 @@ const Statistics = () => {
               </CardContent>
             </Card>
           )}
+          )()}
 
           {/* Gráficos de Questões */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
