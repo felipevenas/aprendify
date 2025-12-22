@@ -39,24 +39,16 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
   const handleConfirmAnswer = () => {
     if (!selectedAlternative) return;
     setShowResult(true);
-    
+
     // Salva a resposta se a callback foi fornecida
     if (onAnswer) {
       const correctAlt = question.correctAlternative;
       const isCorrect = selectedAlternative === correctAlt;
-      
+
       // Cria ID único da questão: ano-disciplina-index
       // Ex: "2023-ciencias-natureza-99"
       const questionId = `${question.year}-${question.discipline}-${question.index}`;
-      
-      console.log("Confirmando resposta:", {
-        questionId,
-        selectedAlternative,
-        correctAlt,
-        isCorrect,
-        questionData: { year: question.year, discipline: question.discipline, index: question.index }
-      });
-      
+
       onAnswer(questionId, selectedAlternative, correctAlt, isCorrect);
     }
   };
@@ -74,19 +66,15 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
   // Mapeia disciplinas para cores (usando nomes formatados)
   const getDisciplineColor = (discipline: string): string => {
     const normalized = discipline.toLowerCase();
-    if (normalized.includes('linguagens')) return "bg-blue-500/10 text-blue-700 border-blue-500";
-    if (normalized.includes('humanas')) return "bg-purple-500/10 text-purple-700 border-purple-500";
-    if (normalized.includes('natureza')) return "bg-green-500/10 text-green-700 border-green-500";
-    if (normalized.includes('matematica')) return "bg-orange-500/10 text-orange-700 border-orange-500";
+    if (normalized.includes("linguagens")) return "bg-blue-500/10 text-blue-700 border-blue-500";
+    if (normalized.includes("humanas")) return "bg-purple-500/10 text-purple-700 border-purple-500";
+    if (normalized.includes("natureza")) return "bg-green-500/10 text-green-700 border-green-500";
+    if (normalized.includes("matematica")) return "bg-orange-500/10 text-orange-700 border-orange-500";
     return "bg-primary/10 text-primary border-primary";
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <Card className="p-6 sm:p-8 border-border/50 shadow-lg">
         {/* Header da questão */}
         <div className="mb-6 pb-6 border-b border-border">
@@ -96,19 +84,12 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
               Questão {question.index} - ENEM {question.year || new Date().getFullYear()}
             </Badge>
             {question.discipline && (
-              <Badge 
-                className={cn(
-                  "border",
-                  getDisciplineColor(question.discipline)
-                )}
-              >
+              <Badge className={cn("border", getDisciplineColor(question.discipline))}>
                 {formatDisciplineName(question.discipline)}
               </Badge>
             )}
             {question.language && (
-              <Badge variant="secondary">
-                {question.language === "ingles" ? "Inglês" : "Espanhol"}
-              </Badge>
+              <Badge variant="secondary">{question.language === "ingles" ? "Inglês" : "Espanhol"}</Badge>
             )}
           </div>
         </div>
@@ -144,99 +125,97 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
         {/* Introdução das alternativas */}
         {question.alternativesIntroduction && (
           <div className="mb-4">
-            <p className="font-medium text-foreground">
-              {cleanMarkdownArtifacts(question.alternativesIntroduction)}
-            </p>
+            <p className="font-medium text-foreground">{cleanMarkdownArtifacts(question.alternativesIntroduction)}</p>
           </div>
         )}
 
         {/* Alternativas */}
         <div className="space-y-3 mb-6">
           {question.alternatives.map((alt: any) => {
-              const isSelected = selectedAlternative === alt.letter;
-              const isCorrectAlt = alt.letter === question.correctAlternative;
-              
-              // Define cor da alternativa
-              let bgColor = "bg-card hover:bg-muted/30";
-              let borderColor = "border-border";
-              let textColor = "text-foreground";
+            const isSelected = selectedAlternative === alt.letter;
+            const isCorrectAlt = alt.letter === question.correctAlternative;
 
-              if (showResult) {
-                if (isCorrectAlt) {
-                  bgColor = "bg-green-500/10";
-                  borderColor = "border-green-500";
-                  textColor = "text-green-700";
-                } else if (isSelected && !isCorrect) {
-                  bgColor = "bg-red-500/10";
-                  borderColor = "border-red-500";
-                  textColor = "text-red-700";
-                }
-              } else if (isSelected) {
-                bgColor = "bg-primary/5";
-                borderColor = "border-primary";
-                textColor = "text-primary";
+            // Define cor da alternativa
+            let bgColor = "bg-card hover:bg-muted/30";
+            let borderColor = "border-border";
+            let textColor = "text-foreground";
+
+            if (showResult) {
+              if (isCorrectAlt) {
+                bgColor = "bg-green-500/10";
+                borderColor = "border-green-500";
+                textColor = "text-green-700";
+              } else if (isSelected && !isCorrect) {
+                bgColor = "bg-red-500/10";
+                borderColor = "border-red-500";
+                textColor = "text-red-700";
               }
+            } else if (isSelected) {
+              bgColor = "bg-primary/5";
+              borderColor = "border-primary";
+              textColor = "text-primary";
+            }
 
-              return (
-                <button
-                  key={alt.letter}
-                  onClick={() => handleSelectAlternative(alt.letter)}
-                  disabled={showResult}
-                  className={cn(
-                    "w-full text-left p-4 rounded-lg border-2 transition-all duration-200",
-                    bgColor,
-                    borderColor,
-                    !showResult && "cursor-pointer hover:shadow-md",
-                    showResult && "cursor-default"
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    {/* Letra da alternativa */}
-                    <div className={cn(
+            return (
+              <button
+                key={alt.letter}
+                onClick={() => handleSelectAlternative(alt.letter)}
+                disabled={showResult}
+                className={cn(
+                  "w-full text-left p-4 rounded-lg border-2 transition-all duration-200",
+                  bgColor,
+                  borderColor,
+                  !showResult && "cursor-pointer hover:shadow-md",
+                  showResult && "cursor-default",
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  {/* Letra da alternativa */}
+                  <div
+                    className={cn(
                       "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2",
                       showResult && isCorrectAlt && "bg-green-500 border-green-500 text-white",
                       showResult && isSelected && !isCorrect && "bg-red-500 border-red-500 text-white",
                       !showResult && isSelected && "bg-primary border-primary text-white",
-                      !showResult && !isSelected && "bg-background border-border"
-                    )}>
-                      {alt.letter?.toUpperCase()}
-                    </div>
+                      !showResult && !isSelected && "bg-background border-border",
+                    )}
+                  >
+                    {alt.letter?.toUpperCase()}
+                  </div>
 
-                    {/* Texto da alternativa */}
-                    <div className="flex-1">
-                      <p className={cn("text-sm sm:text-base", textColor)}>
-                        {cleanMarkdownArtifacts(alt.text)}
-                      </p>
-                      
-                      {/* Imagens da alternativa */}
-                      {alt.files && alt.files.length > 0 && (
-                        <div className="mt-2 space-y-2">
-                          {alt.files.map((file: string, idx: number) => (
-                            <img
-                              key={idx}
-                              src={file}
-                              alt={`Alternativa ${alt.letter} - Imagem ${idx + 1}`}
-                              className="w-full max-w-md rounded border border-border"
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                  {/* Texto da alternativa */}
+                  <div className="flex-1">
+                    <p className={cn("text-sm sm:text-base", textColor)}>{cleanMarkdownArtifacts(alt.text)}</p>
 
-                    {/* Ícone de resultado */}
-                    {showResult && (
-                      <div className="flex-shrink-0">
-                        {isCorrectAlt ? (
-                          <CheckCircle2 className="h-6 w-6 text-green-600" />
-                        ) : isSelected ? (
-                          <XCircle className="h-6 w-6 text-red-600" />
-                        ) : null}
+                    {/* Imagens da alternativa */}
+                    {alt.files && alt.files.length > 0 && (
+                      <div className="mt-2 space-y-2">
+                        {alt.files.map((file: string, idx: number) => (
+                          <img
+                            key={idx}
+                            src={file}
+                            alt={`Alternativa ${alt.letter} - Imagem ${idx + 1}`}
+                            className="w-full max-w-md rounded border border-border"
+                          />
+                        ))}
                       </div>
                     )}
                   </div>
-                </button>
-              );
-            })}
+
+                  {/* Ícone de resultado */}
+                  {showResult && (
+                    <div className="flex-shrink-0">
+                      {isCorrectAlt ? (
+                        <CheckCircle2 className="h-6 w-6 text-green-600" />
+                      ) : isSelected ? (
+                        <XCircle className="h-6 w-6 text-red-600" />
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         {/* Feedback e ações */}
@@ -246,7 +225,7 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
             animate={{ opacity: 1, y: 0 }}
             className={cn(
               "p-4 rounded-lg mb-6",
-              isCorrect ? "bg-green-500/10 border border-green-500" : "bg-red-500/10 border border-red-500"
+              isCorrect ? "bg-green-500/10 border border-green-500" : "bg-red-500/10 border border-red-500",
             )}
           >
             <div className="flex items-center gap-3">
@@ -266,7 +245,8 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
                   <div>
                     <h4 className="font-semibold text-red-700 mb-1">Ops! Resposta incorreta</h4>
                     <p className="text-sm text-red-600">
-                      Você selecionou a alternativa {selectedAlternative}, mas a resposta correta é {question.correctAlternative}.
+                      Você selecionou a alternativa {selectedAlternative}, mas a resposta correta é{" "}
+                      {question.correctAlternative}.
                     </p>
                   </div>
                 </>
@@ -276,22 +256,13 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
         )}
 
         {/* Botão de Explicação - apenas após responder */}
-        <QuestionExplanation 
-          question={question} 
-          isPremium={isPremium} 
-          showResult={showResult} 
-        />
+        <QuestionExplanation question={question} isPremium={isPremium} showResult={showResult} />
 
         {/* Botões de ação */}
         <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
           {!showResult ? (
             <>
-              <Button
-                onClick={handleNextQuestion}
-                variant="outline"
-                size="lg"
-                className="w-full sm:w-auto"
-              >
+              <Button onClick={handleNextQuestion} variant="outline" size="lg" className="w-full sm:w-auto">
                 Pular Questão
               </Button>
               <Button
@@ -305,11 +276,7 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
               </Button>
             </>
           ) : (
-            <Button
-              onClick={handleNextQuestion}
-              className="gap-2 w-full sm:w-auto"
-              size="lg"
-            >
+            <Button onClick={handleNextQuestion} className="gap-2 w-full sm:w-auto" size="lg">
               Próxima Questão
               <ChevronRight className="h-4 w-4" />
             </Button>
