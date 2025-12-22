@@ -20,21 +20,16 @@ import { useFlashcards } from "@/hooks/useFlashcards";
 import { usePremium } from "@/hooks/usePremium";
 import { PremiumModal } from "@/components/PremiumModal";
 import { toast } from "sonner";
-
-interface Subject {
-  id: string;
-  name: string;
-  color: string;
-}
+import { FIXED_SUBJECTS, FixedSubject, getSubjectById } from "@/lib/subjects";
 
 /**
  * Página principal de Flashcards
  * Permite criar, visualizar e praticar com flashcards estilo Anki
+ * Agora usa matérias fixas do sistema
  */
 const Flashcards = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [subjectFilter, setSubjectFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
@@ -58,15 +53,6 @@ const Flashcards = () => {
         navigate("/auth");
         return;
       }
-
-      // Busca matérias do usuário
-      const { data: subjectsData } = await supabase
-        .from("subjects")
-        .select("id, name, color")
-        .eq("user_id", session.user.id)
-        .order("name");
-
-      setSubjects(subjectsData || []);
       setLoading(false);
     };
 
@@ -83,6 +69,12 @@ const Flashcards = () => {
     setDialogOpen(true);
   };
 
+  // Obtém informações da matéria do flashcard atual
+  const getCurrentFlashcardSubject = () => {
+    if (!currentFlashcard?.subject_id) return null;
+    return getSubjectById(currentFlashcard.subject_id);
+  };
+
   if (loading || flashcardsLoading || premiumLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
@@ -93,6 +85,8 @@ const Flashcards = () => {
       </div>
     );
   }
+
+  const currentSubject = getCurrentFlashcardSubject();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
@@ -143,7 +137,7 @@ const Flashcards = () => {
 
           {/* Tab de Prática */}
           <TabsContent value="practice" className="space-y-6">
-            {/* Filtros */}
+            {/* Filtros com matérias fixas */}
             <div className="flex flex-wrap items-center gap-4">
               <Select value={subjectFilter} onValueChange={setSubjectFilter}>
                 <SelectTrigger className="w-[200px]">
@@ -151,7 +145,7 @@ const Flashcards = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as matérias</SelectItem>
-                  {subjects.map((subject) => (
+                  {FIXED_SUBJECTS.map((subject: FixedSubject) => (
                     <SelectItem key={subject.id} value={subject.id}>
                       <div className="flex items-center gap-2">
                         <div
@@ -188,8 +182,8 @@ const Flashcards = () => {
                   <FlashcardCard
                     front={currentFlashcard.front_content}
                     back={currentFlashcard.back_content}
-                    subjectName={currentFlashcard.subjects?.name}
-                    subjectColor={currentFlashcard.subjects?.color}
+                    subjectName={currentSubject?.name}
+                    subjectColor={currentSubject?.color}
                   />
                 </motion.div>
               ) : (

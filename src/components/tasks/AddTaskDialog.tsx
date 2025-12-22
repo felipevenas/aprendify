@@ -18,6 +18,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { FIXED_SUBJECTS, FixedSubject } from "@/lib/subjects";
+
+/**
+ * Dialog para adicionar ou editar tarefas
+ * Utiliza matérias fixas do sistema
+ */
 
 interface Task {
   id: string;
@@ -34,23 +40,16 @@ interface AddTaskDialogProps {
   editTask?: Task | null;
 }
 
-interface Subject {
-  id: string;
-  name: string;
-}
-
 const AddTaskDialog = ({ open, onOpenChange, editTask }: AddTaskDialogProps) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState("");
   const [subjectId, setSubjectId] = useState("");
-  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
-      fetchSubjects();
       // Preenche os campos se estiver editando
       if (editTask) {
         setTitle(editTask.title);
@@ -63,23 +62,6 @@ const AddTaskDialog = ({ open, onOpenChange, editTask }: AddTaskDialogProps) => 
       }
     }
   }, [open, editTask]);
-
-  const fetchSubjects = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("subjects")
-        .select("id, name")
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-      setSubjects(data || []);
-    } catch (error: any) {
-      toast.error("Erro ao carregar matérias");
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,7 +76,7 @@ const AddTaskDialog = ({ open, onOpenChange, editTask }: AddTaskDialogProps) => 
         description: description || null,
         due_date: dueDate || null,
         priority: priority || null,
-        subject_id: subjectId || null,
+        subject_id: subjectId || null, // Armazena o slug da matéria fixa
       };
 
       if (editTask) {
@@ -187,16 +169,24 @@ const AddTaskDialog = ({ open, onOpenChange, editTask }: AddTaskDialogProps) => 
             </Select>
           </div>
 
+          {/* Seleção de matéria fixa do sistema */}
           <div className="space-y-2">
             <Label htmlFor="subject">Matéria (opcional)</Label>
-            <Select value={subjectId} onValueChange={setSubjectId}>
+            <Select value={subjectId || "none"} onValueChange={(val) => setSubjectId(val === "none" ? "" : val)}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione uma matéria" />
               </SelectTrigger>
               <SelectContent>
-                {subjects.map((subject) => (
+                <SelectItem value="none">Sem matéria</SelectItem>
+                {FIXED_SUBJECTS.map((subject: FixedSubject) => (
                   <SelectItem key={subject.id} value={subject.id}>
-                    {subject.name}
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: subject.color }}
+                      />
+                      {subject.name}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
