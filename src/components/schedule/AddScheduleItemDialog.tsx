@@ -24,6 +24,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { FIXED_SUBJECTS, FixedSubject } from "@/lib/subjects";
+
+/**
+ * Dialog para adicionar ou editar itens do cronograma
+ * Utiliza matérias fixas do sistema
+ */
 
 interface ScheduleItem {
   id: string;
@@ -46,11 +52,6 @@ interface AddScheduleItemDialogProps {
   selectedDate?: Date | null;
 }
 
-interface Subject {
-  id: string;
-  name: string;
-}
-
 const PRIORITIES = [
   { value: "normal", label: "Normal" },
   { value: "média", label: "Média" },
@@ -67,13 +68,10 @@ const AddScheduleItemDialog = ({ open, onOpenChange, editItem, selectedDate }: A
   const [studyTips, setStudyTips] = useState("");
   const [priority, setPriority] = useState("normal");
   const [subjectId, setSubjectId] = useState("");
-  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
-      fetchSubjects();
-      
       if (editItem) {
         setTitle(editItem.title);
         setDate(new Date(editItem.scheduled_date + "T12:00:00"));
@@ -92,23 +90,6 @@ const AddScheduleItemDialog = ({ open, onOpenChange, editItem, selectedDate }: A
       }
     }
   }, [open, editItem, selectedDate]);
-
-  const fetchSubjects = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("subjects")
-        .select("id, name")
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-      setSubjects(data || []);
-    } catch (error) {
-      toast.error("Erro ao carregar matérias");
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,7 +124,7 @@ const AddScheduleItemDialog = ({ open, onOpenChange, editItem, selectedDate }: A
         study_tips: studyTips || null,
         priority,
         estimated_duration: estimatedDuration > 0 ? estimatedDuration : 60,
-        subject_id: subjectId || null,
+        subject_id: subjectId || null, // Armazena o slug da matéria fixa
         is_ai_generated: false,
       };
 
@@ -282,16 +263,24 @@ const AddScheduleItemDialog = ({ open, onOpenChange, editItem, selectedDate }: A
             />
           </div>
 
+          {/* Seleção de matéria fixa do sistema */}
           <div className="space-y-2">
             <Label htmlFor="subject">Matéria (opcional)</Label>
-            <Select value={subjectId} onValueChange={setSubjectId}>
+            <Select value={subjectId || "none"} onValueChange={(val) => setSubjectId(val === "none" ? "" : val)}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione uma matéria" />
               </SelectTrigger>
               <SelectContent>
-                {subjects.map((subject) => (
+                <SelectItem value="none">Sem matéria</SelectItem>
+                {FIXED_SUBJECTS.map((subject: FixedSubject) => (
                   <SelectItem key={subject.id} value={subject.id}>
-                    {subject.name}
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: subject.color }}
+                      />
+                      {subject.name}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
