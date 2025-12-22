@@ -5,15 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Plus } from "lucide-react";
 import { motion } from "framer-motion";
-import { toast } from "sonner";
 import NotesList from "@/components/notes/NotesList";
 import AddNoteDialog from "@/components/notes/AddNoteDialog";
 import Navbar from "@/components/Navbar";
 
+/**
+ * Página de Anotações
+ * Agora usa matérias fixas do sistema - não precisa mais verificar se usuário tem matérias cadastradas
+ */
 const Notes = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [hasSubjects, setHasSubjects] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,28 +25,11 @@ const Notes = () => {
         navigate("/auth");
         return;
       }
-
-      // Verifica se o usuário tem matérias cadastradas (regra de negócio)
-      const { data: subjects } = await supabase
-        .from("subjects")
-        .select("id")
-        .eq("user_id", session.user.id)
-        .limit(1);
-
-      setHasSubjects(!!subjects && subjects.length > 0);
       setLoading(false);
     };
 
     checkAuth();
   }, [navigate]);
-
-  const handleAddNote = () => {
-    if (!hasSubjects) {
-      toast.error("Você precisa cadastrar matérias antes de criar anotações!");
-      return;
-    }
-    setDialogOpen(true);
-  };
 
   if (loading) {
     return (
@@ -75,20 +60,6 @@ const Notes = () => {
               <p className="text-muted-foreground text-lg">
                 Organize suas anotações por matéria
               </p>
-              {!hasSubjects && (
-                <div className="mt-4 p-4 bg-accent/10 border border-accent rounded-lg">
-                  <p className="text-accent font-medium">
-                    Você precisa cadastrar matérias antes de criar anotações!
-                  </p>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => navigate("/subjects")} 
-                    className="mt-2"
-                  >
-                    Cadastrar matérias
-                  </Button>
-                </div>
-              )}
             </div>
             
             {/* Ações discretas */}
@@ -102,7 +73,7 @@ const Notes = () => {
                 <ArrowLeft className="h-4 w-4" />
                 <span className="hidden sm:inline">Voltar</span>
               </Button>
-              <Button onClick={handleAddNote} size="sm" className="gap-2" disabled={!hasSubjects}>
+              <Button onClick={() => setDialogOpen(true)} size="sm" className="gap-2">
                 <Plus className="h-4 w-4" />
                 Nova Anotação
               </Button>

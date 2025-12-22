@@ -9,7 +9,6 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Schedule from "./pages/Schedule";
 import Tasks from "./pages/Tasks";
-import Subjects from "./pages/Subjects";
 import Notes from "./pages/Notes";
 import Questions from "./pages/Questions";
 import Settings from "./pages/Settings";
@@ -40,7 +39,6 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/tasks" element={<Tasks />} />
-            <Route path="/subjects" element={<Subjects />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/questions" element={<Questions />} />
             <Route path="/settings" element={<Settings />} />

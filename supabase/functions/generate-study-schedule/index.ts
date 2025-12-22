@@ -79,11 +79,14 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(10);
 
-    // Buscar matérias do usuário
-    const { data: subjects } = await supabase
-      .from("subjects")
-      .select("id, name, color")
-      .eq("user_id", user.id);
+    // Matérias fixas do sistema (não mais buscadas do banco)
+    const subjects = [
+      { id: "linguagens", name: "Linguagens", color: "#3B82F6" },
+      { id: "ciencias-humanas", name: "Ciências Humanas", color: "#8B5CF6" },
+      { id: "ciencias-natureza", name: "Ciências da Natureza", color: "#22C55E" },
+      { id: "matematica", name: "Matemática", color: "#F97316" },
+      { id: "redacao", name: "Redação", color: "#EF4444" },
+    ];
 
     // Análise de desempenho por disciplina e tópico específico
     const disciplineStats: Record<string, { 
