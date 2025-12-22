@@ -19,12 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Flashcard } from "@/hooks/useFlashcards";
-
-interface Subject {
-  id: string;
-  name: string;
-  color: string;
-}
+import { FIXED_SUBJECTS, FixedSubject } from "@/lib/subjects";
 
 interface AddFlashcardDialogProps {
   open: boolean;
@@ -34,32 +29,16 @@ interface AddFlashcardDialogProps {
 
 /**
  * Dialog para adicionar ou editar flashcards
- * Campos: frente (pergunta), verso (resposta), matéria opcional
+ * Campos: frente (pergunta), verso (resposta), matéria (fixa do sistema)
  */
 const AddFlashcardDialog = ({ open, onOpenChange, editFlashcard }: AddFlashcardDialogProps) => {
   const [frontContent, setFrontContent] = useState("");
   const [backContent, setBackContent] = useState("");
   const [subjectId, setSubjectId] = useState<string>("");
-  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(false);
-
-  // Busca matérias do usuário
-  const fetchSubjects = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data } = await supabase
-      .from("subjects")
-      .select("id, name, color")
-      .eq("user_id", user.id)
-      .order("name");
-
-    setSubjects(data || []);
-  };
 
   useEffect(() => {
     if (open) {
-      fetchSubjects();
       // Preenche os campos se estiver editando
       if (editFlashcard) {
         setFrontContent(editFlashcard.front_content);
@@ -89,7 +68,7 @@ const AddFlashcardDialog = ({ open, onOpenChange, editFlashcard }: AddFlashcardD
         user_id: user.id,
         front_content: frontContent.trim(),
         back_content: backContent.trim(),
-        subject_id: subjectId || null,
+        subject_id: subjectId || null, // Armazena o slug da matéria fixa
       };
 
       if (editFlashcard) {
@@ -163,8 +142,7 @@ const AddFlashcardDialog = ({ open, onOpenChange, editFlashcard }: AddFlashcardD
             />
           </div>
 
-          {/* Seleção de matéria */}
-          {/* Seleção de matéria */}
+          {/* Seleção de matéria fixa do sistema */}
           <div className="space-y-2">
             <Label htmlFor="subject">Matéria (opcional)</Label>
             <Select 
@@ -176,7 +154,7 @@ const AddFlashcardDialog = ({ open, onOpenChange, editFlashcard }: AddFlashcardD
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Sem matéria</SelectItem>
-                {subjects.map((subject) => (
+                {FIXED_SUBJECTS.map((subject: FixedSubject) => (
                   <SelectItem key={subject.id} value={subject.id}>
                     <div className="flex items-center gap-2">
                       <div

@@ -20,6 +20,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { FIXED_SUBJECTS, FixedSubject } from "@/lib/subjects";
+
+/**
+ * Dialog para adicionar ou editar questões personalizadas
+ * Utiliza matérias fixas do sistema
+ */
 
 interface Question {
   id: string;
@@ -38,12 +44,6 @@ interface AddQuestionDialogProps {
   editQuestion?: Question | null;
 }
 
-interface Subject {
-  id: string;
-  name: string;
-  color: string;
-}
-
 const AddQuestionDialog = ({ open, onOpenChange, editQuestion }: AddQuestionDialogProps) => {
   const [title, setTitle] = useState("");
   const [statement, setStatement] = useState("");
@@ -52,32 +52,11 @@ const AddQuestionDialog = ({ open, onOpenChange, editQuestion }: AddQuestionDial
   const [difficulty, setDifficulty] = useState("medium");
   const [questionType, setQuestionType] = useState<"concurso" | "vestibular">("concurso");
   const [subjectId, setSubjectId] = useState<string>("");
-  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Carrega as matérias disponíveis e preenche campos ao editar
+  // Preenche campos ao editar
   useEffect(() => {
-    const fetchSubjects = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data, error } = await supabase
-          .from("subjects")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("name");
-
-        if (error) throw error;
-        setSubjects(data || []);
-      } catch (error: any) {
-        toast.error("Erro ao carregar matérias: " + error.message);
-      }
-    };
-
     if (open) {
-      fetchSubjects();
-      // Preenche os campos se estiver editando
       if (editQuestion) {
         setTitle(editQuestion.title);
         setStatement(editQuestion.statement);
@@ -113,7 +92,7 @@ const AddQuestionDialog = ({ open, onOpenChange, editQuestion }: AddQuestionDial
         answer: answer.trim() || null,
         difficulty: difficulty || null,
         question_type: questionType,
-        subject_id: subjectId || null,
+        subject_id: subjectId || null, // Armazena o slug da matéria fixa
         notes: notes.trim() || null,
       };
 
@@ -196,15 +175,16 @@ const AddQuestionDialog = ({ open, onOpenChange, editQuestion }: AddQuestionDial
             />
           </div>
 
+          {/* Seleção de matéria fixa do sistema */}
           <div className="space-y-2">
             <Label htmlFor="subject">Matéria (opcional)</Label>
-            <Select value={subjectId} onValueChange={setSubjectId}>
+            <Select value={subjectId || "none"} onValueChange={(val) => setSubjectId(val === "none" ? "" : val)}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione uma matéria" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Sem matéria</SelectItem>
-                {subjects.map((subject) => (
+                <SelectItem value="none">Sem matéria</SelectItem>
+                {FIXED_SUBJECTS.map((subject: FixedSubject) => (
                   <SelectItem key={subject.id} value={subject.id}>
                     <div className="flex items-center gap-2">
                       <div
