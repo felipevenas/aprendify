@@ -8,10 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, StickyNote } from "lucide-react";
+import { FIXED_SUBJECTS, getSubjectByDiscipline, FixedSubject } from "@/lib/subjects";
 
 /**
  * Diálogo para adicionar anotação a partir de uma questão do banco de questões
  * O usuário pode salvar observações feitas durante a resolução de questões
+ * Utiliza matérias fixas do sistema ao invés de matérias customizadas do usuário
  */
 interface AddQuestionNoteDialogProps {
   open: boolean;
@@ -24,66 +26,30 @@ interface AddQuestionNoteDialogProps {
   };
 }
 
-interface Subject {
-  id: string;
-  name: string;
-  color: string;
-}
-
 const AddQuestionNoteDialog = ({ open, onOpenChange, questionContext }: AddQuestionNoteDialogProps) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [subjectId, setSubjectId] = useState<string>("");
-  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingSubjects, setLoadingSubjects] = useState(false);
 
-  // Carrega matérias do usuário ao abrir o diálogo
+  // Preenche campos automaticamente ao abrir o diálogo
   useEffect(() => {
     if (open) {
-      fetchSubjects();
-      
       // Preenche título automaticamente com contexto da questão
       if (questionContext) {
         const autoTitle = `ENEM ${questionContext.year} - Questão ${questionContext.index}`;
         setTitle(autoTitle);
+        
+        // Auto-seleciona a matéria correspondente à disciplina da questão
+        if (questionContext.discipline) {
+          const matchingSubject = getSubjectByDiscipline(questionContext.discipline);
+          if (matchingSubject) {
+            setSubjectId(matchingSubject.id);
+          }
+        }
       }
     }
   }, [open, questionContext]);
-
-  // Busca matérias do usuário
-  const fetchSubjects = async () => {
-    setLoadingSubjects(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("subjects")
-        .select("id, name, color")
-        .eq("user_id", user.id)
-        .order("name");
-
-      if (error) throw error;
-      setSubjects(data || []);
-      
-      // Se houver disciplina na questão, tenta encontrar matéria correspondente
-      if (questionContext?.discipline && data) {
-        const normalizedDiscipline = questionContext.discipline.toLowerCase();
-        const matchingSubject = data.find(s => 
-          normalizedDiscipline.includes(s.name.toLowerCase()) ||
-          s.name.toLowerCase().includes(normalizedDiscipline.split("-")[0])
-        );
-        if (matchingSubject) {
-          setSubjectId(matchingSubject.id);
-        }
-      }
-    } catch (error) {
-      console.error("Erro ao carregar matérias:", error);
-    } finally {
-      setLoadingSubjects(false);
-    }
-  };
 
   // Salva a anotação no banco de dados
   const handleSubmit = async () => {
@@ -101,11 +67,13 @@ const AddQuestionNoteDialog = ({ open, onOpenChange, questionContext }: AddQuest
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
+      // Salva usando o ID da matéria fixa como subject_id
+      // O campo subject_id agora armazena o slug da matéria fixa (ex: "matematica")
       const { error } = await supabase
         .from("notes")
         .insert({
           user_id: user.id,
-          subject_id: subjectId,
+          subject_id: subjectId, // Armazena o slug da matéria fixa
           title: title.trim(),
           content: content.trim(),
         });
@@ -153,15 +121,15 @@ const AddQuestionNoteDialog = ({ open, onOpenChange, questionContext }: AddQuest
         </DialogHeader>
 
         <div className="space-y-4 mt-4">
-          {/* Seleção de matéria */}
+          {/* Seleção de matéria fixa do sistema */}
           <div className="space-y-2">
             <Label htmlFor="subject">Matéria *</Label>
             <Select value={subjectId} onValueChange={setSubjectId}>
-              <SelectTrigger id="subject" disabled={loadingSubjects}>
-                <SelectValue placeholder={loadingSubjects ? "Carregando..." : "Selecione a matéria"} />
+              <SelectTrigger id="subject">
+                <SelectValue placeholder="Selecione a matéria" />
               </SelectTrigger>
               <SelectContent>
-                {subjects.map((subject) => (
+                {FIXED_SUBJECTS.map((subject: FixedSubject) => (
                   <SelectItem key={subject.id} value={subject.id}>
                     <div className="flex items-center gap-2">
                       <div 
@@ -174,11 +142,6 @@ const AddQuestionNoteDialog = ({ open, onOpenChange, questionContext }: AddQuest
                 ))}
               </SelectContent>
             </Select>
-            {subjects.length === 0 && !loadingSubjects && (
-              <p className="text-xs text-muted-foreground">
-                Você ainda não tem matérias cadastradas. Adicione uma na página de Matérias.
-              </p>
-            )}
           </div>
 
           {/* Título da anotação */}

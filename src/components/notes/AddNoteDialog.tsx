@@ -19,6 +19,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FIXED_SUBJECTS, FixedSubject, getSubjectById } from "@/lib/subjects";
+
+/**
+ * Diálogo para adicionar ou editar anotações
+ * Utiliza matérias fixas do sistema ao invés de matérias customizadas do usuário
+ */
 
 interface Note {
   id: string;
@@ -33,42 +39,15 @@ interface AddNoteDialogProps {
   editNote?: Note | null;
 }
 
-interface Subject {
-  id: string;
-  name: string;
-  color: string;
-}
-
 const AddNoteDialog = ({ open, onOpenChange, editNote }: AddNoteDialogProps) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [subjectId, setSubjectId] = useState("");
-  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Carrega as matérias disponíveis e preenche campos ao editar
+  // Preenche campos ao editar uma anotação existente
   useEffect(() => {
-    const fetchSubjects = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data, error } = await supabase
-          .from("subjects")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("name");
-
-        if (error) throw error;
-        setSubjects(data || []);
-      } catch (error: any) {
-        toast.error("Erro ao carregar matérias: " + error.message);
-      }
-    };
-
     if (open) {
-      fetchSubjects();
-      // Preenche os campos se estiver editando
       if (editNote) {
         setTitle(editNote.title);
         setContent(editNote.content);
@@ -95,7 +74,7 @@ const AddNoteDialog = ({ open, onOpenChange, editNote }: AddNoteDialogProps) => 
       if (!user) throw new Error("Usuário não autenticado");
 
       const noteData = {
-        subject_id: subjectId,
+        subject_id: subjectId, // Armazena o slug da matéria fixa
         title: title.trim(),
         content: content.trim(),
       };
@@ -145,6 +124,7 @@ const AddNoteDialog = ({ open, onOpenChange, editNote }: AddNoteDialogProps) => 
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Seleção de matéria fixa do sistema */}
           <div className="space-y-2">
             <Label htmlFor="subject">Matéria *</Label>
             <Select value={subjectId} onValueChange={setSubjectId}>
@@ -152,7 +132,7 @@ const AddNoteDialog = ({ open, onOpenChange, editNote }: AddNoteDialogProps) => 
                 <SelectValue placeholder="Selecione uma matéria" />
               </SelectTrigger>
               <SelectContent>
-                {subjects.map((subject) => (
+                {FIXED_SUBJECTS.map((subject: FixedSubject) => (
                   <SelectItem key={subject.id} value={subject.id}>
                     <div className="flex items-center gap-2">
                       <div
