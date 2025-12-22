@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, BookOpen, Shuffle, Filter, Lock } from "lucide-react";
+import { ArrowLeft, BookOpen, Shuffle, Filter, Lock, StickyNote } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import QuestionPractice from "@/components/questions/QuestionPractice";
 import QuestionFilters from "@/components/questions/QuestionFilters";
+import AddQuestionNoteDialog from "@/components/questions/AddQuestionNoteDialog";
 import Navbar from "@/components/Navbar";
 import { usePremium } from "@/hooks/usePremium";
 import { useQuestionBank } from "@/hooks/useQuestionBank";
@@ -21,6 +22,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 const Questions = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false); // Controla o diálogo de anotação
   const navigate = useNavigate();
   const { isPremium, isLoading: premiumLoading, dailyQuestionCount } = usePremium();
   const { currentQuestion, loading: loadingQuestion, fetchQuestion, clearCache } = useQuestionBank();
@@ -204,34 +206,44 @@ const Questions = () => {
               </p>
             </div>
             
-            {/* Ações discretas */}
+            {/* Ações discretas - botões quadrados com ícones */}
             <div className="flex items-center gap-2">
               <Button 
                 variant="ghost" 
-                size="sm"
+                size="icon"
                 onClick={() => navigate("/dashboard")} 
-                className="gap-2"
+                title="Voltar ao Dashboard"
               >
                 <ArrowLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">Voltar</span>
               </Button>
+              
+              {/* Botão de anotação - discreto no header */}
+              <Button 
+                variant="outline"
+                size="icon"
+                onClick={() => setNoteDialogOpen(true)}
+                disabled={!currentQuestion}
+                title="Fazer anotação"
+              >
+                <StickyNote className="h-4 w-4" />
+              </Button>
+
               <Button 
                 onClick={() => setShowFilters(!showFilters)} 
                 variant="outline"
-                size="sm"
-                className="gap-2"
+                size="icon"
+                title="Filtros"
               >
                 <Filter className="h-4 w-4" />
-                <span className="hidden sm:inline">Filtros</span>
               </Button>
+              
               <Button 
                 onClick={() => handleFetchQuestion(true)}
-                size="sm"
-                className="gap-2"
+                size="icon"
                 disabled={loadingQuestion}
+                title="Questão aleatória"
               >
                 <Shuffle className="h-4 w-4" />
-                <span className="hidden sm:inline">Aleatória</span>
               </Button>
             </div>
           </div>
@@ -318,6 +330,18 @@ const Questions = () => {
           </Card>
         )}
       </main>
+
+      {/* Diálogo de anotação - movido para o nível da página */}
+      <AddQuestionNoteDialog
+        open={noteDialogOpen}
+        onOpenChange={setNoteDialogOpen}
+        questionContext={currentQuestion ? {
+          year: currentQuestion.year || new Date().getFullYear().toString(),
+          discipline: currentQuestion.discipline || "",
+          index: currentQuestion.index || 0,
+          context: currentQuestion.context,
+        } : undefined}
+      />
     </div>
   );
 };
