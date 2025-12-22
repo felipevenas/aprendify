@@ -103,14 +103,6 @@ const Dashboard = () => {
       iconBg: "bg-primary",
     },
     {
-      title: "Matérias",
-      description: "Cadastre e organize suas disciplinas",
-      icon: BookOpen,
-      path: "/subjects",
-      gradient: "from-primary to-primary/80",
-      iconBg: "bg-primary",
-    },
-    {
       title: "Anotações",
       description: "Faça anotações organizadas por matéria",
       icon: FileText,
