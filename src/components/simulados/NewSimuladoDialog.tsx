@@ -55,6 +55,8 @@ export const NewSimuladoDialog = ({
     progress,
     message,
     error,
+    loadedCount,
+    targetCount,
     prepareSimulado,
     reset: resetPreparation,
   } = useSimuladoPreparation();
@@ -227,6 +229,8 @@ export const NewSimuladoDialog = ({
         progress={progress}
         message={message}
         error={error}
+        loadedCount={loadedCount}
+        targetCount={targetCount}
         onRetry={handleRetry}
         onCancel={handleCancel}
         onContinue={handleContinue}

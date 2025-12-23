@@ -8,8 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Loader2, AlertCircle, CheckCircle2, RefreshCw, Clock } from "lucide-react";
 
 interface SimuladoPreparationModalProps {
   open: boolean;
@@ -17,6 +16,8 @@ interface SimuladoPreparationModalProps {
   progress: number;
   message: string;
   error: string | null;
+  loadedCount?: number;
+  targetCount?: number;
   onRetry: () => void;
   onCancel: () => void;
   onContinue: () => void;
@@ -24,7 +25,8 @@ interface SimuladoPreparationModalProps {
 
 /**
  * Modal de preparação do simulado
- * Exibe progresso de carregamento e garante que as questões estejam prontas
+ * Exibe progresso detalhado de carregamento com contagem de questões
+ * Garante que todas as questões estejam prontas antes de continuar
  */
 export const SimuladoPreparationModal = ({
   open,
@@ -32,6 +34,8 @@ export const SimuladoPreparationModal = ({
   progress,
   message,
   error,
+  loadedCount = 0,
+  targetCount = 0,
   onRetry,
   onCancel,
   onContinue,
@@ -50,6 +54,21 @@ export const SimuladoPreparationModal = ({
     }
   };
 
+  // Calcular tempo estimado restante (aproximado)
+  const getEstimatedTime = () => {
+    if (status !== "preparing" || progress <= 10) return null;
+    
+    // Assume ~1.5s per page of 50 questions due to rate limiting
+    const remainingQuestions = targetCount - loadedCount;
+    const pagesRemaining = Math.ceil(remainingQuestions / 50);
+    const secondsRemaining = pagesRemaining * 1.5;
+    
+    if (secondsRemaining < 5) return "Quase lá...";
+    if (secondsRemaining < 30) return `~${Math.ceil(secondsRemaining)} segundos restantes`;
+    if (secondsRemaining < 120) return `~${Math.ceil(secondsRemaining / 60)} minuto(s) restante(s)`;
+    return "Isso pode levar alguns minutos...";
+  };
+
   return (
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent
@@ -65,7 +84,7 @@ export const SimuladoPreparationModal = ({
           </DialogTitle>
           <DialogDescription>
             {status === "preparing" &&
-              "Aguarde enquanto carregamos todas as questões para garantir uma experiência completa."}
+              "Aguarde enquanto carregamos TODAS as questões. Isso garante uma experiência completa sem interrupções."}
             {status === "ready" &&
               "Todas as questões foram carregadas com sucesso. Você pode começar agora!"}
             {status === "error" &&
@@ -84,23 +103,58 @@ export const SimuladoPreparationModal = ({
             <StatusIcon />
           </motion.div>
 
-          {/* Progress bar for preparing state */}
+          {/* Progress section for preparing state */}
           {status === "preparing" && (
-            <div className="w-full space-y-2">
-              <Progress value={progress} className="h-2" />
-              <p className="text-sm text-center text-muted-foreground">{message}</p>
+            <div className="w-full space-y-3">
+              {/* Progress bar */}
+              <Progress value={progress} className="h-3" />
+              
+              {/* Progress details */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{message}</span>
+                <span className="font-medium text-primary">
+                  {Math.round(progress)}%
+                </span>
+              </div>
+
+              {/* Question counter */}
+              {targetCount > 0 && (
+                <div className="flex items-center justify-center gap-2 text-sm bg-muted/50 p-3 rounded-lg">
+                  <span className="text-muted-foreground">Questões carregadas:</span>
+                  <span className="font-bold text-lg text-primary">
+                    {loadedCount}
+                  </span>
+                  <span className="text-muted-foreground">/ {targetCount}</span>
+                </div>
+              )}
+
+              {/* Estimated time */}
+              {getEstimatedTime() && (
+                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  <span>{getEstimatedTime()}</span>
+                </div>
+              )}
             </div>
           )}
 
           {/* Success message */}
           {status === "ready" && (
-            <motion.p
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-center text-muted-foreground"
+              className="text-center space-y-2"
             >
-              {message}
-            </motion.p>
+              <p className="text-muted-foreground">{message}</p>
+              {loadedCount > 0 && (
+                <div className="flex items-center justify-center gap-2 bg-green-500/10 text-green-600 dark:text-green-400 p-3 rounded-lg">
+                  <CheckCircle2 className="h-5 w-5" />
+                  <span className="font-medium">
+                    {loadedCount} questões prontas para o simulado
+                  </span>
+                </div>
+              )}
+            </motion.div>
           )}
 
           {/* Error message */}
@@ -149,9 +203,12 @@ export const SimuladoPreparationModal = ({
 
         {/* Loading tips */}
         {status === "preparing" && (
-          <div className="text-xs text-center text-muted-foreground border-t pt-4">
-            💡 Dica: Garantimos que todas as questões estejam carregadas para evitar
-            interrupções durante o simulado.
+          <div className="text-xs text-center text-muted-foreground border-t pt-4 space-y-1">
+            <p>💡 <strong>Por que demora?</strong></p>
+            <p>
+              A API do ENEM tem limite de 1 requisição por segundo. 
+              Estamos carregando todas as questões para garantir um simulado completo.
+            </p>
           </div>
         )}
       </DialogContent>
