@@ -64,9 +64,10 @@ const SimuladoActive = () => {
   const [showGridView, setShowGridView] = useState(false);
   const [finishing, setFinishing] = useState(false);
 
-
   /**
-   * Load simulado data - only runs once on mount
+   * Load simulado data - agora as questões já devem estar pré-carregadas
+   * O hook useSimuladoPreparation garante que as questões sejam carregadas
+   * antes da navegação, então aqui só precisamos recuperar do banco
    */
   useEffect(() => {
     let isMounted = true;
@@ -92,66 +93,56 @@ const SimuladoActive = () => {
 
         setSimulado(sim);
         
-        // Fetch questions inline to avoid dependency loop
+        // Buscar respostas já inicializadas pelo useSimuladoPreparation
         setLoadingQuestions(true);
         try {
-          const disciplines = getDisciplinesForType(sim.type as SimuladoType);
-          let fetchedQuestions: QuestionData[] = [];
-
-          const yearNum = sim.year ? parseInt(sim.year) : 0;
-          
-          console.log(`[Simulado] Loading questions for year: ${sim.year}, type: ${sim.type}, disciplines: ${disciplines.join(", ")}`);
-
-          if (sim.year && yearNum >= 2024) {
-            // ===== ANOS 2024+ USAM BANCO DE DADOS LOCAL =====
-            console.log("[Simulado] Fetching from LOCAL DATABASE (2024+)");
-            fetchedQuestions = await fetchLocalQuestionsByYear(sim.year, disciplines, sim.total_questions);
-          } else if (sim.year && yearNum >= 2009 && yearNum < 2024) {
-            // ===== ANOS 2009-2023 USAM API EXTERNA =====
-            console.log("[Simulado] Fetching from ENEM API (2009-2023)");
-            fetchedQuestions = await fetchQuestionsFromAPI(sim.year, disciplines, sim.total_questions);
-            
-            // Se não encontrou questões na API, tenta fallback para banco local
-            if (fetchedQuestions.length === 0) {
-              console.warn("[Simulado] API returned no questions, trying local database fallback");
-              fetchedQuestions = await fetchLocalQuestions(disciplines, sim.total_questions);
-            }
-          } else {
-            // ===== SIMULADO PERSONALIZADO (SEM ANO) - MISTURA FONTES =====
-            console.log("[Simulado] Mixed sources (no specific year)");
-            
-            // Primeiro tenta buscar da API
-            const apiQuestions = await fetchQuestionsFromAPI("2023", disciplines, Math.ceil(sim.total_questions / 2));
-            console.log(`[Simulado] Got ${apiQuestions.length} questions from API`);
-            
-            // Depois busca do banco local
-            const localQuestions = await fetchLocalQuestions(disciplines, Math.ceil(sim.total_questions / 2));
-            console.log(`[Simulado] Got ${localQuestions.length} questions from local DB`);
-            
-            fetchedQuestions = [...apiQuestions, ...localQuestions]
-              .sort(() => Math.random() - 0.5)
-              .slice(0, sim.total_questions);
-          }
-          
-          console.log(`[Simulado] Loaded ${fetchedQuestions.length} questions`);
-
-          if (!isMounted) return;
-          setQuestions(fetchedQuestions);
-
           const existingAnswers = await getSimuladoAnswers(sim.id);
           
           if (!isMounted) return;
+          
+          console.log(`[SimuladoActive] Found ${existingAnswers.length} pre-loaded answers`);
 
-          if (existingAnswers.length === 0 && fetchedQuestions.length > 0) {
-            await initializeQuestions(
-              sim.id,
-              fetchedQuestions.map(q => ({
-                id: q.id,
-                discipline: q.discipline,
-                correct_alternative: q.correct_alternative
-              }))
-            );
-          } else {
+          // Se já temos respostas, as questões foram pré-carregadas
+          if (existingAnswers.length > 0) {
+            // Carregar questões baseado nos IDs das respostas
+            const disciplines = getDisciplinesForType(sim.type as SimuladoType);
+            let fetchedQuestions: QuestionData[] = [];
+            const yearNum = sim.year ? parseInt(sim.year) : 0;
+
+            if (sim.year && yearNum >= 2024) {
+              fetchedQuestions = await fetchLocalQuestionsByYear(sim.year, disciplines, sim.total_questions);
+            } else if (sim.year && yearNum >= 2009 && yearNum < 2024) {
+              fetchedQuestions = await fetchQuestionsFromAPI(sim.year, disciplines, sim.total_questions);
+              if (fetchedQuestions.length === 0) {
+                fetchedQuestions = await fetchLocalQuestions(disciplines, sim.total_questions);
+              }
+            } else {
+              const apiQuestions = await fetchQuestionsFromAPI("2023", disciplines, Math.ceil(sim.total_questions / 2));
+              const localQuestions = await fetchLocalQuestions(disciplines, Math.ceil(sim.total_questions / 2));
+              fetchedQuestions = [...apiQuestions, ...localQuestions]
+                .sort(() => Math.random() - 0.5)
+                .slice(0, sim.total_questions);
+            }
+
+            // Ordenar questões pela ordem das respostas pré-carregadas
+            const questionMap = new Map(fetchedQuestions.map(q => [q.id, q]));
+            const orderedQuestions: QuestionData[] = [];
+            
+            existingAnswers.forEach(answer => {
+              const question = questionMap.get(answer.question_id);
+              if (question) {
+                orderedQuestions.push(question);
+              }
+            });
+
+            // Usar questões ordenadas ou fallback para todas as questões
+            if (orderedQuestions.length > 0) {
+              setQuestions(orderedQuestions);
+            } else {
+              setQuestions(fetchedQuestions);
+            }
+
+            // Mapear respostas existentes
             const answersMap: Record<number, string> = {};
             existingAnswers.forEach(a => {
               if (a.selected_answer) {
@@ -159,6 +150,39 @@ const SimuladoActive = () => {
               }
             });
             setAnswers(answersMap);
+          } else {
+            // Fallback: Se não houver respostas, carregar questões normalmente
+            console.warn("[SimuladoActive] No pre-loaded answers found, loading questions fresh");
+            const disciplines = getDisciplinesForType(sim.type as SimuladoType);
+            let fetchedQuestions: QuestionData[] = [];
+            const yearNum = sim.year ? parseInt(sim.year) : 0;
+
+            if (sim.year && yearNum >= 2024) {
+              fetchedQuestions = await fetchLocalQuestionsByYear(sim.year, disciplines, sim.total_questions);
+            } else if (sim.year && yearNum >= 2009 && yearNum < 2024) {
+              fetchedQuestions = await fetchQuestionsFromAPI(sim.year, disciplines, sim.total_questions);
+              if (fetchedQuestions.length === 0) {
+                fetchedQuestions = await fetchLocalQuestions(disciplines, sim.total_questions);
+              }
+            } else {
+              const apiQuestions = await fetchQuestionsFromAPI("2023", disciplines, Math.ceil(sim.total_questions / 2));
+              const localQuestions = await fetchLocalQuestions(disciplines, Math.ceil(sim.total_questions / 2));
+              fetchedQuestions = [...apiQuestions, ...localQuestions]
+                .sort(() => Math.random() - 0.5)
+                .slice(0, sim.total_questions);
+            }
+
+            if (fetchedQuestions.length > 0) {
+              setQuestions(fetchedQuestions);
+              await initializeQuestions(
+                sim.id,
+                fetchedQuestions.map(q => ({
+                  id: q.id,
+                  discipline: q.discipline,
+                  correct_alternative: q.correct_alternative
+                }))
+              );
+            }
           }
         } catch (error) {
           console.error("Error fetching questions:", error);
