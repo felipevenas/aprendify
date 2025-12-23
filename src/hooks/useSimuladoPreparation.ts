@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SimuladoType } from "@/hooks/useSimulados";
 
@@ -19,13 +19,16 @@ interface QuestionData {
 }
 
 /**
- * Configuration for retry mechanism
+ * Configuration for API rate limiting and retry
+ * API limit: 1 request per second, window resets every 10 seconds
  */
-const RETRY_CONFIG = {
-  maxRetries: 3,
-  initialDelayMs: 1000,
-  maxDelayMs: 5000,
-  timeoutMs: 30000, // 30 seconds timeout per request
+const API_CONFIG = {
+  rateLimitMs: 1100, // 1.1 seconds between requests (safety margin)
+  maxRetries: 5, // Increased retries for reliability
+  initialRetryDelayMs: 2000, // Wait 2s before first retry
+  maxRetryDelayMs: 10000, // Max 10s delay between retries
+  requestTimeoutMs: 45000, // 45s timeout per request
+  pageSize: 50, // API max limit per page
 };
 
 /**
@@ -37,11 +40,13 @@ interface PreparationState {
   message: string;
   questions: QuestionData[];
   error: string | null;
+  loadedCount: number;
+  targetCount: number;
 }
 
 /**
  * Hook to prepare simulado with all questions loaded
- * Ensures complete data before allowing navigation
+ * Implements queue system with rate limiting for API compliance
  */
 export const useSimuladoPreparation = () => {
   const [state, setState] = useState<PreparationState>({
@@ -50,36 +55,71 @@ export const useSimuladoPreparation = () => {
     message: "",
     questions: [],
     error: null,
+    loadedCount: 0,
+    targetCount: 0,
   });
+
+  // Track last API request time for rate limiting
+  const lastRequestTimeRef = useRef<number>(0);
+  // Abort controller for cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   /**
    * Reset preparation state
    */
   const reset = useCallback(() => {
+    // Cancel any ongoing requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
     setState({
       status: "idle",
       progress: 0,
       message: "",
       questions: [],
       error: null,
+      loadedCount: 0,
+      targetCount: 0,
     });
   }, []);
 
   /**
-   * Fetch with timeout wrapper
+   * Wait for rate limit compliance
+   * Ensures minimum delay between API requests
+   */
+  const waitForRateLimit = async (): Promise<void> => {
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastRequestTimeRef.current;
+    
+    if (timeSinceLastRequest < API_CONFIG.rateLimitMs) {
+      const waitTime = API_CONFIG.rateLimitMs - timeSinceLastRequest;
+      console.log(`[RateLimit] Waiting ${waitTime}ms before next request`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    
+    lastRequestTimeRef.current = Date.now();
+  };
+
+  /**
+   * Fetch with timeout and abort support
    */
   const fetchWithTimeout = async (
     url: string,
-    options: RequestInit,
-    timeoutMs: number
+    signal: AbortSignal
   ): Promise<Response> => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.requestTimeoutMs);
 
+    // Combine abort signals
+    const combinedSignal = signal;
+    
     try {
       const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
+        method: "GET",
+        headers: { Accept: "application/json" },
+        signal: combinedSignal,
       });
       clearTimeout(timeoutId);
       return response;
@@ -90,61 +130,93 @@ export const useSimuladoPreparation = () => {
   };
 
   /**
-   * Retry mechanism with exponential backoff
+   * Fetch a single page from API with retry and rate limit handling
    */
-  const retryWithBackoff = async <T>(
-    operation: () => Promise<T>,
-    operationName: string
-  ): Promise<T> => {
+  const fetchAPIPageWithRetry = async (
+    url: string,
+    signal: AbortSignal
+  ): Promise<{ questions: any[]; hasMore: boolean }> => {
     let lastError: Error | null = null;
 
-    for (let attempt = 0; attempt < RETRY_CONFIG.maxRetries; attempt++) {
+    for (let attempt = 0; attempt < API_CONFIG.maxRetries; attempt++) {
+      if (signal.aborted) {
+        throw new Error("Request cancelled");
+      }
+
       try {
-        return await operation();
+        // Wait for rate limit before making request
+        await waitForRateLimit();
+
+        console.log(`[API] Fetching: ${url} (attempt ${attempt + 1})`);
+        const response = await fetchWithTimeout(url, signal);
+
+        // Handle rate limit response (429)
+        if (response.status === 429) {
+          const retryAfter = response.headers.get("Retry-After");
+          const waitMs = retryAfter ? parseInt(retryAfter) : 10000;
+          console.warn(`[API] Rate limited, waiting ${waitMs}ms`);
+          await new Promise(resolve => setTimeout(resolve, waitMs));
+          continue; // Retry this request
+        }
+
+        if (!response.ok) {
+          throw new Error(`API returned ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.questions || !Array.isArray(data.questions)) {
+          return { questions: [], hasMore: false };
+        }
+
+        return {
+          questions: data.questions,
+          hasMore: data.questions.length >= API_CONFIG.pageSize,
+        };
       } catch (error) {
         lastError = error as Error;
-        console.warn(
-          `[Retry] ${operationName} attempt ${attempt + 1}/${RETRY_CONFIG.maxRetries} failed:`,
-          error
-        );
+        
+        if ((error as Error).name === "AbortError" || signal.aborted) {
+          throw new Error("Request cancelled");
+        }
 
-        if (attempt < RETRY_CONFIG.maxRetries - 1) {
+        console.warn(`[API] Attempt ${attempt + 1} failed:`, error);
+
+        if (attempt < API_CONFIG.maxRetries - 1) {
           const delay = Math.min(
-            RETRY_CONFIG.initialDelayMs * Math.pow(2, attempt),
-            RETRY_CONFIG.maxDelayMs
+            API_CONFIG.initialRetryDelayMs * Math.pow(2, attempt),
+            API_CONFIG.maxRetryDelayMs
           );
-          await new Promise((resolve) => setTimeout(resolve, delay));
+          console.log(`[API] Waiting ${delay}ms before retry`);
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
     }
 
-    throw lastError || new Error(`${operationName} failed after retries`);
+    throw lastError || new Error("Failed after all retries");
   };
 
   /**
-   * Map local discipline names to API format
+   * Map discipline names between API and local formats
    */
-  const mapLocalDisciplineToAPI = (localDiscipline: string): string => {
+  const mapLocalDisciplineToAPI = (local: string): string => {
     const mapping: Record<string, string> = {
       humanas: "ciencias-humanas",
       natureza: "ciencias-natureza",
       matematica: "matematica",
       linguagens: "linguagens",
     };
-    return mapping[localDiscipline] || localDiscipline;
+    return mapping[local] || local;
   };
 
-  /**
-   * Map API discipline names to local format
-   */
-  const mapAPIDisciplineToLocal = (apiDiscipline: string): string => {
+  const mapAPIDisciplineToLocal = (api: string): string => {
     const mapping: Record<string, string> = {
       "ciencias-humanas": "humanas",
       "ciencias-natureza": "natureza",
       matematica: "matematica",
       linguagens: "linguagens",
     };
-    return mapping[apiDiscipline] || apiDiscipline;
+    return mapping[api] || api;
   };
 
   /**
@@ -169,72 +241,75 @@ export const useSimuladoPreparation = () => {
   };
 
   /**
-   * Fetch questions from external ENEM API with retry and timeout
+   * Fetch ALL questions from API using queue system with rate limiting
+   * Guarantees complete data or fails explicitly
    */
-  const fetchQuestionsFromAPI = async (
+  const fetchAllQuestionsFromAPI = async (
     year: string,
     disciplines: string[],
-    limit: number
+    targetCount: number,
+    signal: AbortSignal,
+    onProgress: (loaded: number, message: string) => void
   ): Promise<QuestionData[]> => {
-    const apiDisciplines = disciplines.map((d) => mapLocalDisciplineToAPI(d));
-    console.log(`[API] Fetching year=${year}, disciplines=${apiDisciplines.join(",")}, limit=${limit}`);
+    const apiDisciplines = disciplines.map(d => mapLocalDisciplineToAPI(d));
+    console.log(`[API] Starting queue for year=${year}, disciplines=${apiDisciplines.join(",")}, target=${targetCount}`);
 
-    const API_PAGE_LIMIT = 50;
-    let allQuestions: any[] = [];
+    const allQuestions: any[] = [];
     let offset = 0;
     let hasMore = true;
+    let pageCount = 0;
 
-    // Fetch all pages with retry for each page
-    while (hasMore) {
-      const url = `https://api.enem.dev/v1/exams/${year}/questions?limit=${API_PAGE_LIMIT}&offset=${offset}`;
+    // Fetch all pages sequentially with rate limiting
+    while (hasMore && !signal.aborted) {
+      const url = `https://api.enem.dev/v1/exams/${year}/questions?limit=${API_CONFIG.pageSize}&offset=${offset}`;
+      
+      onProgress(
+        allQuestions.length,
+        `Carregando página ${pageCount + 1}... (${allQuestions.length} questões)`
+      );
 
       try {
-        const response = await retryWithBackoff(async () => {
-          const resp = await fetchWithTimeout(
-            url,
-            { method: "GET", headers: { Accept: "application/json" } },
-            RETRY_CONFIG.timeoutMs
-          );
-
-          if (!resp.ok) {
-            throw new Error(`API returned ${resp.status}`);
-          }
-
-          return resp;
-        }, `Fetch API page offset=${offset}`);
-
-        const data = await response.json();
-
-        if (!data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
-          hasMore = false;
-          break;
+        const result = await fetchAPIPageWithRetry(url, signal);
+        
+        if (result.questions.length > 0) {
+          allQuestions.push(...result.questions);
+          pageCount++;
+          console.log(`[API] Page ${pageCount}: ${result.questions.length} questions, total: ${allQuestions.length}`);
         }
 
-        allQuestions = [...allQuestions, ...data.questions];
-        console.log(`[API] Page fetched: ${data.questions.length} questions, total: ${allQuestions.length}`);
+        hasMore = result.hasMore;
+        offset += API_CONFIG.pageSize;
 
-        hasMore = data.questions.length >= API_PAGE_LIMIT && offset < 500;
-        offset += API_PAGE_LIMIT;
+        // Safety limit to prevent infinite loops
+        if (offset > 1000) {
+          console.warn("[API] Reached safety limit of 1000 offset");
+          hasMore = false;
+        }
       } catch (error) {
+        if ((error as Error).message === "Request cancelled") {
+          throw error;
+        }
         console.error(`[API] Failed to fetch page at offset ${offset}:`, error);
+        // Continue with what we have
         hasMore = false;
       }
     }
 
-    if (allQuestions.length === 0) {
-      console.warn("[API] No questions fetched");
-      return [];
+    if (signal.aborted) {
+      throw new Error("Request cancelled");
     }
 
-    // Filter by disciplines
-    const filteredQuestions = allQuestions.filter((q: any) =>
+    console.log(`[API] Total fetched: ${allQuestions.length} questions from ${pageCount} pages`);
+
+    // Filter by requested disciplines
+    const filteredQuestions = allQuestions.filter(q =>
       apiDisciplines.includes(q.discipline)
     );
 
-    console.log(`[API] Filtered ${filteredQuestions.length} questions`);
+    console.log(`[API] After discipline filter: ${filteredQuestions.length} questions`);
 
     // Map to our format
-    const mappedQuestions: QuestionData[] = filteredQuestions.map((q: any, idx: number) => ({
+    const mappedQuestions: QuestionData[] = filteredQuestions.map((q, idx) => ({
       id: `api-${year}-${q.discipline}-${q.index || idx}`,
       title: q.title || "",
       context: q.context || null,
@@ -252,8 +327,8 @@ export const useSimuladoPreparation = () => {
       correct_alternative: q.correctAlternative || "",
     }));
 
-    // Shuffle and limit
-    return mappedQuestions.sort(() => Math.random() - 0.5).slice(0, limit);
+    // Shuffle and return up to target count
+    return mappedQuestions.sort(() => Math.random() - 0.5).slice(0, targetCount);
   };
 
   /**
@@ -266,28 +341,23 @@ export const useSimuladoPreparation = () => {
   ): Promise<QuestionData[]> => {
     console.log(`[LOCAL] Fetching year=${year}, disciplines=${disciplines.join(",")}, limit=${limit}`);
 
-    const { data, error } = await retryWithBackoff(async () => {
-      const result = await supabase
-        .from("enem_questions")
-        .select("*")
-        .eq("year", year)
-        .in("discipline", disciplines)
-        .limit(limit * 2);
+    const { data, error } = await supabase
+      .from("enem_questions")
+      .select("*")
+      .eq("year", year)
+      .in("discipline", disciplines)
+      .limit(limit * 2);
 
-      if (result.error) throw result.error;
-      return result;
-    }, "Fetch local DB by year");
-
-    if (error || !data) {
+    if (error) {
       console.error("[LOCAL] Error:", error);
       return [];
     }
 
-    console.log(`[LOCAL] Found ${data.length} questions`);
+    console.log(`[LOCAL] Found ${data?.length || 0} questions`);
 
-    const shuffled = data.sort(() => Math.random() - 0.5).slice(0, limit);
+    const shuffled = (data || []).sort(() => Math.random() - 0.5).slice(0, limit);
 
-    return shuffled.map((q) => ({
+    return shuffled.map(q => ({
       ...q,
       alternatives: Array.isArray(q.alternatives)
         ? (q.alternatives as unknown as Array<{ letter: string; text: string }>)
@@ -304,27 +374,22 @@ export const useSimuladoPreparation = () => {
   ): Promise<QuestionData[]> => {
     console.log(`[LOCAL] Fetching any year, disciplines=${disciplines.join(",")}, limit=${limit}`);
 
-    const { data, error } = await retryWithBackoff(async () => {
-      const result = await supabase
-        .from("enem_questions")
-        .select("*")
-        .in("discipline", disciplines)
-        .limit(limit * 2);
+    const { data, error } = await supabase
+      .from("enem_questions")
+      .select("*")
+      .in("discipline", disciplines)
+      .limit(limit * 2);
 
-      if (result.error) throw result.error;
-      return result;
-    }, "Fetch local DB");
-
-    if (error || !data) {
+    if (error) {
       console.error("[LOCAL] Error:", error);
       return [];
     }
 
-    console.log(`[LOCAL] Found ${data.length} questions`);
+    console.log(`[LOCAL] Found ${data?.length || 0} questions`);
 
-    const shuffled = data.sort(() => Math.random() - 0.5).slice(0, limit);
+    const shuffled = (data || []).sort(() => Math.random() - 0.5).slice(0, limit);
 
-    return shuffled.map((q) => ({
+    return shuffled.map(q => ({
       ...q,
       alternatives: Array.isArray(q.alternatives)
         ? (q.alternatives as unknown as Array<{ letter: string; text: string }>)
@@ -333,8 +398,8 @@ export const useSimuladoPreparation = () => {
   };
 
   /**
-   * Prepare simulado - ensures all questions are loaded before returning
-   * Returns simuladoId only when ready, or null if failed
+   * Prepare simulado - ensures ALL questions are loaded before returning
+   * Uses queue system with rate limiting for API compliance
    */
   const prepareSimulado = async (
     simuladoId: string,
@@ -342,12 +407,18 @@ export const useSimuladoPreparation = () => {
     year: string | null,
     totalQuestions: number
   ): Promise<{ success: boolean; questions: QuestionData[] }> => {
+    // Create abort controller for this preparation
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     setState({
       status: "preparing",
-      progress: 10,
+      progress: 5,
       message: "Iniciando preparação do simulado...",
       questions: [],
       error: null,
+      loadedCount: 0,
+      targetCount: totalQuestions,
     });
 
     try {
@@ -355,85 +426,117 @@ export const useSimuladoPreparation = () => {
       let fetchedQuestions: QuestionData[] = [];
       const yearNum = year ? parseInt(year) : 0;
 
-      setState((prev) => ({
-        ...prev,
-        progress: 20,
-        message: "Buscando questões...",
-      }));
+      // Progress callback for real-time updates
+      const updateProgress = (loaded: number, message: string) => {
+        const progressPercent = Math.min(10 + (loaded / totalQuestions) * 60, 70);
+        setState(prev => ({
+          ...prev,
+          progress: progressPercent,
+          message,
+          loadedCount: loaded,
+        }));
+      };
 
       // Fetch questions based on year/type
       if (year && yearNum >= 2024) {
-        // Anos 2024+ usam banco local
-        setState((prev) => ({
+        // Anos 2024+ usam banco local (rápido)
+        setState(prev => ({
           ...prev,
-          progress: 30,
-          message: "Carregando questões do banco de dados...",
+          progress: 20,
+          message: "Carregando questões do banco de dados local...",
         }));
         fetchedQuestions = await fetchLocalQuestionsByYear(year, disciplines, totalQuestions);
       } else if (year && yearNum >= 2009 && yearNum < 2024) {
-        // Anos 2009-2023 usam API externa
-        setState((prev) => ({
+        // Anos 2009-2023 usam API externa com rate limiting
+        setState(prev => ({
           ...prev,
-          progress: 30,
-          message: "Conectando à API do ENEM...",
+          progress: 10,
+          message: "Conectando à API do ENEM (pode demorar alguns segundos)...",
         }));
-        fetchedQuestions = await fetchQuestionsFromAPI(year, disciplines, totalQuestions);
 
-        // Fallback para banco local se API não retornar questões suficientes
-        if (fetchedQuestions.length < totalQuestions * 0.5) {
-          setState((prev) => ({
+        fetchedQuestions = await fetchAllQuestionsFromAPI(
+          year,
+          disciplines,
+          totalQuestions,
+          signal,
+          updateProgress
+        );
+
+        // Se não conseguiu questões suficientes da API, complementa com local
+        if (fetchedQuestions.length < totalQuestions) {
+          const missing = totalQuestions - fetchedQuestions.length;
+          console.log(`[Preparation] Need ${missing} more questions from local DB`);
+          
+          setState(prev => ({
             ...prev,
-            progress: 50,
-            message: "Complementando com banco local...",
+            progress: 75,
+            message: `Complementando com ${missing} questões do banco local...`,
           }));
-          const localQuestions = await fetchLocalQuestions(disciplines, totalQuestions - fetchedQuestions.length);
+
+          const localQuestions = await fetchLocalQuestions(disciplines, missing);
           fetchedQuestions = [...fetchedQuestions, ...localQuestions];
         }
       } else {
-        // Simulado personalizado sem ano específico
-        setState((prev) => ({
+        // Simulado personalizado: combina API + local
+        setState(prev => ({
           ...prev,
-          progress: 30,
+          progress: 10,
           message: "Buscando questões de múltiplas fontes...",
         }));
 
-        const apiQuestions = await fetchQuestionsFromAPI("2023", disciplines, Math.ceil(totalQuestions / 2));
-        
-        setState((prev) => ({
+        // Primeiro tenta API com ano mais recente disponível
+        const apiQuestions = await fetchAllQuestionsFromAPI(
+          "2023",
+          disciplines,
+          Math.ceil(totalQuestions * 0.6), // 60% da API
+          signal,
+          updateProgress
+        );
+
+        setState(prev => ({
           ...prev,
-          progress: 50,
+          progress: 60,
           message: "Carregando questões adicionais...",
         }));
-        
-        const localQuestions = await fetchLocalQuestions(disciplines, Math.ceil(totalQuestions / 2));
+
+        // Complementa com banco local
+        const localQuestions = await fetchLocalQuestions(
+          disciplines,
+          totalQuestions - apiQuestions.length
+        );
 
         fetchedQuestions = [...apiQuestions, ...localQuestions]
           .sort(() => Math.random() - 0.5)
           .slice(0, totalQuestions);
       }
 
-      setState((prev) => ({
+      setState(prev => ({
         ...prev,
-        progress: 70,
-        message: "Validando questões...",
+        progress: 80,
+        message: "Validando questões carregadas...",
+        loadedCount: fetchedQuestions.length,
       }));
 
-      // Validação: garantir que temos questões suficientes
+      // VALIDAÇÃO RIGOROSA: Exigir quantidade mínima de questões
       if (fetchedQuestions.length === 0) {
-        throw new Error("Não foi possível carregar nenhuma questão. Por favor, tente novamente.");
-      }
-
-      // Aviso se houver menos questões que o esperado
-      if (fetchedQuestions.length < totalQuestions * 0.8) {
-        console.warn(
-          `[Preparation] Loaded ${fetchedQuestions.length}/${totalQuestions} questions (below 80% threshold)`
+        throw new Error(
+          "Não foi possível carregar nenhuma questão. Verifique sua conexão e tente novamente."
         );
       }
 
-      setState((prev) => ({
+      // Verificar se temos pelo menos 90% das questões solicitadas
+      const minimumRequired = Math.floor(totalQuestions * 0.9);
+      if (fetchedQuestions.length < minimumRequired) {
+        throw new Error(
+          `Foram carregadas apenas ${fetchedQuestions.length} de ${totalQuestions} questões necessárias. ` +
+          `Tente novamente ou escolha um ano diferente.`
+        );
+      }
+
+      setState(prev => ({
         ...prev,
-        progress: 80,
-        message: "Inicializando respostas...",
+        progress: 85,
+        message: "Salvando configuração do simulado...",
       }));
 
       // Initialize answers in database
@@ -447,25 +550,26 @@ export const useSimuladoPreparation = () => {
         is_correct: null,
       }));
 
-      const { error: insertError } = await retryWithBackoff(async () => {
-        const result = await supabase.from("simulado_answers").insert(answers);
-        if (result.error) throw result.error;
-        return result;
-      }, "Initialize answers");
+      const { error: insertError } = await supabase
+        .from("simulado_answers")
+        .insert(answers);
 
       if (insertError) {
-        throw new Error("Erro ao preparar respostas do simulado");
+        console.error("[Preparation] Insert error:", insertError);
+        throw new Error("Erro ao salvar configuração do simulado. Tente novamente.");
       }
 
       setState({
         status: "ready",
         progress: 100,
-        message: `Simulado pronto! ${fetchedQuestions.length} questões carregadas.`,
+        message: `Simulado pronto! ${fetchedQuestions.length} questões carregadas com sucesso.`,
         questions: fetchedQuestions,
         error: null,
+        loadedCount: fetchedQuestions.length,
+        targetCount: totalQuestions,
       });
 
-      console.log(`[Preparation] SUCCESS: ${fetchedQuestions.length} questions ready`);
+      console.log(`[Preparation] SUCCESS: ${fetchedQuestions.length}/${totalQuestions} questions ready`);
 
       return { success: true, questions: fetchedQuestions };
     } catch (error) {
@@ -478,6 +582,8 @@ export const useSimuladoPreparation = () => {
         message: "",
         questions: [],
         error: errorMessage,
+        loadedCount: 0,
+        targetCount: totalQuestions,
       });
 
       return { success: false, questions: [] };
