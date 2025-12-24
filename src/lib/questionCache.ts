@@ -38,9 +38,22 @@ interface CacheMetadata {
 }
 
 /**
+ * All available ENEM years (2009-2024)
+ */
+export const ENEM_YEARS = [
+  "2024", "2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016",
+  "2015", "2014", "2013", "2012", "2011", "2010", "2009"
+];
+
+/**
+ * All available ENEM years from API (2009-2023)
+ */
+export const API_YEARS = ENEM_YEARS.filter(y => parseInt(y) < 2024);
+
+/**
  * Initialize IndexedDB database
  */
-const initDB = (): Promise<IDBDatabase> => {
+export const initDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -144,14 +157,22 @@ export const getCachedQuestionsMultiYear = async (
 
 /**
  * Store questions in cache
+ * @param questions - Questions to cache
+ * @param year - Optional year to associate (for metadata update)
+ * @param isComplete - Whether this represents all questions for the year
  */
-export const cacheQuestions = async (questions: CachedQuestion[]): Promise<void> => {
+export const cacheQuestions = async (
+  questions: CachedQuestion[],
+  year?: string,
+  isComplete?: boolean
+): Promise<void> => {
   if (questions.length === 0) return;
 
   try {
     const db = await initDB();
-    const transaction = db.transaction([STORE_NAME], "readwrite");
+    const transaction = db.transaction([STORE_NAME, METADATA_STORE], "readwrite");
     const store = transaction.objectStore(STORE_NAME);
+    const metaStore = transaction.objectStore(METADATA_STORE);
 
     // Add timestamp to each question
     const now = Date.now();
@@ -163,6 +184,16 @@ export const cacheQuestions = async (questions: CachedQuestion[]): Promise<void>
     // Store each question
     for (const question of questionsWithTimestamp) {
       store.put(question);
+    }
+
+    // Update metadata if year is provided
+    if (year && isComplete) {
+      metaStore.put({
+        year,
+        questionCount: questions.length,
+        lastUpdated: now,
+        complete: true,
+      });
     }
 
     return new Promise((resolve, reject) => {
@@ -253,6 +284,7 @@ export const isYearCached = async (year: string): Promise<{ cached: boolean; cou
 export const getCacheStats = async (): Promise<{
   totalQuestions: number;
   yearsCached: string[];
+  cachedYears: string[]; // Alias for compatibility
 }> => {
   try {
     const db = await initDB();
@@ -282,15 +314,19 @@ export const getCacheStats = async (): Promise<{
 
       transaction.oncomplete = () => {
         console.log(`[QuestionCache] Stats: ${totalQuestions} questions, years: ${yearsCached.join(",")}`);
-        resolve({ totalQuestions, yearsCached });
+        resolve({ 
+          totalQuestions, 
+          yearsCached,
+          cachedYears: yearsCached // Alias
+        });
       };
 
       transaction.onerror = () => {
-        resolve({ totalQuestions: 0, yearsCached: [] });
+        resolve({ totalQuestions: 0, yearsCached: [], cachedYears: [] });
       };
     });
   } catch (error) {
-    return { totalQuestions: 0, yearsCached: [] };
+    return { totalQuestions: 0, yearsCached: [], cachedYears: [] };
   }
 };
 
@@ -320,10 +356,3 @@ export const clearCache = async (): Promise<void> => {
   }
 };
 
-/**
- * All available ENEM years (2009-2024)
- */
-export const ENEM_YEARS = [
-  "2024", "2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016",
-  "2015", "2014", "2013", "2012", "2011", "2010", "2009"
-];

@@ -6,7 +6,6 @@ import {
   getCachedQuestions,
   getCachedQuestionsMultiYear,
   cacheQuestions,
-  updateCacheMetadata,
   isYearCached,
   ENEM_YEARS,
 } from "@/lib/questionCache";
@@ -166,6 +165,12 @@ export const useSimuladoPreparation = () => {
           console.warn(`[API] Rate limited, waiting ${waitMs}ms`);
           await new Promise(resolve => setTimeout(resolve, waitMs));
           continue; // Retry this request
+        }
+
+        // Handle 404 - year not available
+        if (response.status === 404) {
+          console.warn(`[API] Year ${url} not available (404)`);
+          return { questions: [], hasMore: false };
         }
 
         if (!response.ok) {
@@ -337,8 +342,7 @@ export const useSimuladoPreparation = () => {
 
     // Cache the questions for future use
     if (mappedQuestions.length > 0) {
-      await cacheQuestions(mappedQuestions as unknown as CachedQuestion[]);
-      await updateCacheMetadata(year, mappedQuestions.length, true);
+      await cacheQuestions(mappedQuestions as unknown as CachedQuestion[], year, true);
     }
 
     return mappedQuestions;
