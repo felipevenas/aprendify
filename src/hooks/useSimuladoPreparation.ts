@@ -1,6 +1,15 @@
 import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SimuladoType } from "@/hooks/useSimulados";
+import {
+  CachedQuestion,
+  getCachedQuestions,
+  getCachedQuestionsMultiYear,
+  cacheQuestions,
+  updateCacheMetadata,
+  isYearCached,
+  ENEM_YEARS,
+} from "@/lib/questionCache";
 
 /**
  * Types for question data structure
@@ -47,6 +56,7 @@ interface PreparationState {
 /**
  * Hook to prepare simulado with all questions loaded
  * Implements queue system with rate limiting for API compliance
+ * Uses cache to avoid repeated API requests
  */
 export const useSimuladoPreparation = () => {
   const [state, setState] = useState<PreparationState>({
@@ -112,7 +122,6 @@ export const useSimuladoPreparation = () => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.requestTimeoutMs);
 
-    // Combine abort signals
     const combinedSignal = signal;
     
     try {
@@ -241,18 +250,17 @@ export const useSimuladoPreparation = () => {
   };
 
   /**
-   * Fetch ALL questions from API using queue system with rate limiting
-   * Guarantees complete data or fails explicitly
+   * Fetch ALL questions from API for a specific year
+   * Uses queue system with rate limiting
    */
-  const fetchAllQuestionsFromAPI = async (
+  const fetchAllQuestionsFromAPIByYear = async (
     year: string,
     disciplines: string[],
-    targetCount: number,
     signal: AbortSignal,
     onProgress: (loaded: number, message: string) => void
   ): Promise<QuestionData[]> => {
     const apiDisciplines = disciplines.map(d => mapLocalDisciplineToAPI(d));
-    console.log(`[API] Starting queue for year=${year}, disciplines=${apiDisciplines.join(",")}, target=${targetCount}`);
+    console.log(`[API] Fetching year=${year}, disciplines=${apiDisciplines.join(",")}`);
 
     const allQuestions: any[] = [];
     let offset = 0;
@@ -265,7 +273,7 @@ export const useSimuladoPreparation = () => {
       
       onProgress(
         allQuestions.length,
-        `Carregando página ${pageCount + 1}... (${allQuestions.length} questões)`
+        `Carregando ${year}: página ${pageCount + 1}... (${allQuestions.length} questões)`
       );
 
       try {
@@ -274,15 +282,15 @@ export const useSimuladoPreparation = () => {
         if (result.questions.length > 0) {
           allQuestions.push(...result.questions);
           pageCount++;
-          console.log(`[API] Page ${pageCount}: ${result.questions.length} questions, total: ${allQuestions.length}`);
+          console.log(`[API] Year ${year} page ${pageCount}: ${result.questions.length} questions, total: ${allQuestions.length}`);
         }
 
         hasMore = result.hasMore;
         offset += API_CONFIG.pageSize;
 
         // Safety limit to prevent infinite loops
-        if (offset > 1000) {
-          console.warn("[API] Reached safety limit of 1000 offset");
+        if (offset > 500) {
+          console.warn("[API] Reached safety limit of 500 offset");
           hasMore = false;
         }
       } catch (error) {
@@ -299,14 +307,14 @@ export const useSimuladoPreparation = () => {
       throw new Error("Request cancelled");
     }
 
-    console.log(`[API] Total fetched: ${allQuestions.length} questions from ${pageCount} pages`);
+    console.log(`[API] Year ${year}: Total fetched ${allQuestions.length} questions from ${pageCount} pages`);
 
     // Filter by requested disciplines
     const filteredQuestions = allQuestions.filter(q =>
       apiDisciplines.includes(q.discipline)
     );
 
-    console.log(`[API] After discipline filter: ${filteredQuestions.length} questions`);
+    console.log(`[API] Year ${year}: After discipline filter: ${filteredQuestions.length} questions`);
 
     // Map to our format
     const mappedQuestions: QuestionData[] = filteredQuestions.map((q, idx) => ({
@@ -327,8 +335,97 @@ export const useSimuladoPreparation = () => {
       correct_alternative: q.correctAlternative || "",
     }));
 
-    // Shuffle and return up to target count
-    return mappedQuestions.sort(() => Math.random() - 0.5).slice(0, targetCount);
+    // Cache the questions for future use
+    if (mappedQuestions.length > 0) {
+      await cacheQuestions(mappedQuestions as unknown as CachedQuestion[]);
+      await updateCacheMetadata(year, mappedQuestions.length, true);
+    }
+
+    return mappedQuestions;
+  };
+
+  /**
+   * Fetch questions from multiple years until we have enough
+   * Uses cache first, then API for missing years
+   */
+  const fetchQuestionsFromMultipleYears = async (
+    years: string[],
+    disciplines: string[],
+    targetCount: number,
+    signal: AbortSignal,
+    onProgress: (loaded: number, message: string) => void
+  ): Promise<QuestionData[]> => {
+    const allQuestions: QuestionData[] = [];
+    const usedIds = new Set<string>();
+
+    // First, try to get questions from cache
+    onProgress(0, "Verificando cache local...");
+    const cachedQuestions = await getCachedQuestionsMultiYear(years, disciplines);
+    
+    if (cachedQuestions.length > 0) {
+      console.log(`[Cache] Found ${cachedQuestions.length} cached questions`);
+      for (const q of cachedQuestions) {
+        if (!usedIds.has(q.id)) {
+          allQuestions.push(q as unknown as QuestionData);
+          usedIds.add(q.id);
+        }
+      }
+      onProgress(allQuestions.length, `Cache: ${allQuestions.length} questões encontradas`);
+    }
+
+    // If we have enough from cache, return
+    if (allQuestions.length >= targetCount) {
+      console.log(`[Cache] Sufficient questions from cache: ${allQuestions.length}/${targetCount}`);
+      return allQuestions.sort(() => Math.random() - 0.5).slice(0, targetCount);
+    }
+
+    // Fetch from API for each year until we have enough
+    for (const year of years) {
+      if (signal.aborted) {
+        throw new Error("Request cancelled");
+      }
+
+      if (allQuestions.length >= targetCount) {
+        break;
+      }
+
+      // Check if this year is cached
+      const cacheStatus = await isYearCached(year);
+      if (cacheStatus.cached) {
+        console.log(`[Cache] Year ${year} already cached with ${cacheStatus.count} questions`);
+        continue;
+      }
+
+      const remaining = targetCount - allQuestions.length;
+      onProgress(
+        allQuestions.length,
+        `Buscando questões de ${year}... (${allQuestions.length}/${targetCount})`
+      );
+
+      try {
+        const yearQuestions = await fetchAllQuestionsFromAPIByYear(
+          year,
+          disciplines,
+          signal,
+          (loaded, msg) => onProgress(allQuestions.length + loaded, msg)
+        );
+
+        // Add unique questions
+        for (const q of yearQuestions) {
+          if (!usedIds.has(q.id) && allQuestions.length < targetCount) {
+            allQuestions.push(q);
+            usedIds.add(q.id);
+          }
+        }
+
+        console.log(`[API] After year ${year}: total ${allQuestions.length}/${targetCount}`);
+      } catch (error) {
+        console.error(`[API] Failed to fetch year ${year}:`, error);
+        // Continue with next year
+      }
+    }
+
+    return allQuestions;
   };
 
   /**
@@ -399,7 +496,8 @@ export const useSimuladoPreparation = () => {
 
   /**
    * Prepare simulado - ensures ALL questions are loaded before returning
-   * Uses queue system with rate limiting for API compliance
+   * Uses cache to avoid repeated API requests
+   * Fetches from multiple years (2009-2024) when needed
    */
   const prepareSimulado = async (
     simuladoId: string,
@@ -424,7 +522,6 @@ export const useSimuladoPreparation = () => {
     try {
       const disciplines = getDisciplinesForType(type);
       let fetchedQuestions: QuestionData[] = [];
-      const yearNum = year ? parseInt(year) : 0;
 
       // Progress callback for real-time updates
       const updateProgress = (loaded: number, message: string) => {
@@ -437,32 +534,75 @@ export const useSimuladoPreparation = () => {
         }));
       };
 
-      // Fetch questions based on year/type
-      if (year && yearNum >= 2024) {
-        // Anos 2024+ usam banco local (rápido)
-        setState(prev => ({
-          ...prev,
-          progress: 20,
-          message: "Carregando questões do banco de dados local...",
-        }));
-        fetchedQuestions = await fetchLocalQuestionsByYear(year, disciplines, totalQuestions);
-      } else if (year && yearNum >= 2009 && yearNum < 2024) {
-        // Anos 2009-2023 usam API externa com rate limiting
+      if (year) {
+        // Specific year selected - try cache first, then API, then fallback to all years
+        const yearNum = parseInt(year);
+        
         setState(prev => ({
           ...prev,
           progress: 10,
-          message: "Conectando à API do ENEM (pode demorar alguns segundos)...",
+          message: `Verificando cache para ENEM ${year}...`,
         }));
 
-        fetchedQuestions = await fetchAllQuestionsFromAPI(
-          year,
+        // Check cache first
+        const cachedQuestions = await getCachedQuestions(year, disciplines);
+        if (cachedQuestions.length >= totalQuestions) {
+          console.log(`[Cache] Using ${cachedQuestions.length} cached questions for year ${year}`);
+          fetchedQuestions = cachedQuestions.sort(() => Math.random() - 0.5).slice(0, totalQuestions) as unknown as QuestionData[];
+        } else {
+          // Try local database first
+          const localQuestions = await fetchLocalQuestionsByYear(year, disciplines, totalQuestions);
+          if (localQuestions.length >= totalQuestions) {
+            fetchedQuestions = localQuestions;
+          } else if (yearNum >= 2009 && yearNum <= 2024) {
+            // Fetch from API for this specific year
+            setState(prev => ({
+              ...prev,
+              progress: 15,
+              message: `Carregando questões do ENEM ${year}...`,
+            }));
+
+            const apiQuestions = await fetchAllQuestionsFromAPIByYear(
+              year,
+              disciplines,
+              signal,
+              updateProgress
+            );
+
+            // Combine with local questions if needed
+            fetchedQuestions = [...apiQuestions, ...localQuestions];
+            
+            // If still not enough, fetch from other years
+            if (fetchedQuestions.length < totalQuestions) {
+              const otherYears = ENEM_YEARS.filter(y => y !== year);
+              const moreQuestions = await fetchQuestionsFromMultipleYears(
+                otherYears,
+                disciplines,
+                totalQuestions - fetchedQuestions.length,
+                signal,
+                updateProgress
+              );
+              fetchedQuestions = [...fetchedQuestions, ...moreQuestions];
+            }
+          }
+        }
+      } else {
+        // Custom simulado: fetch from ALL years (2009-2024)
+        setState(prev => ({
+          ...prev,
+          progress: 10,
+          message: "Buscando questões de 2009 a 2024...",
+        }));
+
+        fetchedQuestions = await fetchQuestionsFromMultipleYears(
+          ENEM_YEARS,
           disciplines,
           totalQuestions,
           signal,
           updateProgress
         );
 
-        // Se não conseguiu questões suficientes da API, complementa com local
+        // If not enough from API, complement with local database
         if (fetchedQuestions.length < totalQuestions) {
           const missing = totalQuestions - fetchedQuestions.length;
           console.log(`[Preparation] Need ${missing} more questions from local DB`);
@@ -476,39 +616,10 @@ export const useSimuladoPreparation = () => {
           const localQuestions = await fetchLocalQuestions(disciplines, missing);
           fetchedQuestions = [...fetchedQuestions, ...localQuestions];
         }
-      } else {
-        // Simulado personalizado: combina API + local
-        setState(prev => ({
-          ...prev,
-          progress: 10,
-          message: "Buscando questões de múltiplas fontes...",
-        }));
-
-        // Primeiro tenta API com ano mais recente disponível
-        const apiQuestions = await fetchAllQuestionsFromAPI(
-          "2023",
-          disciplines,
-          Math.ceil(totalQuestions * 0.6), // 60% da API
-          signal,
-          updateProgress
-        );
-
-        setState(prev => ({
-          ...prev,
-          progress: 60,
-          message: "Carregando questões adicionais...",
-        }));
-
-        // Complementa com banco local
-        const localQuestions = await fetchLocalQuestions(
-          disciplines,
-          totalQuestions - apiQuestions.length
-        );
-
-        fetchedQuestions = [...apiQuestions, ...localQuestions]
-          .sort(() => Math.random() - 0.5)
-          .slice(0, totalQuestions);
       }
+
+      // Shuffle and limit to target count
+      fetchedQuestions = fetchedQuestions.sort(() => Math.random() - 0.5).slice(0, totalQuestions);
 
       setState(prev => ({
         ...prev,
