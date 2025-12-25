@@ -12,7 +12,7 @@ import AddQuestionNoteDialog from "@/components/questions/AddQuestionNoteDialog"
 import Navbar from "@/components/Navbar";
 import { usePremium } from "@/hooks/usePremium";
 import { useQuestionBank } from "@/hooks/useQuestionBank";
-import { useStreak } from "@/hooks/useStreak";
+import { useStreakContext } from "@/contexts/StreakContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 /**
@@ -27,7 +27,8 @@ const Questions = () => {
   const navigate = useNavigate();
   const { isPremium, isLoading: premiumLoading, dailyQuestionCount } = usePremium();
   const { currentQuestion, loading: loadingQuestion, fetchQuestion, clearCache } = useQuestionBank();
-  const { recordQuestionAnswered } = useStreak();
+  // Usa o contexto global de streak para atualização em tempo real
+  const { recordQuestionAnswered } = useStreakContext();
   
   // Limite de questões para usuários free
   const FREE_DAILY_LIMIT = 10;

@@ -20,7 +20,7 @@ import { SimuladoTimer } from "@/components/simulados/SimuladoTimer";
 import { SimuladoProgress } from "@/components/simulados/SimuladoProgress";
 import { SimuladoQuestion } from "@/components/simulados/SimuladoQuestion";
 import { useSimulados, Simulado, SimuladoAnswer, SimuladoType } from "@/hooks/useSimulados";
-import { useStreak } from "@/hooks/useStreak";
+import { useStreakContext } from "@/contexts/StreakContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -53,7 +53,8 @@ const SimuladoActive = () => {
     finishSimulado, 
     abandonSimulado 
   } = useSimulados();
-  const { recordQuestionAnswered } = useStreak();
+  // Usa o contexto global de streak para atualização em tempo real
+  const { recordQuestionAnswered } = useStreakContext();
 
   const [simulado, setSimulado] = useState<Simulado | null>(null);
   const [questions, setQuestions] = useState<QuestionData[]>([]);
