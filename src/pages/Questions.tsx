@@ -12,6 +12,7 @@ import AddQuestionNoteDialog from "@/components/questions/AddQuestionNoteDialog"
 import Navbar from "@/components/Navbar";
 import { usePremium } from "@/hooks/usePremium";
 import { useQuestionBank } from "@/hooks/useQuestionBank";
+import { useStreak } from "@/hooks/useStreak";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 /**
@@ -26,6 +27,7 @@ const Questions = () => {
   const navigate = useNavigate();
   const { isPremium, isLoading: premiumLoading, dailyQuestionCount } = usePremium();
   const { currentQuestion, loading: loadingQuestion, fetchQuestion, clearCache } = useQuestionBank();
+  const { recordQuestionAnswered } = useStreak();
   
   // Limite de questões para usuários free
   const FREE_DAILY_LIMIT = 10;
@@ -135,6 +137,9 @@ const Questions = () => {
         toast.error(`Erro ao salvar: ${error.message}`);
         return;
       }
+      
+      // Registra a questão respondida no sistema de streak
+      await recordQuestionAnswered();
       
       toast.success("Resposta registrada!");
 
