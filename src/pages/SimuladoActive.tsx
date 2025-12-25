@@ -20,6 +20,7 @@ import { SimuladoTimer } from "@/components/simulados/SimuladoTimer";
 import { SimuladoProgress } from "@/components/simulados/SimuladoProgress";
 import { SimuladoQuestion } from "@/components/simulados/SimuladoQuestion";
 import { useSimulados, Simulado, SimuladoAnswer, SimuladoType } from "@/hooks/useSimulados";
+import { useStreak } from "@/hooks/useStreak";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -52,6 +53,7 @@ const SimuladoActive = () => {
     finishSimulado, 
     abandonSimulado 
   } = useSimulados();
+  const { recordQuestionAnswered } = useStreak();
 
   const [simulado, setSimulado] = useState<Simulado | null>(null);
   const [questions, setQuestions] = useState<QuestionData[]>([]);
@@ -208,11 +210,15 @@ const SimuladoActive = () => {
 
   /**
    * Handle answer selection
+   * Registra a resposta e atualiza o sistema de streak
    */
   const handleAnswerSelect = async (answer: string) => {
     if (!simulado || !questions[currentIndex]) return;
 
     const question = questions[currentIndex];
+    
+    // Verifica se é uma nova resposta (não uma alteração)
+    const isNewAnswer = !answers[currentIndex];
     
     // Update local state immediately
     setAnswers(prev => ({ ...prev, [currentIndex]: answer }));
@@ -226,6 +232,11 @@ const SimuladoActive = () => {
       answer,
       question.correct_alternative
     );
+
+    // Registra no streak apenas para novas respostas
+    if (isNewAnswer) {
+      await recordQuestionAnswered();
+    }
   };
 
   /**
