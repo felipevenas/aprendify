@@ -16,7 +16,8 @@ import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
 import { usePremium } from "@/hooks/usePremium";
 import { PremiumModal } from "@/components/PremiumModal";
-
+import { useStreak } from "@/hooks/useStreak";
+import { StreakIndicator } from "@/components/streak/StreakIndicator";
 /**
  * Navbar minimalista com perfil do usuário e tema dark/light
  * Exibe nome do usuário, avatar e dropdown com opções de configurações e logout
@@ -28,7 +29,7 @@ const Navbar = () => {
   const [userName, setUserName] = useState<string>("");
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const { isPremium, isLoading } = usePremium();
-
+  const { streakData, loading: streakLoading } = useStreak();
   useEffect(() => {
     // Busca usuário atual
     const fetchUser = async () => {
@@ -98,6 +99,15 @@ const Navbar = () => {
 
           {/* Menu do usuário */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Indicador de Streak */}
+            {!streakLoading && streakData && (
+              <StreakIndicator
+                currentStreak={streakData.currentStreak}
+                questionsToday={streakData.questionsToday}
+                streakCompletedToday={streakData.streakCompletedToday}
+                longestStreak={streakData.longestStreak}
+              />
+            )}
             {/* Badge Premium ou Free baseado no status de assinatura */}
             {!isLoading &&
               (isPremium ? (
