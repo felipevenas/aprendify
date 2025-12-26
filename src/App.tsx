@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { StreakProvider } from "@/contexts/StreakContext";
+import { PremiumProvider } from "@/contexts/PremiumContext";
 import { useBackgroundPreloader } from "@/hooks/useBackgroundPreloader";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -38,35 +39,37 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <TooltipProvider>
-        {/* StreakProvider fornece estado global do streak para toda a aplicação */}
+        {/* StreakProvider e PremiumProvider fornecem estado global para toda a aplicação */}
         <StreakProvider>
-          <BackgroundPreloaderInit />
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/schedule" element={<Schedule />} />
-              <Route path="/tasks" element={<Tasks />} />
-              <Route path="/notes" element={<Notes />} />
-              <Route path="/questions" element={<Questions />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/statistics" element={<Statistics />} />
-              <Route path="/flashcards" element={<Flashcards />} />
-              <Route path="/essays" element={<Essays />} />
-              <Route path="/subscription" element={<Subscription />} />
-              <Route path="/subscription/success" element={<SubscriptionSuccess />} />
-              <Route path="/admin/import" element={<AdminImport />} />
-              <Route path="/admin/users" element={<AdminUsers />} />
-              <Route path="/simulados" element={<Simulados />} />
-              <Route path="/simulados/:id" element={<SimuladoActive />} />
-              <Route path="/simulados/:id/resultado" element={<SimuladoResults />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+          <PremiumProvider>
+            <BackgroundPreloaderInit />
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/schedule" element={<Schedule />} />
+                <Route path="/tasks" element={<Tasks />} />
+                <Route path="/notes" element={<Notes />} />
+                <Route path="/questions" element={<Questions />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/statistics" element={<Statistics />} />
+                <Route path="/flashcards" element={<Flashcards />} />
+                <Route path="/essays" element={<Essays />} />
+                <Route path="/subscription" element={<Subscription />} />
+                <Route path="/subscription/success" element={<SubscriptionSuccess />} />
+                <Route path="/admin/import" element={<AdminImport />} />
+                <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/simulados" element={<Simulados />} />
+                <Route path="/simulados/:id" element={<SimuladoActive />} />
+                <Route path="/simulados/:id/resultado" element={<SimuladoResults />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </PremiumProvider>
         </StreakProvider>
       </TooltipProvider>
     </ThemeProvider>
