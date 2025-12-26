@@ -73,6 +73,8 @@ const Statistics = () => {
   const [loadingAiSuggestion, setLoadingAiSuggestion] = useState(false);
 
   useEffect(() => {
+    let userId: string | null = null;
+
     const checkAuth = async () => {
       const {
         data: { user },
@@ -82,11 +84,54 @@ const Statistics = () => {
         return;
       }
 
+      userId = user.id;
       await fetchStatistics(user.id);
       await fetchEssayStats(user.id);
     };
 
     checkAuth();
+
+    // Configura realtime para atualizar estatísticas automaticamente
+    const attemptsChannel = supabase
+      .channel("statistics_attempts_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "question_attempts",
+        },
+        async () => {
+          // Atualiza estatísticas quando nova tentativa é registrada
+          if (userId) {
+            await fetchStatistics(userId);
+          }
+        }
+      )
+      .subscribe();
+
+    const essaysChannel = supabase
+      .channel("statistics_essays_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "essays",
+        },
+        async () => {
+          // Atualiza estatísticas de redações
+          if (userId) {
+            await fetchEssayStats(userId);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(attemptsChannel);
+      supabase.removeChannel(essaysChannel);
+    };
   }, [navigate]);
 
   // Recarrega estatísticas quando o filtro de período muda

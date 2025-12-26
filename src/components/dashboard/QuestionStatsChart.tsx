@@ -18,65 +18,87 @@ const QuestionStatsChart = () => {
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+  // Função para buscar estatísticas
+  const fetchStats = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-        // Busca os últimos 7 dias de tentativas
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+      // Busca os últimos 7 dias de tentativas
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
-        const { data, error } = await supabase
-          .from("question_attempts")
-          .select("created_at, is_correct")
-          .eq("user_id", user.id)
-          .gte("created_at", sevenDaysAgo.toISOString())
-          .order("created_at");
+      const { data, error } = await supabase
+        .from("question_attempts")
+        .select("created_at, is_correct")
+        .eq("user_id", user.id)
+        .gte("created_at", sevenDaysAgo.toISOString())
+        .order("created_at");
 
-        if (error) throw error;
+      if (error) throw error;
 
-        // Agrupa por dia
-        const grouped: Record<string, { acertos: number; erros: number }> = {};
-        
-        // Inicializa os últimos 7 dias
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date();
-          date.setDate(date.getDate() - i);
-          const dateKey = date.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
-          grouped[dateKey] = { acertos: 0, erros: 0 };
-        }
-
-        // Preenche com dados reais
-        data?.forEach((attempt) => {
-          const date = new Date(attempt.created_at);
-          const dateKey = date.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
-          if (grouped[dateKey]) {
-            if (attempt.is_correct) {
-              grouped[dateKey].acertos++;
-            } else {
-              grouped[dateKey].erros++;
-            }
-          }
-        });
-
-        // Converte para array
-        const chartArray = Object.entries(grouped).map(([name, values]) => ({
-          name: name.charAt(0).toUpperCase() + name.slice(1),
-          acertos: values.acertos,
-          erros: values.erros,
-        }));
-
-        setChartData(chartArray);
-      } catch (error) {
-        console.error("Erro ao carregar estatísticas:", error);
-      } finally {
-        setLoading(false);
+      // Agrupa por dia
+      const grouped: Record<string, { acertos: number; erros: number }> = {};
+      
+      // Inicializa os últimos 7 dias
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateKey = date.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
+        grouped[dateKey] = { acertos: 0, erros: 0 };
       }
-    };
 
+      // Preenche com dados reais
+      data?.forEach((attempt) => {
+        const date = new Date(attempt.created_at);
+        const dateKey = date.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
+        if (grouped[dateKey]) {
+          if (attempt.is_correct) {
+            grouped[dateKey].acertos++;
+          } else {
+            grouped[dateKey].erros++;
+          }
+        }
+      });
+
+      // Converte para array
+      const chartArray = Object.entries(grouped).map(([name, values]) => ({
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        acertos: values.acertos,
+        erros: values.erros,
+      }));
+
+      setChartData(chartArray);
+    } catch (error) {
+      console.error("Erro ao carregar estatísticas:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchStats();
+
+    // Configura realtime para atualizar gráfico quando houver novas tentativas
+    const channel = supabase
+      .channel("question_attempts_chart")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "question_attempts",
+        },
+        () => {
+          // Atualiza gráfico quando nova tentativa é registrada
+          fetchStats();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   if (loading) {

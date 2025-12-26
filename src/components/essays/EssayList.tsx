@@ -20,24 +20,45 @@ const EssayList = ({ onSelectEssay }: EssayListProps) => {
   const [loading, setLoading] = useState(true);
 
   // Carregar redações do usuário
+  const loadEssays = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("essays")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setEssays(data);
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const loadEssays = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("essays")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (!error && data) {
-        setEssays(data);
-      }
-      setLoading(false);
-    };
-
     loadEssays();
+
+    // Configura realtime para atualizações automáticas de redações
+    const channel = supabase
+      .channel("essays_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "essays",
+        },
+        () => {
+          // Recarrega redações quando houver mudanças
+          loadEssays();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Cor baseada na nota
