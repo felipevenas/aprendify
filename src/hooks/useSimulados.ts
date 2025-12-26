@@ -318,6 +318,27 @@ export const useSimulados = () => {
 
   useEffect(() => {
     fetchSimulados();
+
+    // Configura realtime para atualizar lista de simulados automaticamente
+    const channel = supabase
+      .channel("simulados_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "simulados",
+        },
+        () => {
+          // Recarrega simulados quando houver mudanças
+          fetchSimulados();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchSimulados]);
 
   return {

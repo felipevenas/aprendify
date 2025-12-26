@@ -122,7 +122,7 @@ export const usePremium = (): PremiumStatus => {
     if (!userId) return;
 
     // Listen for subscription changes for this specific user
-    const channel = supabase
+    const subscriptionsChannel = supabase
       .channel(`subscriptions-changes-${userId}`)
       .on(
         'postgres_changes',
@@ -138,8 +138,27 @@ export const usePremium = (): PremiumStatus => {
       )
       .subscribe();
 
+    // Listen for question attempts to update daily count in real-time
+    const attemptsChannel = supabase
+      .channel(`attempts-changes-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'question_attempts',
+          filter: `user_id=eq.${userId}`
+        },
+        () => {
+          // Atualiza contador de questões diárias em tempo real
+          checkPremiumStatus(userId);
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(subscriptionsChannel);
+      supabase.removeChannel(attemptsChannel);
     };
   }, [userId, checkPremiumStatus]);
 
