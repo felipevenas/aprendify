@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Settings, LogOut, Moon, Sun, BookOpen, Crown, CreditCard } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
-import { usePremium } from "@/hooks/usePremium";
+import { usePremiumContext } from "@/contexts/PremiumContext";
 import { PremiumModal } from "@/components/PremiumModal";
 import { useStreakContext } from "@/contexts/StreakContext";
 import { StreakIndicator } from "@/components/streak/StreakIndicator";
@@ -30,7 +30,7 @@ const Navbar = () => {
   const [user, setUser] = useState<User | null>(null);
   const [userName, setUserName] = useState<string>("");
   const [showPremiumModal, setShowPremiumModal] = useState(false);
-  const { isPremium, isLoading } = usePremium();
+  const { isPremium, isLoading } = usePremiumContext();
   // Usa o contexto global de streak para atualizações em tempo real
   const { streakData, loading: streakLoading } = useStreakContext();
   useEffect(() => {
