@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Check, Crown, Star, Sparkles, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Check, Crown, Star, Sparkles, Loader2, Tag, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -32,6 +33,10 @@ const PLANS = {
 export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumModalProps) => {
   const [selectedPlan, setSelectedPlan] = useState<PlanType>("annual");
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Estado do cupom de desconto
+  const [couponCode, setCouponCode] = useState("");
+  const [showCouponInput, setShowCouponInput] = useState(false);
 
   const benefits = [
     "Questões ilimitadas por dia",
@@ -45,13 +50,24 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
     "Novos recursos em primeira mão",
   ];
 
+  // Função para iniciar o processo de assinatura
   const handleSubscribe = async () => {
     setIsLoading(true);
     try {
       const plan = PLANS[selectedPlan];
       
+      // Prepara o corpo da requisição com o cupom (se houver)
+      const requestBody: { priceId: string; couponCode?: string } = {
+        priceId: plan.priceId,
+      };
+      
+      // Adiciona o código do cupom se foi informado
+      if (couponCode.trim()) {
+        requestBody.couponCode = couponCode.trim().toUpperCase();
+      }
+      
       const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: { priceId: plan.priceId },
+        body: requestBody,
       });
 
       if (error) {
@@ -69,6 +85,12 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  // Função para limpar o cupom
+  const handleClearCoupon = () => {
+    setCouponCode("");
+    setShowCouponInput(false);
   };
 
   const handleManageSubscription = async () => {
@@ -216,6 +238,43 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
                       </p>
                       <p className="text-xs sm:text-sm text-muted-foreground">por mês</p>
                     </>
+                  )}
+                </div>
+
+                {/* Campo de cupom de desconto */}
+                <div className="mb-4">
+                  {showCouponInput ? (
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="text"
+                          placeholder="Digite seu cupom"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                          className="pl-9 uppercase"
+                          maxLength={20}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleClearCoupon}
+                        className="shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowCouponInput(true)}
+                      className="text-xs sm:text-sm text-primary hover:underline flex items-center gap-1 mx-auto"
+                    >
+                      <Tag className="h-3 w-3" />
+                      Tenho um cupom de desconto
+                    </button>
                   )}
                 </div>
 

@@ -25,8 +25,9 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    const { priceId } = await req.json();
-    logStep("Received request", { priceId });
+    // Extrai priceId e código do cupom (opcional) do body da requisição
+    const { priceId, couponCode } = await req.json();
+    logStep("Received request", { priceId, couponCode: couponCode || "none" });
 
     const authHeader = req.headers.get("Authorization")!;
     const token = authHeader.replace("Bearer ", "");
@@ -52,7 +53,8 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://lvhfwbpivankwzzwvdjj.lovable.app";
     
-    const session = await stripe.checkout.sessions.create({
+    // Configuração base da sessão de checkout
+    const sessionConfig: any = {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [
@@ -72,7 +74,42 @@ serve(async (req) => {
           user_id: user.id,
         },
       },
-    });
+      // Permite que o cupom pré-preenchido seja editado pelo usuário
+      allow_promotion_codes: !couponCode,
+    };
+    
+    // Se um código de cupom foi fornecido, valida e aplica
+    if (couponCode) {
+      try {
+        // Busca o cupom pelo código para obter o promotion_code
+        const promotionCodes = await stripe.promotionCodes.list({
+          code: couponCode,
+          active: true,
+          limit: 1,
+        });
+        
+        if (promotionCodes.data.length > 0) {
+          // Aplica o código promocional à sessão
+          sessionConfig.discounts = [{ promotion_code: promotionCodes.data[0].id }];
+          logStep("Coupon applied", { 
+            couponCode, 
+            promotionCodeId: promotionCodes.data[0].id 
+          });
+        } else {
+          // Cupom não encontrado - permite que o usuário adicione um na página de checkout
+          sessionConfig.allow_promotion_codes = true;
+          logStep("Coupon not found, allowing manual entry", { couponCode });
+        }
+      } catch (couponError) {
+        // Em caso de erro ao buscar cupom, permite entrada manual
+        logStep("Error fetching coupon, allowing manual entry", { 
+          error: couponError instanceof Error ? couponError.message : String(couponError) 
+        });
+        sessionConfig.allow_promotion_codes = true;
+      }
+    }
+    
+    const session = await stripe.checkout.sessions.create(sessionConfig);
 
     logStep("Checkout session created", { sessionId: session.id, url: session.url });
 
