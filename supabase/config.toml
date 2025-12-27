@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.extract-question-topic]
 verify_jwt = false
+
+[functions.analyze-question-difficulty]
+verify_jwt = false
