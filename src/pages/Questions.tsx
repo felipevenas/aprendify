@@ -37,6 +37,7 @@ const Questions = () => {
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>("all");
   const [selectedLanguage, setSelectedLanguage] = useState<string>("all");
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -59,12 +60,12 @@ const Questions = () => {
       return;
     }
 
-    const result = await fetchQuestion(selectedYear, selectedDiscipline, selectedLanguage, random);
+    const result = await fetchQuestion(selectedYear, selectedDiscipline, selectedLanguage, selectedDifficulty, random);
     
     if (!result.success && result.message) {
       toast.error(result.message);
     }
-  }, [isPremium, dailyQuestionCount, fetchQuestion, selectedYear, selectedDiscipline, selectedLanguage]);
+  }, [isPremium, dailyQuestionCount, fetchQuestion, selectedYear, selectedDiscipline, selectedLanguage, selectedDifficulty]);
 
   // Extrai o tópico específico da questão via IA
   const extractQuestionTopic = async (question: typeof currentQuestion): Promise<string | null> => {
@@ -174,7 +175,7 @@ const Questions = () => {
   // Carrega questão aleatória ao montar o componente (apenas uma vez)
   useEffect(() => {
     if (!initialLoading && !currentQuestion && !loadingQuestion) {
-      fetchQuestion(selectedYear, selectedDiscipline, selectedLanguage, true);
+      fetchQuestion(selectedYear, selectedDiscipline, selectedLanguage, selectedDifficulty, true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialLoading]);
@@ -296,9 +297,11 @@ const Questions = () => {
                 selectedYear={selectedYear}
                 selectedDiscipline={selectedDiscipline}
                 selectedLanguage={selectedLanguage}
+                selectedDifficulty={selectedDifficulty}
                 onYearChange={setSelectedYear}
                 onDisciplineChange={setSelectedDiscipline}
                 onLanguageChange={setSelectedLanguage}
+                onDifficultyChange={setSelectedDifficulty}
                 onApply={handleApplyFilters}
               />
             </Card>

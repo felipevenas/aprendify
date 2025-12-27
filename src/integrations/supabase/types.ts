@@ -21,6 +21,7 @@ export type Database = {
           context: string | null
           correct_alternative: string
           created_at: string | null
+          difficulty: string | null
           discipline: string
           files: string[] | null
           id: string
@@ -35,6 +36,7 @@ export type Database = {
           context?: string | null
           correct_alternative: string
           created_at?: string | null
+          difficulty?: string | null
           discipline: string
           files?: string[] | null
           id?: string
@@ -49,6 +51,7 @@ export type Database = {
           context?: string | null
           correct_alternative?: string
           created_at?: string | null
+          difficulty?: string | null
           discipline?: string
           files?: string[] | null
           id?: string
