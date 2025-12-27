@@ -5,15 +5,17 @@ import { Check } from "lucide-react";
 
 /**
  * Componente de filtros para questões do ENEM
- * Permite selecionar ano, disciplina e idioma
+ * Permite selecionar ano, disciplina, idioma e dificuldade
  */
 interface QuestionFiltersProps {
   selectedYear: string;
   selectedDiscipline: string;
   selectedLanguage: string;
+  selectedDifficulty: string;
   onYearChange: (year: string) => void;
   onDisciplineChange: (discipline: string) => void;
   onLanguageChange: (language: string) => void;
+  onDifficultyChange: (difficulty: string) => void;
   onApply: () => void;
 }
 
@@ -21,9 +23,11 @@ const QuestionFilters = ({
   selectedYear,
   selectedDiscipline,
   selectedLanguage,
+  selectedDifficulty,
   onYearChange,
   onDisciplineChange,
   onLanguageChange,
+  onDifficultyChange,
   onApply,
 }: QuestionFiltersProps) => {
   // Anos disponíveis (2009-2024) + opção "Todos"
@@ -51,6 +55,14 @@ const QuestionFilters = ({
     { value: "espanhol", label: "Espanhol" },
   ];
 
+  // Níveis de dificuldade
+  const difficulties = [
+    { value: "all", label: "Todas as dificuldades" },
+    { value: "easy", label: "Fácil" },
+    { value: "medium", label: "Médio" },
+    { value: "hard", label: "Difícil" },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
@@ -60,7 +72,7 @@ const QuestionFilters = ({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Filtro de Ano */}
         <div className="space-y-2">
           <Label htmlFor="year" className="text-sm font-medium">
@@ -112,6 +124,25 @@ const QuestionFilters = ({
               {languages.map((language) => (
                 <SelectItem key={language.value} value={language.value}>
                   {language.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Filtro de Dificuldade */}
+        <div className="space-y-2">
+          <Label htmlFor="difficulty" className="text-sm font-medium">
+            Dificuldade
+          </Label>
+          <Select value={selectedDifficulty} onValueChange={onDifficultyChange}>
+            <SelectTrigger id="difficulty" className="w-full">
+              <SelectValue placeholder="Selecione a dificuldade" />
+            </SelectTrigger>
+            <SelectContent>
+              {difficulties.map((difficulty) => (
+                <SelectItem key={difficulty.value} value={difficulty.value}>
+                  {difficulty.label}
                 </SelectItem>
               ))}
             </SelectContent>

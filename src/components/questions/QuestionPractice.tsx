@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,8 @@ import { CheckCircle2, XCircle, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDisciplineName, cleanMarkdownArtifacts, separateTextAndReference } from "@/lib/formatters";
 import QuestionExplanation from "./QuestionExplanation";
+import DifficultyIndicator from "./DifficultyIndicator";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Componente de prática de questões
@@ -22,12 +24,48 @@ interface QuestionPracticeProps {
 const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: QuestionPracticeProps) => {
   const [selectedAlternative, setSelectedAlternative] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard" | null>(question.difficulty || null);
+  const [analyzingDifficulty, setAnalyzingDifficulty] = useState(false);
 
   // Processa o contexto para separar texto da referência
   const processedContext = useMemo(() => {
     if (!question.context) return null;
     return separateTextAndReference(question.context);
   }, [question.context]);
+
+  // Analisa dificuldade via IA se não estiver definida (apenas para questões do banco local)
+  useEffect(() => {
+    const analyzeDifficulty = async () => {
+      // Se já tem dificuldade ou não tem ID (questão da API externa), não analisa
+      if (question.difficulty || !question.id) {
+        setDifficulty(question.difficulty || null);
+        return;
+      }
+
+      setAnalyzingDifficulty(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("analyze-question-difficulty", {
+          body: {
+            questionId: question.id,
+            discipline: question.discipline,
+            context: question.context || "",
+            title: question.title || "",
+            alternatives: question.alternatives || [],
+          },
+        });
+
+        if (!error && data?.difficulty) {
+          setDifficulty(data.difficulty);
+        }
+      } catch (err) {
+        console.error("Erro ao analisar dificuldade:", err);
+      } finally {
+        setAnalyzingDifficulty(false);
+      }
+    };
+
+    analyzeDifficulty();
+  }, [question.id, question.difficulty, question.discipline, question.context, question.title, question.alternatives]);
 
   // Handler para selecionar alternativa
   const handleSelectAlternative = (letter: string) => {
@@ -78,19 +116,32 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
       <Card className="p-6 sm:p-8 border-border/50 shadow-lg">
         {/* Header da questão */}
         <div className="mb-6 pb-6 border-b border-border">
-          <div className="flex flex-wrap items-center gap-3 mb-4">
-            {/* Badge com número da questão e ano do ENEM */}
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            {/* Lado esquerdo: Número da questão */}
             <Badge variant="outline" className="text-sm font-semibold bg-primary/5 border-primary/30">
               Questão {question.index} - ENEM {question.year || new Date().getFullYear()}
             </Badge>
-            {question.discipline && (
-              <Badge className={cn("border", getDisciplineColor(question.discipline))}>
-                {formatDisciplineName(question.discipline)}
-              </Badge>
-            )}
-            {question.language && (
-              <Badge variant="secondary">{question.language === "ingles" ? "Inglês" : "Espanhol"}</Badge>
-            )}
+            
+            {/* Lado direito: Disciplina + Dificuldade + Idioma */}
+            <div className="flex items-center gap-2">
+              {question.discipline && (
+                <Badge className={cn("border", getDisciplineColor(question.discipline))}>
+                  {formatDisciplineName(question.discipline)}
+                </Badge>
+              )}
+              
+              {/* Indicador de Dificuldade - ao lado da disciplina */}
+              <DifficultyIndicator 
+                difficulty={difficulty} 
+                showLabel={true}
+                size="sm"
+                className={analyzingDifficulty ? "opacity-50" : ""}
+              />
+              
+              {question.language && (
+                <Badge variant="secondary">{question.language === "ingles" ? "Inglês" : "Espanhol"}</Badge>
+              )}
+            </div>
           </div>
         </div>
 
