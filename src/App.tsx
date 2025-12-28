@@ -18,6 +18,7 @@ import Settings from "./pages/Settings";
 import Statistics from "./pages/Statistics";
 import AdminImport from "./pages/AdminImport";
 import AdminUsers from "./pages/AdminUsers";
+import AdminQuestions from "./pages/AdminQuestions";
 import Flashcards from "./pages/Flashcards";
 import Essays from "./pages/Essays";
 import SubscriptionSuccess from "./pages/SubscriptionSuccess";
@@ -62,6 +63,7 @@ const App = () => (
                 <Route path="/subscription/success" element={<SubscriptionSuccess />} />
                 <Route path="/admin/import" element={<AdminImport />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/admin/questions" element={<AdminQuestions />} />
                 <Route path="/simulados" element={<Simulados />} />
                 <Route path="/simulados/:id" element={<SimuladoActive />} />
                 <Route path="/simulados/:id/resultado" element={<SimuladoResults />} />
