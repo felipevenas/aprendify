@@ -4,7 +4,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 /**
  * Edge Function para analisar dificuldade de questões ENEM via IA (Groq)
  * Classifica questões como: easy, medium, hard
- * Salva resultado no banco para cache permanente
+ * 
+ * Funciona para:
+ * - Questões do banco local (2024+): salva no banco de dados
+ * - Questões da API externa (2009-2023): apenas retorna, cliente salva no localStorage
  */
 
 const corsHeaders = {
@@ -19,10 +22,18 @@ serve(async (req) => {
   }
 
   try {
-    const { questionId, discipline, context, title, alternatives } = await req.json();
+    const { 
+      questionId, 
+      discipline, 
+      context, 
+      title, 
+      alternatives,
+      saveToDatabase = false // Flag para indicar se deve salvar no banco
+    } = await req.json();
 
     // Valida dados obrigatórios
     if (!questionId) {
+      console.error("[analyze-question-difficulty] questionId não fornecido");
       return new Response(
         JSON.stringify({ error: "questionId é obrigatório" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -31,12 +42,14 @@ serve(async (req) => {
 
     const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
     if (!GROQ_API_KEY) {
-      console.error("GROQ_API_KEY não configurada");
+      console.error("[analyze-question-difficulty] GROQ_API_KEY não configurada");
       return new Response(
         JSON.stringify({ error: "API key não configurada" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log(`[analyze-question-difficulty] Analisando questão: ${questionId}, saveToDatabase: ${saveToDatabase}`);
 
     // Monta o texto da questão para análise
     const questionText = [
@@ -78,7 +91,7 @@ Nada mais, apenas a classificação.`;
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Erro Groq API:", errorText);
+      console.error("[analyze-question-difficulty] Erro Groq API:", errorText);
       return new Response(
         JSON.stringify({ error: "Erro ao analisar dificuldade" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -98,30 +111,39 @@ Nada mais, apenas a classificação.`;
       difficulty = "medium";
     }
 
-    // Salva a dificuldade no banco de dados
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    console.log(`[analyze-question-difficulty] Dificuldade classificada: ${difficulty}`);
 
-    const { error: updateError } = await supabase
-      .from("enem_questions")
-      .update({ difficulty })
-      .eq("id", questionId);
+    // Salva no banco apenas se a flag estiver ativa (questões do banco local)
+    let saved = false;
+    if (saveToDatabase && questionId && !questionId.startsWith("api_")) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    if (updateError) {
-      console.error("Erro ao salvar dificuldade:", updateError);
-      // Retorna a dificuldade mesmo se falhar o save (cache local pode usar)
-    } else {
-      console.log(`Dificuldade ${difficulty} salva para questão ${questionId}`);
+      const { error: updateError } = await supabase
+        .from("enem_questions")
+        .update({ difficulty })
+        .eq("id", questionId);
+
+      if (updateError) {
+        console.error("[analyze-question-difficulty] Erro ao salvar no banco:", updateError);
+      } else {
+        saved = true;
+        console.log(`[analyze-question-difficulty] Dificuldade ${difficulty} salva no banco para ${questionId}`);
+      }
     }
 
     return new Response(
-      JSON.stringify({ difficulty, saved: !updateError }),
+      JSON.stringify({ 
+        difficulty, 
+        saved,
+        questionId 
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
-    console.error("Erro na função:", error);
+    console.error("[analyze-question-difficulty] Erro na função:", error);
     return new Response(
       JSON.stringify({ error: "Erro interno do servidor" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

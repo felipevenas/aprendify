@@ -39,14 +39,52 @@ const difficultyConfig = {
   },
 };
 
+interface LoadingIndicatorProps {
+  size?: "sm" | "md";
+  showLabel?: boolean;
+}
+
+/**
+ * Indicador de carregamento enquanto analisa dificuldade
+ */
+const LoadingIndicator = ({ size = "sm", showLabel = true }: LoadingIndicatorProps) => {
+  const dotSize = size === "sm" ? "w-2 h-2" : "w-2.5 h-2.5";
+  
+  return (
+    <div className="flex items-center gap-1.5">
+      {/* Bolinhas com animação de pulso */}
+      <div className="flex items-center gap-0.5">
+        {[1, 2, 3].map((index) => (
+          <div
+            key={index}
+            className={cn(
+              dotSize,
+              "rounded-full bg-muted-foreground/30 animate-pulse"
+            )}
+            style={{ animationDelay: `${index * 150}ms` }}
+          />
+        ))}
+      </div>
+      
+      {showLabel && (
+        <span className="text-xs text-muted-foreground italic">
+          Analisando...
+        </span>
+      )}
+    </div>
+  );
+};
+
 const DifficultyIndicator = ({ 
   difficulty, 
   showLabel = true, 
   size = "sm",
   className 
 }: DifficultyIndicatorProps) => {
-  // Se não tiver dificuldade definida, não renderiza nada
-  if (!difficulty) return null;
+  // Se não tiver dificuldade definida, mostra indicador de loading
+  if (!difficulty) {
+    return <LoadingIndicator size={size} showLabel={showLabel} />;
+  }
 
   const config = difficultyConfig[difficulty];
   const dotSize = size === "sm" ? "w-2 h-2" : "w-2.5 h-2.5";
