@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.analyze-question-difficulty]
 verify_jwt = false
+
+[functions.format-question]
+verify_jwt = false

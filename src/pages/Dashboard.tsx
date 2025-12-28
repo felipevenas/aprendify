@@ -14,6 +14,7 @@ import {
   Layers,
   PenLine,
   Users,
+  Settings2,
   ClipboardList,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -153,6 +154,15 @@ const Dashboard = () => {
       description: "Gerencie usuários, assinaturas e permissões",
       icon: Users,
       path: "/admin/users",
+      gradient: "from-amber-500 to-orange-500",
+      iconBg: "bg-amber-500",
+      adminOnly: true,
+    },
+    {
+      title: "Gerenciar Questões",
+      description: "Edite questões e automatize classificação via IA",
+      icon: Settings2,
+      path: "/admin/questions",
       gradient: "from-amber-500 to-orange-500",
       iconBg: "bg-amber-500",
       adminOnly: true,
