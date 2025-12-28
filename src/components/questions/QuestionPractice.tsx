@@ -1,14 +1,63 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import { CheckCircle2, XCircle, ChevronRight } from "lucide-react";
+import { CheckCircle2, XCircle, ChevronRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDisciplineName, cleanMarkdownArtifacts, separateTextAndReference } from "@/lib/formatters";
 import QuestionExplanation from "./QuestionExplanation";
 import DifficultyIndicator from "./DifficultyIndicator";
 import { supabase } from "@/integrations/supabase/client";
+
+// ============= Cache de Dificuldade (localStorage) =============
+// Usado para questões da API externa (2009-2023) que não têm banco de dados
+const DIFFICULTY_CACHE_KEY = "enem_difficulty_cache";
+
+interface DifficultyCache {
+  [questionKey: string]: {
+    difficulty: "easy" | "medium" | "hard";
+    analyzedAt: number;
+  };
+}
+
+/**
+ * Gera uma chave única para a questão (funciona para banco local e API externa)
+ */
+const getQuestionKey = (question: any): string => {
+  // Se tem ID do banco, usa ele
+  if (question.id) return `db_${question.id}`;
+  // Caso contrário, gera chave baseada em ano-disciplina-index
+  return `api_${question.year}-${question.discipline}-${question.index}`;
+};
+
+/**
+ * Recupera dificuldade do cache local
+ */
+const getCachedDifficulty = (questionKey: string): "easy" | "medium" | "hard" | null => {
+  try {
+    const cache = JSON.parse(localStorage.getItem(DIFFICULTY_CACHE_KEY) || "{}") as DifficultyCache;
+    return cache[questionKey]?.difficulty || null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Salva dificuldade no cache local
+ */
+const setCachedDifficulty = (questionKey: string, difficulty: "easy" | "medium" | "hard"): void => {
+  try {
+    const cache = JSON.parse(localStorage.getItem(DIFFICULTY_CACHE_KEY) || "{}") as DifficultyCache;
+    cache[questionKey] = {
+      difficulty,
+      analyzedAt: Date.now(),
+    };
+    localStorage.setItem(DIFFICULTY_CACHE_KEY, JSON.stringify(cache));
+  } catch (error) {
+    console.error("[DifficultyCache] Erro ao salvar cache:", error);
+  }
+};
 
 /**
  * Componente de prática de questões
@@ -24,8 +73,11 @@ interface QuestionPracticeProps {
 const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: QuestionPracticeProps) => {
   const [selectedAlternative, setSelectedAlternative] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
-  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard" | null>(question.difficulty || null);
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard" | null>(null);
   const [analyzingDifficulty, setAnalyzingDifficulty] = useState(false);
+
+  // Gera chave única para esta questão
+  const questionKey = useMemo(() => getQuestionKey(question), [question]);
 
   // Processa o contexto para separar texto da referência
   const processedContext = useMemo(() => {
@@ -33,39 +85,60 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
     return separateTextAndReference(question.context);
   }, [question.context]);
 
-  // Analisa dificuldade via IA se não estiver definida (apenas para questões do banco local)
+  /**
+   * Analisa dificuldade via IA Groq
+   * Funciona para questões do banco local E da API externa
+   * Usa cache localStorage para evitar chamadas repetidas
+   */
+  const analyzeDifficultyWithAI = useCallback(async () => {
+    setAnalyzingDifficulty(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("analyze-question-difficulty", {
+        body: {
+          questionId: question.id || questionKey, // Usa questionKey se não tiver ID
+          discipline: question.discipline,
+          context: question.context || "",
+          title: question.title || "",
+          alternatives: question.alternatives || [],
+          // Flag para indicar se deve salvar no banco (apenas se tiver ID)
+          saveToDatabase: !!question.id,
+        },
+      });
+
+      if (!error && data?.difficulty) {
+        setDifficulty(data.difficulty);
+        // Sempre salva no cache local (para questões da API externa)
+        setCachedDifficulty(questionKey, data.difficulty);
+        console.log(`[DifficultyAnalysis] Dificuldade analisada: ${data.difficulty} para ${questionKey}`);
+      }
+    } catch (err) {
+      console.error("[DifficultyAnalysis] Erro ao analisar dificuldade:", err);
+    } finally {
+      setAnalyzingDifficulty(false);
+    }
+  }, [question, questionKey]);
+
+  // Verifica e analisa dificuldade quando a questão muda
   useEffect(() => {
-    const analyzeDifficulty = async () => {
-      // Se já tem dificuldade ou não tem ID (questão da API externa), não analisa
-      if (question.difficulty || !question.id) {
-        setDifficulty(question.difficulty || null);
-        return;
-      }
+    // 1. Se a questão já tem dificuldade do banco, usa ela
+    if (question.difficulty) {
+      setDifficulty(question.difficulty);
+      return;
+    }
 
-      setAnalyzingDifficulty(true);
-      try {
-        const { data, error } = await supabase.functions.invoke("analyze-question-difficulty", {
-          body: {
-            questionId: question.id,
-            discipline: question.discipline,
-            context: question.context || "",
-            title: question.title || "",
-            alternatives: question.alternatives || [],
-          },
-        });
+    // 2. Verifica se já está no cache local
+    const cachedDifficulty = getCachedDifficulty(questionKey);
+    if (cachedDifficulty) {
+      setDifficulty(cachedDifficulty);
+      console.log(`[DifficultyCache] Usando cache para ${questionKey}: ${cachedDifficulty}`);
+      return;
+    }
 
-        if (!error && data?.difficulty) {
-          setDifficulty(data.difficulty);
-        }
-      } catch (err) {
-        console.error("Erro ao analisar dificuldade:", err);
-      } finally {
-        setAnalyzingDifficulty(false);
-      }
-    };
-
-    analyzeDifficulty();
-  }, [question.id, question.difficulty, question.discipline, question.context, question.title, question.alternatives]);
+    // 3. Não tem em nenhum lugar, analisa via IA
+    setDifficulty(null);
+    analyzeDifficultyWithAI();
+  }, [questionKey, question.difficulty, analyzeDifficultyWithAI]);
 
   // Handler para selecionar alternativa
   const handleSelectAlternative = (letter: string) => {
