@@ -91,6 +91,9 @@ const AdminQuestions = () => {
   const [automationTotal, setAutomationTotal] = useState(0);
   const [automationPaused, setAutomationPaused] = useState(false);
   const [automationQueue, setAutomationQueue] = useState<Question[]>([]);
+  
+  // Estado para análise individual
+  const [analyzingQuestionId, setAnalyzingQuestionId] = useState<string | null>(null);
 
   // Verifica se é admin
   useEffect(() => {
@@ -390,6 +393,50 @@ const AdminQuestions = () => {
     toast.info("Automação cancelada");
   };
 
+  /**
+   * Analisa dificuldade de uma única questão via IA
+   */
+  const analyzeIndividualQuestion = async (question: Question) => {
+    if (question.isFromAPI) {
+      toast.error("Questões da API externa não podem ser processadas");
+      return;
+    }
+    
+    setAnalyzingQuestionId(question.id);
+    
+    try {
+      console.log(`[Individual] Analisando questão ${question.index}...`);
+      
+      const { data, error } = await supabase.functions.invoke("format-question", {
+        body: {
+          questionId: question.id,
+          discipline: question.discipline,
+          context: question.context || "",
+          title: question.title || "",
+          alternatives: question.alternatives || [],
+        },
+      });
+      
+      if (error) throw error;
+      
+      if (data?.difficulty) {
+        // Atualiza na lista local
+        setQuestions(prev => prev.map(q => 
+          q.id === question.id 
+            ? { ...q, difficulty: data.difficulty, title: data.title || q.title, context: data.context || q.context }
+            : q
+        ));
+        
+        toast.success(`Questão ${question.index}: ${data.difficulty === 'easy' ? 'Fácil' : data.difficulty === 'medium' ? 'Médio' : 'Difícil'}`);
+      }
+    } catch (err) {
+      console.error(`[Individual] Erro na questão ${question.index}:`, err);
+      toast.error("Erro ao analisar questão");
+    } finally {
+      setAnalyzingQuestionId(null);
+    }
+  };
+
   // Filtra questões pela busca
   const filteredQuestions = questions.filter(q => 
     q.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -605,6 +652,24 @@ const AdminQuestions = () => {
                           size="sm"
                         />
                       </div>
+
+                      {/* Botão de análise individual de dificuldade */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => analyzeIndividualQuestion(question)}
+                        disabled={question.isFromAPI || analyzingQuestionId === question.id}
+                        title={question.isFromAPI ? "Questões da API não podem ser analisadas" : "Analisar dificuldade via IA"}
+                      >
+                        {analyzingQuestionId === question.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        ) : (
+                          <Wand2 className={cn(
+                            "h-4 w-4",
+                            question.isFromAPI && "opacity-30"
+                          )} />
+                        )}
+                      </Button>
 
                       {/* Botão de edição */}
                       <Button
