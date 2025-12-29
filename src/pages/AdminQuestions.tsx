@@ -475,42 +475,40 @@ const AdminQuestions = () => {
                 </div>
               </div>
 
-              {/* Botão de Automação - apenas para banco local */}
-              {parseInt(selectedYear) >= 2024 && (
-                <div className="flex items-end gap-2">
-                  {!isAutomating ? (
+              {/* Botão de Automação - disponível para todos os anos */}
+              <div className="flex items-end gap-2">
+                {!isAutomating ? (
+                  <Button
+                    onClick={startAutomation}
+                    disabled={difficultyStats.unset === 0}
+                    className="gap-2"
+                  >
+                    <Wand2 className="h-4 w-4" />
+                    Automatizar ({difficultyStats.unset})
+                  </Button>
+                ) : (
+                  <>
                     <Button
-                      onClick={startAutomation}
-                      disabled={difficultyStats.unset === 0}
+                      onClick={toggleAutomationPause}
+                      variant="outline"
                       className="gap-2"
                     >
-                      <Wand2 className="h-4 w-4" />
-                      Automatizar ({difficultyStats.unset})
+                      {automationPaused ? (
+                        <><Play className="h-4 w-4" /> Retomar</>
+                      ) : (
+                        <><Pause className="h-4 w-4" /> Pausar</>
+                      )}
                     </Button>
-                  ) : (
-                    <>
-                      <Button
-                        onClick={toggleAutomationPause}
-                        variant="outline"
-                        className="gap-2"
-                      >
-                        {automationPaused ? (
-                          <><Play className="h-4 w-4" /> Retomar</>
-                        ) : (
-                          <><Pause className="h-4 w-4" /> Pausar</>
-                        )}
-                      </Button>
-                      <Button
-                        onClick={cancelAutomation}
-                        variant="destructive"
-                        size="icon"
-                      >
-                        ×
-                      </Button>
-                    </>
-                  )}
-                </div>
-              )}
+                    <Button
+                      onClick={cancelAutomation}
+                      variant="destructive"
+                      size="icon"
+                    >
+                      ×
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Barra de progresso da automação */}
