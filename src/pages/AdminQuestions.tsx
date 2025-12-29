@@ -160,32 +160,53 @@ const AdminQuestions = () => {
         console.log(`[AdminQuestions] Carregadas ${mappedQuestions.length} questões do banco local`);
         
       } else {
-        // Busca da API externa
-        const url = `https://api.enem.dev/v1/exams/${selectedYear}/questions?limit=180`;
-        const response = await fetch(url);
+        // Busca da API externa com paginação (limite máximo é 50 por request)
+        const allQuestions: Question[] = [];
+        let offset = 0;
+        const limit = 50;
+        let hasMore = true;
         
-        if (!response.ok) throw new Error("Erro ao buscar da API");
+        while (hasMore) {
+          const url = `https://api.enem.dev/v1/exams/${selectedYear}/questions?limit=${limit}&offset=${offset}`;
+          const response = await fetch(url);
+          
+          if (!response.ok) {
+            console.error(`[AdminQuestions] Erro na API: ${response.status}`);
+            break;
+          }
+          
+          const data = await response.json();
+          const questions = data.questions || [];
+          
+          // Mapeia as questões da página atual
+          const mappedPage: Question[] = questions.map((q: any) => ({
+            id: `api_${selectedYear}_${q.index}`,
+            index: q.index,
+            title: q.title || "",
+            discipline: q.discipline || "",
+            context: q.context || null,
+            alternativesIntroduction: q.alternativesIntroduction || null,
+            alternatives: q.alternatives || [],
+            correctAlternative: q.correctAlternative || "",
+            year: selectedYear,
+            difficulty: null, // API externa não tem dificuldade definida
+            files: q.files || null,
+            language: q.language || null,
+            isFromAPI: true,
+          }));
+          
+          allQuestions.push(...mappedPage);
+          
+          // Verifica se há mais páginas
+          if (questions.length < limit) {
+            hasMore = false;
+          } else {
+            offset += limit;
+          }
+        }
         
-        const data = await response.json();
-        
-        const mappedQuestions: Question[] = (data.questions || []).map((q: any) => ({
-          id: `api_${selectedYear}_${q.index}`,
-          index: q.index,
-          title: q.title || "",
-          discipline: q.discipline || "",
-          context: q.context || null,
-          alternativesIntroduction: q.alternativesIntroduction || null,
-          alternatives: q.alternatives || [],
-          correctAlternative: q.correctAlternative || "",
-          year: selectedYear,
-          difficulty: null, // API externa não tem dificuldade
-          files: q.files || null,
-          language: q.language || null,
-          isFromAPI: true,
-        }));
-        
-        setQuestions(mappedQuestions);
-        console.log(`[AdminQuestions] Carregadas ${mappedQuestions.length} questões da API externa`);
+        setQuestions(allQuestions);
+        console.log(`[AdminQuestions] Carregadas ${allQuestions.length} questões da API externa`);
       }
     } catch (error) {
       console.error("[AdminQuestions] Erro ao carregar questões:", error);
