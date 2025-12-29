@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
+import { CursorGlow } from "@/components/ui/cursor-glow";
 import {
   ArrowLeft,
   Search,
@@ -23,8 +24,11 @@ import {
   AlertCircle,
   Wand2,
   FileText,
+  Sparkles,
+  Database,
+  Globe,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import DifficultyIndicator from "@/components/questions/DifficultyIndicator";
@@ -461,84 +465,117 @@ const AdminQuestions = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 relative overflow-hidden">
+      {/* Efeito de glow seguindo o cursor */}
+      <CursorGlow color="hsl(217, 91%, 50%)" size={500} opacity={0.06} />
+      
+      {/* Elementos decorativos de fundo */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 -left-40 w-80 h-80 bg-accent/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-20 right-1/4 w-64 h-64 bg-primary/3 rounded-full blur-3xl" />
+      </div>
+      
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          {/* Header */}
+          {/* Header com gradiente */}
           <div className="flex items-center gap-4 mb-8">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => navigate("/dashboard")}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate("/dashboard")}
+                className="hover:bg-primary/10 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </motion.div>
             <div>
-              <h1 className="text-2xl font-bold">Gerenciar Questões ENEM</h1>
-              <p className="text-muted-foreground">
+              <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-foreground via-foreground to-primary bg-clip-text">
+                <span className="flex items-center gap-3">
+                  <Sparkles className="h-7 w-7 text-primary" />
+                  Gerenciar Questões ENEM
+                </span>
+              </h1>
+              <p className="text-muted-foreground mt-1">
                 Edite manualmente ou automatize a formatação via IA
               </p>
             </div>
           </div>
 
-          {/* Controles */}
-          <Card className="p-6 mb-6">
+          {/* Controles com visual aprimorado */}
+          <Card className="p-6 mb-6 backdrop-blur-sm bg-card/80 border-border/50 shadow-lg">
             <div className="flex flex-col lg:flex-row gap-4">
-              {/* Seletor de Ano */}
+              {/* Seletor de Ano com ícone */}
               <div className="flex-1">
-                <Label htmlFor="year" className="mb-2 block">Ano da Prova</Label>
+                <Label htmlFor="year" className="mb-2 block text-sm font-medium flex items-center gap-2">
+                  <Database className="h-4 w-4 text-primary" />
+                  Ano da Prova
+                </Label>
                 <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger id="year">
+                  <SelectTrigger id="year" className="bg-background/50 border-border/50 hover:border-primary/50 transition-colors">
                     <SelectValue placeholder="Selecione o ano" />
                   </SelectTrigger>
                   <SelectContent>
                     {AVAILABLE_YEARS.map(year => (
                       <SelectItem key={year} value={year}>
-                        ENEM {year} {parseInt(year) >= 2024 ? "(Banco Local)" : "(API Externa)"}
+                        <span className="flex items-center gap-2">
+                          {parseInt(year) >= 2024 ? (
+                            <Database className="h-3.5 w-3.5 text-primary" />
+                          ) : (
+                            <Globe className="h-3.5 w-3.5 text-amber-500" />
+                          )}
+                          ENEM {year}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Busca */}
+              {/* Busca com visual aprimorado */}
               <div className="flex-1">
-                <Label htmlFor="search" className="mb-2 block">Buscar Questão</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="search" className="mb-2 block text-sm font-medium flex items-center gap-2">
+                  <Search className="h-4 w-4 text-primary" />
+                  Buscar Questão
+                </Label>
+                <div className="relative group">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                   <Input
                     id="search"
                     placeholder="Número, disciplina ou texto..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 bg-background/50 border-border/50 focus:border-primary/50 transition-all"
                   />
                 </div>
               </div>
 
-              {/* Botão de Automação - disponível para todos os anos */}
+              {/* Botão de Automação com visual premium */}
               <div className="flex items-end gap-2">
                 {!isAutomating ? (
-                  <Button
-                    onClick={startAutomation}
-                    disabled={difficultyStats.unset === 0}
-                    className="gap-2"
-                  >
-                    <Wand2 className="h-4 w-4" />
-                    Automatizar ({difficultyStats.unset})
-                  </Button>
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Button
+                      onClick={startAutomation}
+                      disabled={difficultyStats.unset === 0}
+                      className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-md hover:shadow-lg transition-all"
+                    >
+                      <Wand2 className="h-4 w-4" />
+                      Automatizar ({difficultyStats.unset})
+                    </Button>
+                  </motion.div>
                 ) : (
-                  <>
+                  <div className="flex gap-2">
                     <Button
                       onClick={toggleAutomationPause}
                       variant="outline"
-                      className="gap-2"
+                      className="gap-2 border-primary/30 hover:border-primary/50"
                     >
                       {automationPaused ? (
                         <><Play className="h-4 w-4" /> Retomar</>
@@ -550,94 +587,129 @@ const AdminQuestions = () => {
                       onClick={cancelAutomation}
                       variant="destructive"
                       size="icon"
+                      className="shadow-sm"
                     >
                       ×
                     </Button>
-                  </>
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* Barra de progresso da automação */}
-            {isAutomating && (
-              <div className="mt-4">
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-muted-foreground">
-                    Processando... ({automationProgress}/{automationTotal})
-                  </span>
-                  <span className="text-primary font-medium">
-                    {Math.round((automationProgress / automationTotal) * 100)}%
-                  </span>
-                </div>
-                <Progress value={(automationProgress / automationTotal) * 100} />
-                <p className="text-xs text-muted-foreground mt-2">
-                  Taxa: {REQUESTS_PER_MINUTE} requisições/min (1 a cada {REQUEST_INTERVAL_MS / 1000}s)
-                </p>
-              </div>
-            )}
+            {/* Barra de progresso da automação com animação */}
+            <AnimatePresence>
+              {isAutomating && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-4 overflow-hidden"
+                >
+                  <div className="flex items-center justify-between text-sm mb-2">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                      Processando... ({automationProgress}/{automationTotal})
+                    </span>
+                    <span className="text-primary font-medium">
+                      {Math.round((automationProgress / automationTotal) * 100)}%
+                    </span>
+                  </div>
+                  <Progress 
+                    value={(automationProgress / automationTotal) * 100} 
+                    className="h-2 bg-muted/50"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Taxa: {REQUESTS_PER_MINUTE} requisições/min (1 a cada {REQUEST_INTERVAL_MS / 1000}s)
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {/* Estatísticas de dificuldade */}
-            <div className="mt-4 pt-4 border-t flex flex-wrap gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-green-500" />
-                <span className="text-sm text-muted-foreground">Fácil: {difficultyStats.easy}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-amber-500" />
-                <span className="text-sm text-muted-foreground">Médio: {difficultyStats.medium}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-500" />
-                <span className="text-sm text-muted-foreground">Difícil: {difficultyStats.hard}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-muted-foreground/30" />
-                <span className="text-sm text-muted-foreground">Sem classificação: {difficultyStats.unset}</span>
-              </div>
+            {/* Estatísticas de dificuldade com visual aprimorado */}
+            <div className="mt-4 pt-4 border-t border-border/50 flex flex-wrap gap-4">
+              <motion.div 
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20"
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_6px_hsl(142,76%,40%/0.5)]" />
+                <span className="text-sm font-medium text-green-700 dark:text-green-400">Fácil: {difficultyStats.easy}</span>
+              </motion.div>
+              <motion.div 
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20"
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_6px_hsl(38,92%,50%/0.5)]" />
+                <span className="text-sm font-medium text-amber-700 dark:text-amber-400">Médio: {difficultyStats.medium}</span>
+              </motion.div>
+              <motion.div 
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20"
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_6px_hsl(0,84%,60%/0.5)]" />
+                <span className="text-sm font-medium text-red-700 dark:text-red-400">Difícil: {difficultyStats.hard}</span>
+              </motion.div>
+              <motion.div 
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 border border-border/50"
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/30" />
+                <span className="text-sm font-medium text-muted-foreground">Sem classificação: {difficultyStats.unset}</span>
+              </motion.div>
             </div>
           </Card>
 
-          {/* Lista de Questões */}
-          <Card className="overflow-hidden">
+          {/* Lista de Questões com visual aprimorado */}
+          <Card className="overflow-hidden backdrop-blur-sm bg-card/80 border-border/50 shadow-lg">
             {loadingQuestions ? (
-              <div className="p-8 flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <div className="p-12 flex flex-col items-center justify-center gap-4">
+                <div className="relative">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                  <div className="absolute inset-0 h-10 w-10 rounded-full bg-primary/20 animate-ping" />
+                </div>
+                <p className="text-muted-foreground text-sm">Carregando questões...</p>
               </div>
             ) : filteredQuestions.length === 0 ? (
-              <div className="p-8 text-center">
-                <FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                <p className="text-muted-foreground">Nenhuma questão encontrada</p>
+              <div className="p-12 text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted/50 mb-4">
+                  <FileText className="h-8 w-8 text-muted-foreground/50" />
+                </div>
+                <p className="text-muted-foreground font-medium">Nenhuma questão encontrada</p>
+                <p className="text-sm text-muted-foreground/70 mt-1">Tente alterar os filtros de busca</p>
               </div>
             ) : (
               <ScrollArea className="h-[600px]">
-                <div className="divide-y divide-border">
-                  {filteredQuestions.map((question) => (
-                    <div
+                <div className="divide-y divide-border/50">
+                  {filteredQuestions.map((question, index) => (
+                    <motion.div
                       key={question.id}
-                      className="p-4 flex items-center gap-4 hover:bg-muted/30 transition-colors"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: Math.min(index * 0.02, 0.3) }}
+                      className="p-4 flex items-center gap-4 hover:bg-gradient-to-r hover:from-primary/5 hover:to-transparent transition-all duration-300 group"
                     >
-                      {/* Número da questão */}
-                      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
+                      {/* Número da questão com efeito hover */}
+                      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center font-bold text-primary group-hover:shadow-[0_0_15px_hsl(217,91%,50%/0.2)] transition-shadow">
                         {question.index}
                       </div>
 
                       {/* Info da questão */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
+                        <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
                           {question.title?.substring(0, 100) || "Sem título"}
                           {question.title && question.title.length > 100 && "..."}
                         </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="secondary" className="text-xs">
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <Badge variant="secondary" className="text-xs bg-secondary/50">
                             {formatDisciplineName(question.discipline)}
                           </Badge>
                           {question.language && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-xs border-border/50">
                               {question.language === "ingles" ? "Inglês" : "Espanhol"}
                             </Badge>
                           )}
                           {question.isFromAPI && (
-                            <Badge variant="outline" className="text-xs text-amber-600 border-amber-500">
+                            <Badge variant="outline" className="text-xs text-amber-600 border-amber-500/50 bg-amber-500/5">
+                              <Globe className="h-3 w-3 mr-1" />
                               API Externa
                             </Badge>
                           )}
@@ -653,38 +725,44 @@ const AdminQuestions = () => {
                         />
                       </div>
 
-                      {/* Botão de análise individual de dificuldade */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => analyzeIndividualQuestion(question)}
-                        disabled={question.isFromAPI || analyzingQuestionId === question.id}
-                        title={question.isFromAPI ? "Questões da API não podem ser analisadas" : "Analisar dificuldade via IA"}
-                      >
-                        {analyzingQuestionId === question.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                        ) : (
-                          <Wand2 className={cn(
+                      {/* Botão de análise individual com tooltip visual */}
+                      <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => analyzeIndividualQuestion(question)}
+                          disabled={question.isFromAPI || analyzingQuestionId === question.id}
+                          title={question.isFromAPI ? "Questões da API não podem ser analisadas" : "Analisar dificuldade via IA"}
+                          className="hover:bg-primary/10 hover:text-primary transition-colors"
+                        >
+                          {analyzingQuestionId === question.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                          ) : (
+                            <Wand2 className={cn(
+                              "h-4 w-4",
+                              question.isFromAPI && "opacity-30"
+                            )} />
+                          )}
+                        </Button>
+                      </motion.div>
+
+                      {/* Botão de edição */}
+                      <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(question)}
+                          disabled={question.isFromAPI}
+                          title={question.isFromAPI ? "Questões da API não podem ser editadas" : "Editar questão"}
+                          className="hover:bg-primary/10 hover:text-primary transition-colors"
+                        >
+                          <Edit className={cn(
                             "h-4 w-4",
                             question.isFromAPI && "opacity-30"
                           )} />
-                        )}
-                      </Button>
-
-                      {/* Botão de edição */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditDialog(question)}
-                        disabled={question.isFromAPI}
-                        title={question.isFromAPI ? "Questões da API não podem ser editadas" : "Editar questão"}
-                      >
-                        <Edit className={cn(
-                          "h-4 w-4",
-                          question.isFromAPI && "opacity-30"
-                        )} />
-                      </Button>
-                    </div>
+                        </Button>
+                      </motion.div>
+                    </motion.div>
                   ))}
                 </div>
               </ScrollArea>
