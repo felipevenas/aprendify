@@ -16,6 +16,7 @@ import {
   Users,
   Settings2,
   ClipboardList,
+  Crown,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
@@ -86,6 +87,7 @@ const Dashboard = () => {
       gradient: "from-primary to-primary/80",
       iconBg: "bg-primary",
       featured: false,
+      isPremium: true,
     },
     {
       title: "Cronograma Mensal",
@@ -320,7 +322,8 @@ const Dashboard = () => {
                           <card.icon className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
                         </div>
                         {card.isPremium && (
-                          <span className="px-2.5 py-1 bg-gradient-to-r from-amber-400/20 to-amber-600/20 text-amber-600 dark:text-amber-400 text-xs font-bold rounded-full">
+                          <span className="px-2.5 py-1 bg-gradient-to-r from-amber-400/20 to-amber-600/20 text-amber-600 dark:text-amber-400 text-xs font-bold rounded-full flex items-center gap-1">
+                            <Crown className="h-3 w-3" />
                             Premium
                           </span>
                         )}
