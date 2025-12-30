@@ -26,6 +26,7 @@ import { formatDisciplineName } from "@/lib/formatters";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Navbar from "@/components/Navbar";
+import PremiumLockScreen from "@/components/PremiumLockScreen";
 
 /**
  * Main Simulados page
@@ -56,43 +57,33 @@ const Simulados = () => {
   // Check for premium access
   if (!isPremium) {
     return (
-      <>
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
         <Navbar />
-        <div className="min-h-screen bg-background p-4 md:p-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-2xl mx-auto"
-          >
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/dashboard")}
-              className="mb-4 text-muted-foreground"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
-            </Button>
-            <Card className="border-dashed">
-              <CardHeader className="text-center">
-                <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                  <Lock className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <CardTitle>Recurso Premium</CardTitle>
-                <CardDescription>
-                  Os Simulados são exclusivos para usuários Premium. 
-                  Faça upgrade para acessar simulados completos do ENEM com correção detalhada.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex justify-center">
-                <Button onClick={() => navigate("/subscription")}>
-                  Ver Planos Premium
-                </Button>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-      </>
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <PremiumLockScreen
+            title="Simulados Premium"
+            description="Assine o plano Premium para acessar simulados completos do ENEM"
+            features={[
+              {
+                title: "Simulados Completos",
+                description: "Pratique com provas oficiais do ENEM de anos anteriores",
+              },
+              {
+                title: "Correção Detalhada",
+                description: "Análise completa de desempenho por disciplina e área",
+              },
+              {
+                title: "Tempo Cronometrado",
+                description: "Simule as condições reais do dia da prova",
+              },
+              {
+                title: "Histórico de Desempenho",
+                description: "Acompanhe sua evolução ao longo do tempo",
+              },
+            ]}
+          />
+        </main>
+      </div>
     );
   }
 
