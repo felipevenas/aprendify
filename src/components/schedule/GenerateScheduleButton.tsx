@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Sparkles, Loader2, Calendar, RefreshCw } from "lucide-react";
+import { Sparkles, Loader2, Calendar, RefreshCw, Lock, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { usePremium } from "@/hooks/usePremium";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +17,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useNavigate } from "react-router-dom";
+import { CheckCircle2 } from "lucide-react";
 
 interface GenerateScheduleButtonProps {
   onGenerated: () => void;
@@ -27,6 +38,9 @@ interface GenerateScheduleButtonProps {
 
 const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateScheduleButtonProps) => {
   const [loading, setLoading] = useState(false);
+  const [premiumDialogOpen, setPremiumDialogOpen] = useState(false);
+  const { isPremium, isLoading: premiumLoading } = usePremium();
+  const navigate = useNavigate();
 
   const canRegenerate = !lastGeneration || 
     new Date(lastGeneration.next_regeneration_at) <= new Date();
@@ -71,12 +85,81 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
     }
   };
 
+  const handleClick = () => {
+    if (!isPremium && !premiumLoading) {
+      setPremiumDialogOpen(true);
+      return;
+    }
+  };
+
   if (loading) {
     return (
       <Button disabled className="gap-2">
         <Loader2 className="h-4 w-4 animate-spin" />
         Gerando cronograma...
       </Button>
+    );
+  }
+
+  // Se não é premium, mostrar botão que abre modal de bloqueio
+  if (!isPremium && !premiumLoading) {
+    return (
+      <Dialog open={premiumDialogOpen} onOpenChange={setPremiumDialogOpen}>
+        <DialogTrigger asChild>
+          <Button className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all relative">
+            <Sparkles className="h-4 w-4" />
+            Gerar Cronograma com IA
+            <Lock className="h-3 w-3 absolute -top-1 -right-1 text-amber-500" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
+              <Lock className="w-8 h-8 text-white" />
+            </div>
+            <DialogTitle className="text-2xl">Recurso Premium</DialogTitle>
+            <DialogDescription className="text-base">
+              A geração de cronograma com IA é exclusiva para assinantes Premium
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-4">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+              <div>
+                <h3 className="font-semibold text-sm">Cronograma Personalizado</h3>
+                <p className="text-xs text-muted-foreground">IA analisa seu desempenho e cria um plano de estudos sob medida</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+              <div>
+                <h3 className="font-semibold text-sm">Atualização Automática</h3>
+                <p className="text-xs text-muted-foreground">Cronograma se adapta ao seu progresso a cada 7 dias</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+              <div>
+                <h3 className="font-semibold text-sm">Foco nos Pontos Fracos</h3>
+                <p className="text-xs text-muted-foreground">Prioriza disciplinas e tópicos onde você mais precisa melhorar</p>
+              </div>
+            </div>
+          </div>
+
+          <Button
+            size="lg"
+            className="w-full gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700"
+            onClick={() => {
+              setPremiumDialogOpen(false);
+              navigate("/subscription");
+            }}
+          >
+            <Crown className="h-5 w-5" />
+            Assinar Premium
+          </Button>
+        </DialogContent>
+      </Dialog>
     );
   }
 
@@ -124,7 +207,7 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
     );
   }
 
-  // Botão principal para gerar cronograma
+  // Botão principal para gerar cronograma (usuário premium)
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
