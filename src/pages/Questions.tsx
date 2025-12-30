@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, BookOpen, Shuffle, Filter, Lock, StickyNote } from "lucide-react";
+import { ArrowLeft, BookOpen, Shuffle, Filter, Lock, StickyNote, Crown } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import QuestionPractice from "@/components/questions/QuestionPractice";
@@ -274,8 +274,10 @@ const Questions = () => {
                 {dailyQuestionCount >= FREE_DAILY_LIMIT && (
                   <Button 
                     size="sm" 
-                    onClick={() => window.open("https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=2fab389d1e6546429376b4a50517acd2", "_blank")}
+                    onClick={() => navigate("/subscription")}
+                    className="gap-1"
                   >
+                    <Crown className="h-3 w-3" />
                     Assinar Premium
                   </Button>
                 )}
