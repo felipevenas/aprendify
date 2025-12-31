@@ -29,6 +29,18 @@ interface QuestionCache {
   usedIds: Set<string>;
 }
 
+
+/**
+ * Mapeia disciplina do filtro interno para o valor esperado pela API externa.
+ */
+const mapDisciplineForExternalAPI = (discipline: string) => {
+  // Banco local usa: humanas | natureza | matematica | linguagens
+  // API externa usa: ciencias-humanas | ciencias-natureza | matematica | linguagens
+  if (discipline === "humanas") return "ciencias-humanas";
+  if (discipline === "natureza") return "ciencias-natureza";
+  return discipline;
+};
+
 /**
  * Hook otimizado para gerenciar banco de questões
  * Cacheia IDs das questões para navegação instantânea
@@ -105,6 +117,7 @@ export const useQuestionBank = () => {
     };
   }, []);
 
+
   // Busca questão da API externa (anos 2009-2023)
   const fetchFromExternalAPI = useCallback(async (
     year: string, 
@@ -113,14 +126,14 @@ export const useQuestionBank = () => {
     random: boolean
   ): Promise<QuestionData | null> => {
     const params = new URLSearchParams();
-    
+
     if (discipline !== "all") {
-      params.append("discipline", discipline);
+      params.append("discipline", mapDisciplineForExternalAPI(discipline));
     }
     if (language !== "all") {
       params.append("language", language);
     }
-    
+
     params.append("limit", "1");
     if (random) {
       const randomOffset = Math.floor(Math.random() * 100);
@@ -130,20 +143,20 @@ export const useQuestionBank = () => {
     }
 
     const url = `https://api.enem.dev/v1/exams/${year}/questions?${params.toString()}`;
-    
+
     try {
       const response = await fetch(url);
       if (!response.ok) throw new Error("API error");
-      
+
       const data = await response.json();
-      
+
       if (data.questions && data.questions.length > 0) {
         return { ...data.questions[0], year, difficulty: null }; // API externa não tem dificuldade
       }
     } catch (error) {
       console.error("Erro API externa:", error);
     }
-    
+
     return null;
   }, []);
 
