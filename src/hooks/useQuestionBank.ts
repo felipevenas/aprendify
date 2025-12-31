@@ -30,15 +30,47 @@ interface QuestionCache {
 }
 
 
-/**
- * Mapeia disciplina do filtro interno para o valor esperado pela API externa.
- */
-const mapDisciplineForExternalAPI = (discipline: string) => {
-  // Banco local usa: humanas | natureza | matematica | linguagens
-  // API externa usa: ciencias-humanas | ciencias-natureza | matematica | linguagens
-  if (discipline === "humanas") return "ciencias-humanas";
-  if (discipline === "natureza") return "ciencias-natureza";
-  return discipline;
+const EXTERNAL_API_BASE = "https://api.enem.dev/v1";
+
+// Cache simples em memória (evita pedir metadata.total repetidamente)
+const externalExamTotalsCache = new Map<string, number>();
+
+const canonicalizeDiscipline = (discipline: string) => {
+  const d = discipline.toLowerCase();
+  if (d === "ciencias-humanas") return "humanas";
+  if (d === "ciencias-natureza" || d === "ciencias-da-natureza") return "natureza";
+  return d;
+};
+
+const disciplineMatchesFilter = (questionDiscipline: unknown, selectedDiscipline: string) => {
+  if (selectedDiscipline === "all") return true;
+  if (typeof questionDiscipline !== "string") return false;
+  return canonicalizeDiscipline(questionDiscipline) === canonicalizeDiscipline(selectedDiscipline);
+};
+
+const getExternalExamTotal = async (year: string, language: string): Promise<number> => {
+  const key = `${year}:${language}`;
+  const cached = externalExamTotalsCache.get(key);
+  if (cached) return cached;
+
+  try {
+    const params = new URLSearchParams({ limit: "1", offset: "0" });
+    if (language !== "all") params.append("language", language);
+
+    const url = `${EXTERNAL_API_BASE}/exams/${year}/questions?${params.toString()}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("API error");
+
+    const data = await response.json();
+    const total =
+      typeof data?.metadata?.total === "number" && data.metadata.total > 0 ? data.metadata.total : 180;
+
+    externalExamTotalsCache.set(key, total);
+    return total;
+  } catch {
+    externalExamTotalsCache.set(key, 180);
+    return 180;
+  }
 };
 
 /**
@@ -119,42 +151,46 @@ export const useQuestionBank = () => {
 
 
   // Busca questão da API externa (anos 2009-2023)
+  // Observação: o endpoint de listagem NÃO filtra por disciplina via query param.
+  // Então filtramos do lado do cliente buscando por offsets aleatórios até encontrar match.
   const fetchFromExternalAPI = useCallback(async (
-    year: string, 
-    discipline: string, 
+    year: string,
+    discipline: string,
     language: string,
     random: boolean
   ): Promise<QuestionData | null> => {
-    const params = new URLSearchParams();
+    const total = await getExternalExamTotal(year, language);
 
-    if (discipline !== "all") {
-      params.append("discipline", mapDisciplineForExternalAPI(discipline));
-    }
-    if (language !== "all") {
-      params.append("language", language);
-    }
+    // Se houver filtro de disciplina, fazemos algumas tentativas para encontrar uma questão compatível.
+    // (Caso contrário, 1 tentativa basta.)
+    const attempts = discipline === "all" ? 1 : 12;
 
-    params.append("limit", "1");
-    if (random) {
-      const randomOffset = Math.floor(Math.random() * 100);
-      params.append("offset", randomOffset.toString());
-    } else {
-      params.append("offset", "0");
-    }
+    for (let i = 0; i < attempts; i++) {
+      const offset = random
+        ? Math.floor(Math.random() * total)
+        : discipline === "all"
+          ? 0
+          : Math.floor(Math.random() * total); // mesmo no "Aplicar", mantém disciplina correta
 
-    const url = `https://api.enem.dev/v1/exams/${year}/questions?${params.toString()}`;
+      const params = new URLSearchParams({ limit: "1", offset: offset.toString() });
+      if (language !== "all") params.append("language", language);
 
-    try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("API error");
+      const url = `${EXTERNAL_API_BASE}/exams/${year}/questions?${params.toString()}`;
 
-      const data = await response.json();
+      try {
+        const response = await fetch(url);
+        if (!response.ok) continue;
 
-      if (data.questions && data.questions.length > 0) {
-        return { ...data.questions[0], year, difficulty: null }; // API externa não tem dificuldade
+        const data = await response.json();
+        const q = data?.questions?.[0];
+        if (!q) continue;
+
+        if (!disciplineMatchesFilter(q.discipline, discipline)) continue;
+
+        return { ...q, year: year.toString(), difficulty: null };
+      } catch {
+        // ignora e tenta novamente
       }
-    } catch (error) {
-      console.error("Erro API externa:", error);
     }
 
     return null;
