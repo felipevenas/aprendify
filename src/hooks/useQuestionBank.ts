@@ -113,7 +113,6 @@ export const useQuestionBank = () => {
     const { data, error } = await query;
     
     if (error) {
-      console.error("Erro ao carregar IDs:", error);
       return [];
     }
 
@@ -129,7 +128,6 @@ export const useQuestionBank = () => {
       .maybeSingle();
 
     if (error || !data) {
-      console.error("Erro ao buscar questão:", error);
       return null;
     }
 
@@ -321,8 +319,7 @@ export const useQuestionBank = () => {
           return { success: false, message: "Nenhuma questão encontrada" };
         }
       }
-    } catch (error) {
-      console.error("Erro ao buscar questão:", error);
+    } catch {
       setCurrentQuestion(null);
       setLoading(false);
       return { success: false, message: "Erro ao carregar questão" };
