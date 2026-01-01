@@ -19,15 +19,12 @@ interface QuestionData {
 }
 
 /**
- * Configuration for API rate limiting and retry
+ * Configuration for API rate limiting
  */
 const API_CONFIG = {
   rateLimitMs: 1100,
-  maxRetries: 5,
-  initialRetryDelayMs: 2000,
-  maxRetryDelayMs: 10000,
-  requestTimeoutMs: 45000,
   pageSize: 50,
+  maxOffset: 500,
 };
 
 /**
@@ -42,11 +39,6 @@ interface PreparationState {
   loadedCount: number;
   targetCount: number;
 }
-
-const ENEM_YEARS = [
-  "2024", "2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016",
-  "2015", "2014", "2013", "2012", "2011", "2010", "2009"
-];
 
 /**
  * Mapeia disciplinas locais para API e vice-versa
@@ -128,8 +120,9 @@ export const useSimuladoPreparation = () => {
 
   /**
    * Fetch ALL questions from API for a specific year (with pagination)
+   * Returns questions filtered by discipline
    */
-  const fetchAllQuestionsFromYear = async (
+  const fetchQuestionsFromAPI = async (
     year: string,
     disciplines: string[],
     signal: AbortSignal
@@ -138,6 +131,8 @@ export const useSimuladoPreparation = () => {
     const allQuestions: any[] = [];
     let offset = 0;
     let hasMore = true;
+
+    console.log(`[API] Fetching year ${year} for disciplines: ${apiDisciplines.join(", ")}`);
 
     while (hasMore && !signal.aborted) {
       await waitForRateLimit();
@@ -154,11 +149,13 @@ export const useSimuladoPreparation = () => {
         }
         
         if (response.status === 404) {
+          console.log(`[API] Year ${year} not found (404)`);
           break;
         }
         
         if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
+          console.error(`[API] Error ${response.status} for year ${year}`);
+          break;
         }
 
         const data = await response.json();
@@ -172,7 +169,7 @@ export const useSimuladoPreparation = () => {
         hasMore = data.questions.length >= API_CONFIG.pageSize;
         offset += API_CONFIG.pageSize;
 
-        if (offset > 500) hasMore = false;
+        if (offset > API_CONFIG.maxOffset) hasMore = false;
       } catch (error) {
         if (signal.aborted) throw error;
         console.error(`[API] Error fetching year ${year} offset ${offset}:`, error);
@@ -180,8 +177,10 @@ export const useSimuladoPreparation = () => {
       }
     }
 
-    // Filtrar por disciplinas
+    // Filtrar por disciplinas solicitadas
     const filtered = allQuestions.filter(q => apiDisciplines.includes(q.discipline));
+
+    console.log(`[API] Year ${year}: found ${allQuestions.length} total, ${filtered.length} after filter`);
 
     // Mapear para formato local
     return filtered.map((q, idx) => ({
@@ -205,14 +204,12 @@ export const useSimuladoPreparation = () => {
    */
   const fetchLocalQuestions = async (
     year: string | null,
-    disciplines: string[],
-    limit: number
+    disciplines: string[]
   ): Promise<QuestionData[]> => {
     let query = supabase
       .from("enem_questions")
       .select("*")
-      .in("discipline", disciplines)
-      .limit(limit * 2);
+      .in("discipline", disciplines);
 
     if (year) {
       query = query.eq("year", year);
@@ -225,15 +222,14 @@ export const useSimuladoPreparation = () => {
       return [];
     }
 
-    return data
-      .sort(() => Math.random() - 0.5)
-      .slice(0, limit)
-      .map(q => ({
-        ...q,
-        alternatives: Array.isArray(q.alternatives)
-          ? (q.alternatives as unknown as Array<{ letter: string; text: string }>)
-          : [],
-      })) as unknown as QuestionData[];
+    console.log(`[LOCAL] Found ${data.length} questions for year ${year || "all"}`);
+
+    return data.map(q => ({
+      ...q,
+      alternatives: Array.isArray(q.alternatives)
+        ? (q.alternatives as unknown as Array<{ letter: string; text: string }>)
+        : [],
+    })) as unknown as QuestionData[];
   };
 
   /**
@@ -282,81 +278,91 @@ export const useSimuladoPreparation = () => {
         }));
       };
 
-      // ESTRATÉGIA 1: Ano específico selecionado
+      // CASO 1: Ano específico selecionado (Simulado Oficial)
       if (year) {
         const yearNum = parseInt(year);
-
         updateProgress(`Buscando questões do ENEM ${year}...`);
 
-        // 1a. Tentar banco local primeiro (anos 2024+)
+        // Determinar fonte baseado no ano
         if (yearNum >= 2024) {
-          const local = await fetchLocalQuestions(year, disciplines, totalQuestions);
-          addUniqueQuestions(local);
-          updateProgress(`${collectedQuestions.length}/${totalQuestions} questões do banco local`);
-        }
-
-        // 1b. Se não tem o suficiente e é um ano da API (2009-2023)
-        if (collectedQuestions.length < totalQuestions && yearNum >= 2009 && yearNum <= 2023) {
-          updateProgress(`Carregando do ENEM ${year} via API...`);
-          const apiQuestions = await fetchAllQuestionsFromYear(year, disciplines, signal);
-          addUniqueQuestions(apiQuestions);
-          updateProgress(`${collectedQuestions.length}/${totalQuestions} questões carregadas`);
-        }
-
-        // 1c. Se ainda não tem o suficiente, busca de outros anos
-        if (collectedQuestions.length < totalQuestions) {
-          const otherYears = ENEM_YEARS.filter(y => y !== year);
+          // Anos 2024+: buscar do banco local
+          const localQuestions = await fetchLocalQuestions(year, disciplines);
           
-          for (const y of otherYears) {
-            if (signal.aborted) throw new Error("Cancelado");
-            if (collectedQuestions.length >= totalQuestions) break;
-
-            updateProgress(`Complementando com ENEM ${y}... (${collectedQuestions.length}/${totalQuestions})`);
-
-            const yNum = parseInt(y);
-            if (yNum >= 2024) {
-              const local = await fetchLocalQuestions(y, disciplines, totalQuestions - collectedQuestions.length);
-              addUniqueQuestions(local);
-            } else {
-              const api = await fetchAllQuestionsFromYear(y, disciplines, signal);
-              addUniqueQuestions(api);
-            }
-          }
+          // Embaralhar e adicionar
+          const shuffled = localQuestions.sort(() => Math.random() - 0.5);
+          addUniqueQuestions(shuffled);
+          
+          updateProgress(`${collectedQuestions.length}/${totalQuestions} questões do ENEM ${year}`);
+        } else {
+          // Anos 2009-2023: buscar da API
+          const apiQuestions = await fetchQuestionsFromAPI(year, disciplines, signal);
+          
+          // Embaralhar e adicionar
+          const shuffled = apiQuestions.sort(() => Math.random() - 0.5);
+          addUniqueQuestions(shuffled);
+          
+          updateProgress(`${collectedQuestions.length}/${totalQuestions} questões do ENEM ${year}`);
         }
-      } else {
-        // ESTRATÉGIA 2: Simulado personalizado (sem ano específico)
+
+        // Validar se conseguimos questões suficientes do ano selecionado
+        if (collectedQuestions.length < totalQuestions) {
+          throw new Error(
+            `O ENEM ${year} possui apenas ${collectedQuestions.length} questões das disciplinas selecionadas. ` +
+            `São necessárias ${totalQuestions} questões. ` +
+            `Tente escolher outro ano ou um simulado personalizado.`
+          );
+        }
+      } 
+      // CASO 2: Simulado personalizado (sem ano específico)
+      else {
         updateProgress("Buscando questões de múltiplos anos...");
 
-        // 2a. Primeiro busca do banco local
-        const local = await fetchLocalQuestions(null, disciplines, totalQuestions);
-        addUniqueQuestions(local);
+        // Primeiro: banco local (questões mais recentes, 2024+)
+        const localQuestions = await fetchLocalQuestions(null, disciplines);
+        const shuffledLocal = localQuestions.sort(() => Math.random() - 0.5);
+        addUniqueQuestions(shuffledLocal);
+        
         updateProgress(`${collectedQuestions.length}/${totalQuestions} do banco local`);
 
-        // 2b. Complementa com API se necessário
+        // Se ainda precisar de mais questões, buscar da API por ano
         if (collectedQuestions.length < totalQuestions) {
-          const apiYears = ENEM_YEARS.filter(y => parseInt(y) < 2024);
+          // Anos disponíveis na API (2009-2023)
+          const apiYears = ["2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", "2014", "2013", "2012", "2011", "2010", "2009"];
           
-          for (const y of apiYears) {
+          // Embaralhar anos para variedade
+          const shuffledYears = apiYears.sort(() => Math.random() - 0.5);
+          
+          for (const y of shuffledYears) {
             if (signal.aborted) throw new Error("Cancelado");
             if (collectedQuestions.length >= totalQuestions) break;
 
             updateProgress(`Buscando ENEM ${y}... (${collectedQuestions.length}/${totalQuestions})`);
-            const api = await fetchAllQuestionsFromYear(y, disciplines, signal);
-            addUniqueQuestions(api);
+            
+            const apiQuestions = await fetchQuestionsFromAPI(y, disciplines, signal);
+            const shuffled = apiQuestions.sort(() => Math.random() - 0.5);
+            addUniqueQuestions(shuffled);
           }
+        }
+
+        // Validar quantidade final
+        if (collectedQuestions.length < totalQuestions) {
+          throw new Error(
+            `Foram encontradas apenas ${collectedQuestions.length} de ${totalQuestions} questões necessárias. ` +
+            `Tente novamente ou escolha outro tipo de simulado.`
+          );
         }
       }
 
-      // Shuffle final
+      // Embaralhar ordem final das questões
       const finalQuestions = collectedQuestions
         .sort(() => Math.random() - 0.5)
         .slice(0, totalQuestions);
 
-      // VALIDAÇÃO RIGOROSA: Exigir EXATAMENTE a quantidade solicitada
-      if (finalQuestions.length < totalQuestions) {
+      // VALIDAÇÃO FINAL RIGOROSA
+      if (finalQuestions.length !== totalQuestions) {
         throw new Error(
-          `Foram encontradas apenas ${finalQuestions.length} de ${totalQuestions} questões necessárias. ` +
-          `Tente novamente ou escolha outro tipo de simulado.`
+          `Erro de validação: esperadas ${totalQuestions} questões, obtidas ${finalQuestions.length}. ` +
+          `Por favor, tente novamente.`
         );
       }
 
