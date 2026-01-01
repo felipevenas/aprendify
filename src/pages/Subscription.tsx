@@ -84,8 +84,16 @@ export default function Subscription() {
 
       if (error) throw error;
       
+      // Handle admin-granted subscriptions
+      if (data?.isAdminGrant) {
+        toast.info("Sua assinatura foi concedida pelo administrador e não requer gerenciamento pelo Stripe.");
+        return;
+      }
+      
       if (data?.url) {
         window.open(data.url, "_blank");
+      } else if (data?.error) {
+        throw new Error(data.error);
       } else {
         throw new Error("URL do portal não recebida");
       }
