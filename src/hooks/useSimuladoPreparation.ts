@@ -132,8 +132,6 @@ export const useSimuladoPreparation = () => {
     let offset = 0;
     let hasMore = true;
 
-    console.log(`[API] Fetching year ${year} for disciplines: ${apiDisciplines.join(", ")}`);
-
     while (hasMore && !signal.aborted) {
       await waitForRateLimit();
       
@@ -149,7 +147,6 @@ export const useSimuladoPreparation = () => {
         }
         
         if (response.status === 404) {
-          console.log(`[API] Year ${year} not found (404)`);
           break;
         }
         
@@ -179,8 +176,6 @@ export const useSimuladoPreparation = () => {
 
     // Filtrar por disciplinas solicitadas
     const filtered = allQuestions.filter(q => apiDisciplines.includes(q.discipline));
-
-    console.log(`[API] Year ${year}: found ${allQuestions.length} total, ${filtered.length} after filter`);
 
     // Mapear para formato local
     return filtered.map((q, idx) => ({
@@ -218,11 +213,8 @@ export const useSimuladoPreparation = () => {
     const { data, error } = await query;
     
     if (error || !data) {
-      console.error("[LOCAL] Error:", error);
       return [];
     }
-
-    console.log(`[LOCAL] Found ${data.length} questions for year ${year || "all"}`);
 
     return data.map(q => ({
       ...q,
@@ -389,7 +381,6 @@ export const useSimuladoPreparation = () => {
         .insert(answers);
 
       if (insertError) {
-        console.error("[Preparation] Insert error:", insertError);
         throw new Error("Erro ao salvar configuração. Tente novamente.");
       }
 
@@ -403,12 +394,10 @@ export const useSimuladoPreparation = () => {
         targetCount: totalQuestions,
       });
 
-      console.log(`[Preparation] SUCCESS: ${finalQuestions.length}/${totalQuestions} questões prontas`);
       return { success: true, questions: finalQuestions };
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
-      console.error("[Preparation] FAILED:", error);
 
       setState({
         status: "error",
