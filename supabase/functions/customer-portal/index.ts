@@ -45,6 +45,25 @@ serve(async (req) => {
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
     if (customers.data.length === 0) {
+      // Check if user has a local subscription (admin grant)
+      const { data: localSub } = await supabaseClient
+        .from("subscriptions")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("status", "authorized")
+        .maybeSingle();
+
+      if (localSub && !localSub.stripe_subscription_id) {
+        logStep("User has admin-granted subscription without Stripe customer");
+        return new Response(JSON.stringify({ 
+          error: "Sua assinatura foi concedida pelo administrador e não pode ser gerenciada pelo portal Stripe.",
+          isAdminGrant: true 
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        });
+      }
+
       throw new Error("No Stripe customer found for this user");
     }
     
