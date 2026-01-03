@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,12 +6,12 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Upload, FileJson, CheckCircle, AlertCircle, PenLine, CloudDownload, RefreshCw } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { ArrowLeft, Upload, FileJson, CheckCircle, AlertCircle, PenLine, CloudDownload, RefreshCw, Clock, Database } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import AddManualQuestionForm from "@/components/admin/AddManualQuestionForm";
-import { Checkbox } from "@/components/ui/checkbox";
 
 const AVAILABLE_YEARS = [
   "2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", 
@@ -27,8 +27,58 @@ const AdminImport = () => {
   
   // Estado para sincronização da API
   const [syncing, setSyncing] = useState(false);
-  const [selectedYears, setSelectedYears] = useState<string[]>(["2023", "2022", "2021"]);
+  const [selectedYears, setSelectedYears] = useState<string[]>(["2023"]);
   const [syncResult, setSyncResult] = useState<any>(null);
+  
+  // Estado para progresso em tempo real
+  const [syncProgress, setSyncProgress] = useState({
+    currentYear: "",
+    currentYearIndex: 0,
+    totalYears: 0,
+    questionsImported: 0,
+    startTime: 0,
+    estimatedTimeRemaining: "",
+  });
+  const progressInterval = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (progressInterval.current) {
+        clearInterval(progressInterval.current);
+      }
+    };
+  }, []);
+
+  // Atualiza o tempo estimado durante a sincronização
+  useEffect(() => {
+    if (syncing && syncProgress.startTime > 0) {
+      progressInterval.current = setInterval(() => {
+        const elapsed = Date.now() - syncProgress.startTime;
+        const progress = syncProgress.currentYearIndex / syncProgress.totalYears;
+        
+        if (progress > 0) {
+          const estimatedTotal = elapsed / progress;
+          const remaining = estimatedTotal - elapsed;
+          const minutes = Math.floor(remaining / 60000);
+          const seconds = Math.floor((remaining % 60000) / 1000);
+          
+          setSyncProgress(prev => ({
+            ...prev,
+            estimatedTimeRemaining: minutes > 0 
+              ? `~${minutes}m ${seconds}s restantes`
+              : `~${seconds}s restantes`
+          }));
+        }
+      }, 1000);
+      
+      return () => {
+        if (progressInterval.current) {
+          clearInterval(progressInterval.current);
+        }
+      };
+    }
+  }, [syncing, syncProgress.startTime, syncProgress.currentYearIndex, syncProgress.totalYears]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -93,20 +143,81 @@ const AdminImport = () => {
 
     setSyncing(true);
     setSyncResult(null);
+    setSyncProgress({
+      currentYear: selectedYears[0],
+      currentYearIndex: 0,
+      totalYears: selectedYears.length,
+      questionsImported: 0,
+      startTime: Date.now(),
+      estimatedTimeRemaining: "Calculando...",
+    });
 
     try {
       console.log(`🔄 Sincronizando anos: ${selectedYears.join(", ")}`);
 
-      const response = await supabase.functions.invoke('sync-enem-questions', {
-        body: { years: selectedYears }
-      });
+      // Sincroniza um ano por vez para dar feedback melhor
+      const results: any[] = [];
+      let totalInserted = 0;
+      let totalSkipped = 0;
+      let totalErrors = 0;
 
-      if (response.error) {
-        throw new Error(response.error.message);
+      for (let i = 0; i < selectedYears.length; i++) {
+        const yearToSync = selectedYears[i];
+        
+        setSyncProgress(prev => ({
+          ...prev,
+          currentYear: yearToSync,
+          currentYearIndex: i,
+        }));
+
+        try {
+          const response = await supabase.functions.invoke('sync-enem-questions', {
+            body: { years: [yearToSync] }
+          });
+
+          if (response.error) {
+            results.push({ year: yearToSync, success: false, error: response.error.message });
+            totalErrors++;
+          } else {
+            const data = response.data;
+            results.push(...(data.results || []));
+            totalInserted += data.totalInserted || 0;
+            totalSkipped += data.totalSkipped || 0;
+            totalErrors += data.totalErrors || 0;
+            
+            setSyncProgress(prev => ({
+              ...prev,
+              questionsImported: prev.questionsImported + (data.totalInserted || 0),
+            }));
+          }
+        } catch (error: any) {
+          results.push({ year: yearToSync, success: false, error: error.message });
+          totalErrors++;
+        }
+
+        // Pequeno delay entre anos
+        if (i < selectedYears.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
       }
 
-      setSyncResult(response.data);
-      toast.success(`Sincronização concluída! ${response.data.totalInserted} questões importadas.`);
+      const finalResult = {
+        success: true,
+        totalInserted,
+        totalSkipped,
+        totalErrors,
+        results,
+      };
+
+      setSyncResult(finalResult);
+      
+      if (totalInserted > 0) {
+        toast.success(`Sincronização concluída! ${totalInserted} questões importadas.`);
+      } else if (totalErrors === 0) {
+        toast.info("Todas as questões já estavam sincronizadas.");
+      } else {
+        toast.warning(`Sincronização concluída com ${totalErrors} erros.`);
+      }
       
     } catch (error: any) {
       console.error("Erro na sincronização:", error);
@@ -114,6 +225,11 @@ const AdminImport = () => {
       setSyncResult({ error: error.message });
     } finally {
       setSyncing(false);
+      setSyncProgress(prev => ({
+        ...prev,
+        currentYearIndex: selectedYears.length,
+        estimatedTimeRemaining: "",
+      }));
     }
   };
 
@@ -132,6 +248,10 @@ const AdminImport = () => {
   const clearSelection = () => {
     setSelectedYears([]);
   };
+
+  const progressPercentage = syncing 
+    ? Math.round((syncProgress.currentYearIndex / syncProgress.totalYears) * 100)
+    : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
@@ -184,10 +304,10 @@ const AdminImport = () => {
                   <div className="flex items-center justify-between">
                     <Label>Selecione os anos para sincronizar</Label>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={selectAllYears}>
+                      <Button variant="outline" size="sm" onClick={selectAllYears} disabled={syncing}>
                         Todos
                       </Button>
-                      <Button variant="outline" size="sm" onClick={clearSelection}>
+                      <Button variant="outline" size="sm" onClick={clearSelection} disabled={syncing}>
                         Limpar
                       </Button>
                     </div>
@@ -201,8 +321,8 @@ const AdminImport = () => {
                           selectedYears.includes(y)
                             ? 'bg-primary text-primary-foreground border-primary'
                             : 'bg-muted/50 hover:bg-muted border-border'
-                        }`}
-                        onClick={() => toggleYear(y)}
+                        } ${syncing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => !syncing && toggleYear(y)}
                       >
                         <span className="text-sm font-medium">{y}</span>
                       </div>
@@ -211,8 +331,45 @@ const AdminImport = () => {
                   
                   <p className="text-sm text-muted-foreground">
                     {selectedYears.length} ano(s) selecionado(s)
+                    {selectedYears.length > 5 && (
+                      <span className="text-yellow-600 ml-2">
+                        ⚠️ Muitos anos podem demorar bastante
+                      </span>
+                    )}
                   </p>
                 </div>
+
+                {/* Barra de progresso durante sincronização */}
+                {syncing && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    className="space-y-4 p-4 bg-muted/30 rounded-lg border"
+                  >
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+                        <span>Sincronizando ano <strong>{syncProgress.currentYear}</strong></span>
+                      </div>
+                      <span className="text-muted-foreground">
+                        {syncProgress.currentYearIndex + 1} de {syncProgress.totalYears}
+                      </span>
+                    </div>
+                    
+                    <Progress value={progressPercentage} className="h-2" />
+                    
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Database className="h-3 w-3" />
+                        <span>{syncProgress.questionsImported} questões importadas</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        <span>{syncProgress.estimatedTimeRemaining}</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
 
                 <Button 
                   onClick={handleSyncFromAPI} 
@@ -222,7 +379,7 @@ const AdminImport = () => {
                   {syncing ? (
                     <>
                       <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Sincronizando...
+                      Sincronizando... ({progressPercentage}%)
                     </>
                   ) : (
                     <>
@@ -233,8 +390,12 @@ const AdminImport = () => {
                 </Button>
 
                 {/* Resultado da sincronização */}
-                {syncResult && (
-                  <div className={`p-4 rounded-lg ${syncResult.error ? 'bg-destructive/10' : 'bg-green-500/10'}`}>
+                {syncResult && !syncing && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-4 rounded-lg ${syncResult.error ? 'bg-destructive/10' : 'bg-green-500/10'}`}
+                  >
                     {syncResult.error ? (
                       <div className="flex items-start gap-2">
                         <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
@@ -244,25 +405,51 @@ const AdminImport = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-start gap-2">
-                        <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                        <div>
-                          <p className="font-medium text-green-500">Sincronização concluída!</p>
-                          <p className="text-sm text-muted-foreground">
-                            {syncResult.totalInserted} novas questões importadas
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {syncResult.totalSkipped} questões já existentes
-                          </p>
-                          {syncResult.totalErrors > 0 && (
-                            <p className="text-sm text-destructive mt-1">
-                              {syncResult.totalErrors} erros encontrados
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-2">
+                          <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                          <div>
+                            <p className="font-medium text-green-500">Sincronização concluída!</p>
+                            <p className="text-sm text-muted-foreground">
+                              {syncResult.totalInserted} novas questões importadas
                             </p>
-                          )}
+                            <p className="text-sm text-muted-foreground">
+                              {syncResult.totalSkipped} questões já existentes
+                            </p>
+                            {syncResult.totalErrors > 0 && (
+                              <p className="text-sm text-destructive mt-1">
+                                {syncResult.totalErrors} erros encontrados
+                              </p>
+                            )}
+                          </div>
                         </div>
+                        
+                        {/* Detalhes por ano */}
+                        {syncResult.results && syncResult.results.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-border/50">
+                            <p className="text-xs font-medium text-muted-foreground mb-2">Detalhes por ano:</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              {syncResult.results.map((r: any) => (
+                                <div 
+                                  key={r.year}
+                                  className={`text-xs p-2 rounded flex items-center justify-between ${
+                                    r.success ? 'bg-green-500/10' : 'bg-destructive/10'
+                                  }`}
+                                >
+                                  <span className="font-medium">{r.year}</span>
+                                  {r.success ? (
+                                    <span className="text-green-600">+{r.inserted || 0}</span>
+                                  ) : (
+                                    <span className="text-destructive">erro</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
+                  </motion.div>
                 )}
               </Card>
 
@@ -275,6 +462,10 @@ const AdminImport = () => {
                   <li>4. Após a sincronização, vá em <strong>Gerenciar Questões</strong> e clique em <strong>Classificar IA</strong></li>
                   <li>5. Questões classificadas com confiança ≥70% ficam disponíveis no Banco de Questões</li>
                 </ul>
+                <div className="mt-4 p-3 bg-yellow-500/10 rounded-lg text-sm">
+                  <strong>💡 Dica:</strong> Sincronize 2-3 anos por vez para evitar timeout. 
+                  A API externa tem limite de requisições.
+                </div>
               </Card>
             </TabsContent>
 
