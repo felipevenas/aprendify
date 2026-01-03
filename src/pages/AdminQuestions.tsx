@@ -61,7 +61,7 @@ interface Question {
 }
 
 /**
- * Anos disponíveis (API externa 2009-2023 + Banco local 2024+)
+ * Anos disponíveis (todos do banco de dados)
  */
 const AVAILABLE_YEARS = [
   "2024", "2023", "2022", "2021", "2020", "2019", 
@@ -74,6 +74,14 @@ const AVAILABLE_YEARS = [
  */
 const REQUESTS_PER_MINUTE = 5;
 const REQUEST_INTERVAL_MS = (60 * 1000) / REQUESTS_PER_MINUTE; // 12 segundos
+
+interface YearStats {
+  year: string;
+  total: number;
+  pending: number;
+  ready: number;
+  needsReview: number;
+}
 
 /**
  * Página de administração para gerenciar questões do ENEM
@@ -107,6 +115,11 @@ const AdminQuestions = () => {
   
   // Estado para classificação em lote
   const [isClassifying, setIsClassifying] = useState(false);
+  
+  // Estatísticas por ano
+  const [yearStats, setYearStats] = useState<YearStats[]>([]);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [showYearOverview, setShowYearOverview] = useState(true);
 
   // Verifica se é admin
   useEffect(() => {
@@ -136,99 +149,82 @@ const AdminQuestions = () => {
   }, [navigate]);
 
   /**
-   * Carrega questões do ano selecionado
-   * 2024+: Banco local | 2009-2023: API externa
+   * Carrega estatísticas por ano do banco de dados
+   */
+  const loadYearStats = useCallback(async () => {
+    setLoadingStats(true);
+    try {
+      const { data, error } = await supabase
+        .from("enem_questions")
+        .select("year, classification_status");
+
+      if (error) throw error;
+
+      // Agrupa por ano
+      const statsMap = new Map<string, YearStats>();
+      
+      AVAILABLE_YEARS.forEach(year => {
+        statsMap.set(year, { year, total: 0, pending: 0, ready: 0, needsReview: 0 });
+      });
+
+      (data || []).forEach(q => {
+        const stat = statsMap.get(q.year);
+        if (stat) {
+          stat.total++;
+          if (q.classification_status === "ready") stat.ready++;
+          else if (q.classification_status === "needs_review") stat.needsReview++;
+          else stat.pending++;
+        }
+      });
+
+      setYearStats(Array.from(statsMap.values()).sort((a, b) => parseInt(b.year) - parseInt(a.year)));
+    } catch (error) {
+      console.error("[AdminQuestions] Erro ao carregar estatísticas:", error);
+    } finally {
+      setLoadingStats(false);
+    }
+  }, []);
+
+  /**
+   * Carrega questões do ano selecionado (sempre do banco local)
    */
   const loadQuestions = useCallback(async () => {
     setLoadingQuestions(true);
     setQuestions([]);
     
     try {
-      const yearNum = parseInt(selectedYear);
+      // Busca do banco local
+      const { data, error } = await supabase
+        .from("enem_questions")
+        .select("*")
+        .eq("year", selectedYear)
+        .order("index", { ascending: true });
       
-      if (yearNum >= 2024) {
-        // Busca do banco local
-        const { data, error } = await supabase
-          .from("enem_questions")
-          .select("*")
-          .eq("year", selectedYear)
-          .order("index", { ascending: true });
-        
-        if (error) throw error;
-        
-        const mappedQuestions: Question[] = (data || []).map(q => ({
-          id: q.id,
-          index: q.index,
-          title: q.title,
-          discipline: q.discipline,
-          context: q.context,
-          alternativesIntroduction: q.alternatives_introduction,
-          alternatives: q.alternatives as any[],
-          correctAlternative: q.correct_alternative,
-          year: q.year,
-          difficulty: q.difficulty as "easy" | "medium" | "hard" | null,
-          files: q.files,
-          language: q.language,
-          isFromAPI: false,
-          mainTopic: (q as any).main_topic,
-          subtopics: (q as any).subtopics,
-          confidence: (q as any).confidence,
-          classificationStatus: (q as any).classification_status,
-          origin: (q as any).origin,
-        }));
-        
-        setQuestions(mappedQuestions);
-        console.log(`[AdminQuestions] Carregadas ${mappedQuestions.length} questões do banco local`);
-        
-      } else {
-        // Busca da API externa com paginação (limite máximo é 50 por request)
-        const allQuestions: Question[] = [];
-        let offset = 0;
-        const limit = 50;
-        let hasMore = true;
-        
-        while (hasMore) {
-          const url = `https://api.enem.dev/v1/exams/${selectedYear}/questions?limit=${limit}&offset=${offset}`;
-          const response = await fetch(url);
-          
-          if (!response.ok) {
-            console.error(`[AdminQuestions] Erro na API: ${response.status}`);
-            break;
-          }
-          
-          const data = await response.json();
-          const questions = data.questions || [];
-          
-          // Mapeia as questões da página atual
-          const mappedPage: Question[] = questions.map((q: any) => ({
-            id: `api_${selectedYear}_${q.index}`,
-            index: q.index,
-            title: q.title || "",
-            discipline: q.discipline || "",
-            context: q.context || null,
-            alternativesIntroduction: q.alternativesIntroduction || null,
-            alternatives: q.alternatives || [],
-            correctAlternative: q.correctAlternative || "",
-            year: selectedYear,
-            difficulty: null, // API externa não tem dificuldade definida
-            files: q.files || null,
-            language: q.language || null,
-            isFromAPI: true,
-          }));
-          
-          allQuestions.push(...mappedPage);
-          
-          // Verifica se há mais páginas
-          if (questions.length < limit) {
-            hasMore = false;
-          } else {
-            offset += limit;
-          }
-        }
-        
-        setQuestions(allQuestions);
-        console.log(`[AdminQuestions] Carregadas ${allQuestions.length} questões da API externa`);
-      }
+      if (error) throw error;
+      
+      const mappedQuestions: Question[] = (data || []).map(q => ({
+        id: q.id,
+        index: q.index,
+        title: q.title,
+        discipline: q.discipline,
+        context: q.context,
+        alternativesIntroduction: q.alternatives_introduction,
+        alternatives: q.alternatives as any[],
+        correctAlternative: q.correct_alternative,
+        year: q.year,
+        difficulty: q.difficulty as "easy" | "medium" | "hard" | null,
+        files: q.files,
+        language: q.language,
+        isFromAPI: false,
+        mainTopic: (q as any).main_topic,
+        subtopics: (q as any).subtopics,
+        confidence: (q as any).confidence,
+        classificationStatus: (q as any).classification_status,
+        origin: (q as any).origin,
+      }));
+      
+      setQuestions(mappedQuestions);
+      console.log(`[AdminQuestions] Carregadas ${mappedQuestions.length} questões do banco de dados`);
     } catch (error) {
       console.error("[AdminQuestions] Erro ao carregar questões:", error);
       toast.error("Erro ao carregar questões");
@@ -237,12 +233,19 @@ const AdminQuestions = () => {
     }
   }, [selectedYear]);
 
-  // Carrega questões quando muda o ano
+  // Carrega estatísticas quando torna-se admin
   useEffect(() => {
     if (isAdmin) {
+      loadYearStats();
+    }
+  }, [isAdmin, loadYearStats]);
+
+  // Carrega questões quando muda o ano ou sai do overview
+  useEffect(() => {
+    if (isAdmin && !showYearOverview) {
       loadQuestions();
     }
-  }, [isAdmin, loadQuestions]);
+  }, [isAdmin, loadQuestions, showYearOverview]);
 
   /**
    * Abre o diálogo de edição com a questão selecionada
@@ -482,20 +485,21 @@ const AdminQuestions = () => {
     needsReview: questions.filter(q => q.classificationStatus === "needs_review").length,
   };
 
-  // Função para executar classificação em lote
+  // Função para executar classificação em lote para o ano selecionado
   const runBatchClassification = async () => {
     setIsClassifying(true);
     try {
       const { data, error } = await supabase.functions.invoke("classify-questions", {
-        body: { batchSize: 20 },
+        body: { batchSize: 20, year: selectedYear },
       });
 
       if (error) throw error;
 
       toast.success(`Classificação concluída: ${data.processed} questões processadas (${data.ready} prontas, ${data.needsReview} para revisão)`);
       
-      // Recarrega as questões
+      // Recarrega as questões e estatísticas
       loadQuestions();
+      loadYearStats();
     } catch (err) {
       console.error("[Classification] Erro:", err);
       toast.error("Erro ao executar classificação");
@@ -538,7 +542,7 @@ const AdminQuestions = () => {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => navigate("/dashboard")}
+                onClick={() => showYearOverview ? navigate("/dashboard") : setShowYearOverview(true)}
                 className="hover:bg-primary/10 transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -548,14 +552,111 @@ const AdminQuestions = () => {
               <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-foreground via-foreground to-primary bg-clip-text">
                 <span className="flex items-center gap-3">
                   <Sparkles className="h-7 w-7 text-primary" />
-                  Gerenciar Questões ENEM
+                  {showYearOverview ? "Gerenciar Questões ENEM" : `ENEM ${selectedYear}`}
                 </span>
               </h1>
               <p className="text-muted-foreground mt-1">
-                Edite manualmente ou automatize a formatação via IA
+                {showYearOverview 
+                  ? "Selecione um ano para gerenciar as questões"
+                  : "Edite manualmente ou automatize a formatação via IA"
+                }
               </p>
             </div>
           </div>
+
+          {/* Visão geral por ano */}
+          {showYearOverview ? (
+            <Card className="p-6 backdrop-blur-sm bg-card/80 border-border/50 shadow-lg">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <Database className="h-5 w-5 text-primary" />
+                  Questões por Ano
+                </h2>
+                <div className="text-sm text-muted-foreground">
+                  Total: {yearStats.reduce((acc, s) => acc + s.total, 0)} questões
+                </div>
+              </div>
+              
+              {loadingStats ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {yearStats.map((stat) => (
+                    <motion.div
+                      key={stat.year}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        setSelectedYear(stat.year);
+                        setShowYearOverview(false);
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <Card className={cn(
+                        "p-4 border transition-all hover:shadow-md",
+                        stat.total === 0 
+                          ? "border-border/30 bg-muted/20 opacity-60" 
+                          : stat.ready === stat.total 
+                            ? "border-green-500/30 bg-green-500/5 hover:border-green-500/50"
+                            : stat.pending > 0 
+                              ? "border-yellow-500/30 bg-yellow-500/5 hover:border-yellow-500/50"
+                              : "border-border/50 hover:border-primary/50"
+                      )}>
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="font-bold text-lg">ENEM {stat.year}</span>
+                          <Badge 
+                            variant={stat.total === 0 ? "secondary" : stat.ready === stat.total ? "default" : "outline"}
+                            className={cn(
+                              stat.ready === stat.total && stat.total > 0 && "bg-green-500 hover:bg-green-600",
+                              stat.pending > 0 && "border-yellow-500 text-yellow-600 dark:text-yellow-400"
+                            )}
+                          >
+                            {stat.total} questões
+                          </Badge>
+                        </div>
+                        
+                        {stat.total > 0 && (
+                          <>
+                            <Progress 
+                              value={(stat.ready / stat.total) * 100} 
+                              className="h-2 mb-3"
+                            />
+                            <div className="flex flex-wrap gap-2 text-xs">
+                              {stat.ready > 0 && (
+                                <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                  <CheckCircle className="h-3 w-3" />
+                                  {stat.ready} prontas
+                                </span>
+                              )}
+                              {stat.pending > 0 && (
+                                <span className="flex items-center gap-1 text-yellow-600 dark:text-yellow-400">
+                                  <Loader2 className="h-3 w-3" />
+                                  {stat.pending} pendentes
+                                </span>
+                              )}
+                              {stat.needsReview > 0 && (
+                                <span className="flex items-center gap-1 text-orange-600 dark:text-orange-400">
+                                  <AlertCircle className="h-3 w-3" />
+                                  {stat.needsReview} revisão
+                                </span>
+                              )}
+                            </div>
+                          </>
+                        )}
+                        
+                        {stat.total === 0 && (
+                          <p className="text-xs text-muted-foreground">Nenhuma questão importada</p>
+                        )}
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          ) : (
+            <>
 
           {/* Controles com visual aprimorado */}
           <Card className="p-6 mb-6 backdrop-blur-sm bg-card/80 border-border/50 shadow-lg">
@@ -874,6 +975,8 @@ const AdminQuestions = () => {
               </ScrollArea>
             )}
           </Card>
+          </>
+          )}
         </motion.div>
       </main>
 
