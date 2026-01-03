@@ -116,6 +116,18 @@ const AdminQuestions = () => {
   // Estado para classificação em lote
   const [isClassifying, setIsClassifying] = useState(false);
   
+  // Estado para classificação global (todas as questões)
+  const [isGlobalClassifying, setIsGlobalClassifying] = useState(false);
+  const [globalProgress, setGlobalProgress] = useState({ 
+    currentYear: "", 
+    processedYears: 0, 
+    totalYears: 0,
+    processedQuestions: 0,
+    totalPending: 0,
+    startTime: 0,
+    estimatedRemaining: ""
+  });
+  
   // Estatísticas por ano
   const [yearStats, setYearStats] = useState<YearStats[]>([]);
   const [loadingStats, setLoadingStats] = useState(false);
@@ -508,6 +520,115 @@ const AdminQuestions = () => {
     }
   };
 
+  /**
+   * Classifica TODAS as questões pendentes do banco de dados
+   * Processa ano por ano para dar feedback de progresso
+   */
+  const runGlobalClassification = async () => {
+    const totalPending = yearStats.reduce((acc, s) => acc + s.pending, 0);
+    
+    if (totalPending === 0) {
+      toast.info("Todas as questões já foram classificadas!");
+      return;
+    }
+
+    setIsGlobalClassifying(true);
+    const yearsWithPending = yearStats.filter(s => s.pending > 0);
+    
+    setGlobalProgress({
+      currentYear: "",
+      processedYears: 0,
+      totalYears: yearsWithPending.length,
+      processedQuestions: 0,
+      totalPending,
+      startTime: Date.now(),
+      estimatedRemaining: "Calculando..."
+    });
+
+    let totalProcessed = 0;
+    let totalReady = 0;
+    let totalNeedsReview = 0;
+    let totalFailed = 0;
+
+    try {
+      for (let i = 0; i < yearsWithPending.length; i++) {
+        const yearStat = yearsWithPending[i];
+        let yearPending = yearStat.pending;
+        
+        // Atualiza progresso
+        setGlobalProgress(prev => ({
+          ...prev,
+          currentYear: yearStat.year,
+          processedYears: i,
+        }));
+
+        // Processa todas as questões pendentes deste ano em batches
+        while (yearPending > 0) {
+          console.log(`[GlobalClassification] Processando ${yearStat.year} - ${yearPending} pendentes`);
+          
+          const { data, error } = await supabase.functions.invoke("classify-questions", {
+            body: { batchSize: 20, year: yearStat.year },
+          });
+
+          if (error) {
+            console.error(`[GlobalClassification] Erro no ano ${yearStat.year}:`, error);
+            break;
+          }
+
+          totalProcessed += data.processed || 0;
+          totalReady += data.ready || 0;
+          totalNeedsReview += data.needsReview || 0;
+          totalFailed += data.failed || 0;
+          yearPending -= data.processed || 0;
+
+          // Calcula tempo restante estimado
+          const elapsedMs = Date.now() - globalProgress.startTime;
+          const avgTimePerQuestion = elapsedMs / Math.max(totalProcessed, 1);
+          const remainingQuestions = totalPending - totalProcessed;
+          const remainingMs = avgTimePerQuestion * remainingQuestions;
+          const remainingMinutes = Math.ceil(remainingMs / 60000);
+
+          setGlobalProgress(prev => ({
+            ...prev,
+            processedQuestions: totalProcessed,
+            estimatedRemaining: remainingMinutes > 60 
+              ? `~${Math.ceil(remainingMinutes / 60)}h ${remainingMinutes % 60}min`
+              : `~${remainingMinutes} min`
+          }));
+
+          // Se não processou nenhuma, sai do loop (não há mais pendentes)
+          if (data.processed === 0) break;
+
+          // Pequena pausa entre batches
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      toast.success(
+        `Classificação global concluída!\n` +
+        `${totalProcessed} questões processadas\n` +
+        `${totalReady} prontas, ${totalNeedsReview} para revisão, ${totalFailed} falhas`
+      );
+
+      // Recarrega estatísticas
+      loadYearStats();
+    } catch (err) {
+      console.error("[GlobalClassification] Erro:", err);
+      toast.error("Erro durante classificação global");
+    } finally {
+      setIsGlobalClassifying(false);
+      setGlobalProgress({
+        currentYear: "",
+        processedYears: 0,
+        totalYears: 0,
+        processedQuestions: 0,
+        totalPending: 0,
+        startTime: 0,
+        estimatedRemaining: ""
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -567,15 +688,75 @@ const AdminQuestions = () => {
           {/* Visão geral por ano */}
           {showYearOverview ? (
             <Card className="p-6 backdrop-blur-sm bg-card/80 border-border/50 shadow-lg">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <Database className="h-5 w-5 text-primary" />
-                  Questões por Ano
-                </h2>
-                <div className="text-sm text-muted-foreground">
-                  Total: {yearStats.reduce((acc, s) => acc + s.total, 0)} questões
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <Database className="h-5 w-5 text-primary" />
+                    Questões por Ano
+                  </h2>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Total: {yearStats.reduce((acc, s) => acc + s.total, 0)} questões | 
+                    {" "}{yearStats.reduce((acc, s) => acc + s.pending, 0)} pendentes de classificação
+                  </div>
                 </div>
+                
+                {/* Botão de Classificação Global */}
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    onClick={runGlobalClassification}
+                    disabled={isGlobalClassifying || yearStats.reduce((acc, s) => acc + s.pending, 0) === 0}
+                    className="gap-2 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-md hover:shadow-lg transition-all"
+                  >
+                    {isGlobalClassifying ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Wand2 className="h-4 w-4" />
+                    )}
+                    Classificar Todas ({yearStats.reduce((acc, s) => acc + s.pending, 0)})
+                  </Button>
+                </motion.div>
               </div>
+
+              {/* Barra de progresso da classificação global */}
+              <AnimatePresence>
+                {isGlobalClassifying && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-6 p-4 rounded-lg bg-primary/5 border border-primary/20"
+                  >
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="text-muted-foreground flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        Classificando ano {globalProgress.currentYear}... 
+                        ({globalProgress.processedQuestions}/{globalProgress.totalPending})
+                      </span>
+                      <span className="text-primary font-medium">
+                        {globalProgress.totalPending > 0 
+                          ? `${Math.round((globalProgress.processedQuestions / globalProgress.totalPending) * 100)}%`
+                          : "0%"
+                        }
+                      </span>
+                    </div>
+                    <Progress 
+                      value={globalProgress.totalPending > 0 
+                        ? (globalProgress.processedQuestions / globalProgress.totalPending) * 100 
+                        : 0
+                      } 
+                      className="h-3 mb-2"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>
+                        Anos processados: {globalProgress.processedYears}/{globalProgress.totalYears}
+                      </span>
+                      <span>
+                        Tempo restante: {globalProgress.estimatedRemaining}
+                      </span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               
               {loadingStats ? (
                 <div className="flex items-center justify-center py-12">
@@ -589,10 +770,12 @@ const AdminQuestions = () => {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => {
-                        setSelectedYear(stat.year);
-                        setShowYearOverview(false);
+                        if (!isGlobalClassifying) {
+                          setSelectedYear(stat.year);
+                          setShowYearOverview(false);
+                        }
                       }}
-                      className="cursor-pointer"
+                      className={cn("cursor-pointer", isGlobalClassifying && "pointer-events-none opacity-70")}
                     >
                       <Card className={cn(
                         "p-4 border transition-all hover:shadow-md",
@@ -602,7 +785,8 @@ const AdminQuestions = () => {
                             ? "border-green-500/30 bg-green-500/5 hover:border-green-500/50"
                             : stat.pending > 0 
                               ? "border-yellow-500/30 bg-yellow-500/5 hover:border-yellow-500/50"
-                              : "border-border/50 hover:border-primary/50"
+                              : "border-border/50 hover:border-primary/50",
+                        isGlobalClassifying && globalProgress.currentYear === stat.year && "ring-2 ring-primary animate-pulse"
                       )}>
                         <div className="flex items-center justify-between mb-3">
                           <span className="font-bold text-lg">ENEM {stat.year}</span>
