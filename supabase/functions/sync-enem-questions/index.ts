@@ -124,32 +124,68 @@ serve(async (req) => {
         const existingIndexes = new Set((existingQuestions || []).map(q => q.index));
         console.log(`  Already have ${existingIndexes.size} questions for ${year}`);
 
-        // Fetch questions from external API
-        const url = `${EXTERNAL_API_BASE}/exams/${year}/questions?limit=200&language=${language}`;
-        const response = await fetch(url);
+        // Fetch questions from external API - paginate to get all
+        let allQuestions: any[] = [];
+        let offset = 0;
+        const pageSize = 50;
         
-        if (!response.ok) {
-          console.error(`  ❌ Failed to fetch ${year}: ${response.status}`);
-          results.push({ year, success: false, error: `API returned ${response.status}` });
-          totalErrors++;
-          continue;
-        }
+        while (true) {
+          const url = `${EXTERNAL_API_BASE}/exams/${year}/questions?limit=${pageSize}&offset=${offset}`;
+          console.log(`  Fetching: ${url}`);
+          
+          const response = await fetch(url);
+          
+          if (!response.ok) {
+            if (response.status === 429) {
+              // Rate limited - wait and retry
+              console.log(`  ⏳ Rate limited, waiting 3 seconds...`);
+              await new Promise(resolve => setTimeout(resolve, 3000));
+              continue;
+            }
+            console.error(`  ❌ Failed to fetch ${year}: ${response.status}`);
+            results.push({ year, success: false, error: `API returned ${response.status}` });
+            totalErrors++;
+            break;
+          }
 
-        const data = await response.json();
-        const questions = data?.questions || [];
+          const data = await response.json();
+          const questions = data?.questions || [];
+          
+          if (questions.length === 0) {
+            break;
+          }
+          
+          allQuestions = allQuestions.concat(questions);
+          console.log(`  Fetched ${questions.length} questions, total: ${allQuestions.length}`);
+          
+          // Check if we have more pages
+          const total = data?.metadata?.total || 0;
+          if (allQuestions.length >= total || questions.length < pageSize) {
+            break;
+          }
+          
+          offset += pageSize;
+          
+          // Rate limiting between pages
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
         
-        console.log(`  Found ${questions.length} questions from API`);
+        if (allQuestions.length === 0) {
+          continue; // Error was already logged
+        }
+        
+        console.log(`  Found ${allQuestions.length} questions from API`);
 
         // Filter out questions we already have
-        const newQuestions = questions.filter((q: any) => {
+        const newQuestions = allQuestions.filter((q: any) => {
           const idx = q.index || q.number || 0;
           return !existingIndexes.has(idx);
         });
 
         if (newQuestions.length === 0) {
           console.log(`  ✅ All questions for ${year} already exist`);
-          results.push({ year, success: true, inserted: 0, skipped: questions.length });
-          totalSkipped += questions.length;
+          results.push({ year, success: true, inserted: 0, skipped: allQuestions.length });
+          totalSkipped += allQuestions.length;
           continue;
         }
 
@@ -179,8 +215,8 @@ serve(async (req) => {
         totalErrors++;
       }
 
-      // Rate limiting between years
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Rate limiting between years - longer delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
     }
 
     const summary = {
