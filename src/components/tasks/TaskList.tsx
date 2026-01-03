@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import AddTaskDialog from "./AddTaskDialog";
+import { getSubjectById } from "@/lib/subjects";
 
 interface Task {
   id: string;
@@ -16,10 +17,7 @@ interface Task {
   due_date?: string;
   completed: boolean;
   priority?: string;
-  subjects?: {
-    name: string;
-    color: string;
-  };
+  subject_id?: string | null;
 }
 
 const TaskList = () => {
@@ -35,7 +33,7 @@ const TaskList = () => {
 
       const { data, error } = await supabase
         .from("tasks")
-        .select("*, subjects(name, color)")
+        .select("*")
         .eq("user_id", user.id)
         .order("completed")
         .order("due_date", { nullsFirst: false });
@@ -151,7 +149,9 @@ const TaskList = () => {
         editTask={editTask}
       />
       <div className="space-y-3">
-      {tasks.map((task) => (
+      {tasks.map((task) => {
+        const subject = task.subject_id ? getSubjectById(task.subject_id) : null;
+        return (
         <div
           key={task.id}
           className={`p-4 rounded-lg border border-border bg-card hover:shadow-md transition-all group ${
@@ -201,15 +201,15 @@ const TaskList = () => {
               )}
               
               <div className="flex flex-wrap gap-2 mt-2">
-                {task.subjects && (
+                {subject && (
                   <Badge
                     variant="outline"
                     style={{
-                      borderColor: task.subjects.color,
-                      color: task.subjects.color,
+                      borderColor: subject.color,
+                      color: subject.color,
                     }}
                   >
-                    {task.subjects.name}
+                    {subject.name}
                   </Badge>
                 )}
                 
@@ -228,7 +228,8 @@ const TaskList = () => {
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
       </div>
     </>
   );

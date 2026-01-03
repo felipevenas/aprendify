@@ -6,6 +6,7 @@ import { Trash2, Pencil, Layers } from "lucide-react";
 import { toast } from "sonner";
 import AddFlashcardDialog from "./AddFlashcardDialog";
 import { Flashcard } from "@/hooks/useFlashcards";
+import { getSubjectById } from "@/lib/subjects";
 
 /**
  * Lista todos os flashcards do usuário em formato de grid
@@ -24,7 +25,7 @@ const FlashcardsList = () => {
 
       const { data, error } = await supabase
         .from("flashcards")
-        .select("*, subjects(name, color)")
+        .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
@@ -103,26 +104,28 @@ const FlashcardsList = () => {
       />
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {flashcards.map((flashcard) => (
-          <div
-            key={flashcard.id}
-            className="p-4 rounded-lg border border-border bg-card hover:shadow-md transition-all group"
-          >
-            {/* Header com matéria e ações */}
-            <div className="flex items-start justify-between mb-3">
-              {flashcard.subjects ? (
-                <Badge
-                  variant="outline"
-                  style={{
-                    borderColor: flashcard.subjects.color,
-                    color: flashcard.subjects.color,
-                  }}
-                >
-                  {flashcard.subjects.name}
-                </Badge>
-              ) : (
-                <Badge variant="secondary">Sem matéria</Badge>
-              )}
+          {flashcards.map((flashcard) => {
+            const subject = flashcard.subject_id ? getSubjectById(flashcard.subject_id) : null;
+            return (
+            <div
+              key={flashcard.id}
+              className="p-4 rounded-lg border border-border bg-card hover:shadow-md transition-all group"
+            >
+              {/* Header com matéria e ações */}
+              <div className="flex items-start justify-between mb-3">
+                {subject ? (
+                  <Badge
+                    variant="outline"
+                    style={{
+                      borderColor: subject.color,
+                      color: subject.color,
+                    }}
+                  >
+                    {subject.name}
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary">Sem matéria</Badge>
+                )}
               <div className="flex gap-1">
                 <Button
                   variant="ghost"
@@ -156,9 +159,10 @@ const FlashcardsList = () => {
                 <p className="text-xs text-muted-foreground font-medium mb-1">Verso:</p>
                 <p className="text-sm text-muted-foreground line-clamp-2">{flashcard.back_content}</p>
               </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );
