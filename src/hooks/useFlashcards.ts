@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+import { getSubjectById } from "@/lib/subjects";
+
 /**
  * Interface para o Flashcard
  */
@@ -9,11 +11,7 @@ export interface Flashcard {
   id: string;
   front_content: string;
   back_content: string;
-  subject_id?: string;
-  subjects?: {
-    name: string;
-    color: string;
-  };
+  subject_id?: string | null;
   created_at: string;
 }
 
@@ -35,7 +33,7 @@ export const useFlashcards = (subjectFilter?: string) => {
 
       let query = supabase
         .from("flashcards")
-        .select("*, subjects(name, color)")
+        .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
