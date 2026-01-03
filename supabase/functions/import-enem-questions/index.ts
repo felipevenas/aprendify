@@ -108,7 +108,9 @@ function transformQuestion(raw: any, year: string, supabaseUrl: string): any {
     files: files.length > 0 ? files : null,
     alternatives_introduction: null,
     alternatives: alternativesArray,
-    correct_alternative: correctAlternative
+    correct_alternative: correctAlternative,
+    origin: 'enem_api',
+    classification_status: 'pending_classification',
   };
 }
 
