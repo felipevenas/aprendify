@@ -124,14 +124,14 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Parse request body for optional parameters
-    let batchSize = 10;
-    let maxRetries = 3;
+    // IMPORTANTE: Reduzimos batch para 1-3 questões para respeitar limites do Groq
+    // Limites Groq llama-3.3-70b-versatile: 30 RPM, 12K TPM, 100K TPD
+    let batchSize = 1; // Processa apenas 1 por vez para evitar rate limits
     let year: string | null = null;
     
     try {
       const body = await req.json();
-      if (body.batchSize) batchSize = Math.min(body.batchSize, 50);
-      if (body.maxRetries) maxRetries = body.maxRetries;
+      if (body.batchSize) batchSize = Math.min(body.batchSize, 3); // Máximo 3 por chamada
       if (body.year) year = body.year;
     } catch {
       // Use defaults if no body
@@ -214,8 +214,11 @@ serve(async (req) => {
         console.error(`❌ Failed to classify question ${question.id}`);
       }
 
-      // Rate limiting - wait between requests
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Rate limiting mais agressivo: 2.5 segundos entre requisições
+      // Para não exceder 30 RPM (1 a cada 2 segundos)
+      if (questions.length > 1) {
+        await new Promise(resolve => setTimeout(resolve, 2500));
+      }
     }
 
     const summary = {
@@ -237,9 +240,13 @@ serve(async (req) => {
   } catch (error) {
     console.error('❌ Classification error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Retorna código 429 se for erro de rate limit
+    const isRateLimit = errorMessage.includes('rate') || errorMessage.includes('429');
+    
     return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: errorMessage, isRateLimit }),
+      { status: isRateLimit ? 429 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

@@ -70,10 +70,15 @@ const AVAILABLE_YEARS = [
 ];
 
 /**
- * Rate limiting: 5 requisições por minuto = 1 requisição a cada 12 segundos
+ * Rate limiting baseado nos limites do Groq API (llama-3.3-70b-versatile):
+ * - RPM: 30 requests/min (1 a cada 2s)
+ * - TPM: 12K tokens/min
+ * - TPD: 100K tokens/day
+ * 
+ * Para ser conservador e evitar erros, usamos 1 request a cada 4 segundos
  */
-const REQUESTS_PER_MINUTE = 5;
-const REQUEST_INTERVAL_MS = (60 * 1000) / REQUESTS_PER_MINUTE; // 12 segundos
+const REQUESTS_PER_MINUTE = 15; // Conservador: metade do limite real
+const REQUEST_INTERVAL_MS = (60 * 1000) / REQUESTS_PER_MINUTE; // ~4 segundos
 
 interface YearStats {
   year: string;
@@ -526,7 +531,13 @@ const AdminQuestions = () => {
   /**
    * Classifica TODAS as questões pendentes do banco de dados
    * Processa ano por ano para dar feedback de progresso
-   * Com pausas entre batches para evitar exceder limites de tokens
+   * 
+   * LIMITES GROQ API (llama-3.3-70b-versatile):
+   * - RPM: 30 requests/min
+   * - TPM: 12K tokens/min  
+   * - TPD: 100K tokens/day
+   * 
+   * Estratégia: 1 questão por vez, pausa de 5s entre cada, pausa longa a cada 10 questões
    */
   const runGlobalClassification = async () => {
     const totalPending = yearStats.reduce((acc, s) => acc + s.pending, 0);
@@ -556,15 +567,22 @@ const AdminQuestions = () => {
     let totalReady = 0;
     let totalNeedsReview = 0;
     let totalFailed = 0;
-    let batchCount = 0;
-    const PAUSE_EVERY_N_BATCHES = 3; // Pausa a cada 3 batches
-    const PAUSE_DURATION_SECONDS = 30; // Pausa de 30 segundos
+    let requestCount = 0;
+    
+    // Configurações de rate limiting baseadas nos limites do Groq
+    const QUESTIONS_PER_BATCH = 1; // 1 questão por chamada (conservador)
+    const DELAY_BETWEEN_REQUESTS_MS = 5000; // 5 segundos entre requests (12 RPM conservador)
+    const PAUSE_EVERY_N_REQUESTS = 10; // Pausa a cada 10 questões
+    const PAUSE_DURATION_SECONDS = 60; // Pausa de 1 minuto para recuperar tokens
+    const RATE_LIMIT_PAUSE_SECONDS = 120; // Pausa de 2 minutos se atingir rate limit
 
-    // Ref para acessar estado de pausa dentro do loop
-    const pauseRef = { current: false };
+    // Ref para controle de cancelamento
+    let cancelled = false;
 
     try {
       for (let i = 0; i < yearsWithPending.length; i++) {
+        if (cancelled) break;
+        
         const yearStat = yearsWithPending[i];
         let yearPending = yearStat.pending;
         
@@ -575,28 +593,31 @@ const AdminQuestions = () => {
           processedYears: i,
         }));
 
-        // Processa todas as questões pendentes deste ano em batches
-        while (yearPending > 0) {
+        // Processa todas as questões pendentes deste ano
+        while (yearPending > 0 && !cancelled) {
           // Verifica se está pausado manualmente
-          while (pauseRef.current) {
+          while (globalClassificationPaused && !cancelled) {
             await new Promise(resolve => setTimeout(resolve, 500));
           }
+          
+          if (cancelled) break;
 
-          console.log(`[GlobalClassification] Processando ${yearStat.year} - ${yearPending} pendentes (batch ${batchCount + 1})`);
+          console.log(`[GlobalClassification] Processando ${yearStat.year} - ${yearPending} pendentes (request ${requestCount + 1})`);
           
           const { data, error } = await supabase.functions.invoke("classify-questions", {
-            body: { batchSize: 10, year: yearStat.year }, // Batch menor para evitar timeout
+            body: { batchSize: QUESTIONS_PER_BATCH, year: yearStat.year },
           });
 
           if (error) {
             console.error(`[GlobalClassification] Erro no ano ${yearStat.year}:`, error);
             
             // Se for erro de rate limit ou tokens, pausa automaticamente
-            if (error.message?.includes("rate") || error.message?.includes("token") || error.message?.includes("429")) {
-              toast.warning("Limite de taxa atingido. Pausando por 60 segundos...");
-              setGlobalProgress(prev => ({ ...prev, isPaused: true, pauseCountdown: 60 }));
+            const errorStr = error.message?.toLowerCase() || '';
+            if (errorStr.includes("rate") || errorStr.includes("token") || errorStr.includes("429") || errorStr.includes("limit")) {
+              toast.warning(`Limite de taxa atingido. Pausando por ${RATE_LIMIT_PAUSE_SECONDS} segundos...`);
+              setGlobalProgress(prev => ({ ...prev, isPaused: true, pauseCountdown: RATE_LIMIT_PAUSE_SECONDS }));
               
-              for (let countdown = 60; countdown > 0; countdown--) {
+              for (let countdown = RATE_LIMIT_PAUSE_SECONDS; countdown > 0 && !cancelled; countdown--) {
                 setGlobalProgress(prev => ({ ...prev, pauseCountdown: countdown }));
                 await new Promise(resolve => setTimeout(resolve, 1000));
               }
@@ -605,48 +626,53 @@ const AdminQuestions = () => {
               continue; // Tenta novamente após a pausa
             }
             
-            break;
+            // Outros erros: incrementa failed e continua
+            totalFailed++;
+            yearPending--;
+            continue;
           }
 
-          batchCount++;
+          requestCount++;
           totalProcessed += data.processed || 0;
           totalReady += data.ready || 0;
           totalNeedsReview += data.needsReview || 0;
           totalFailed += data.failed || 0;
-          yearPending -= data.processed || 0;
+          yearPending -= (data.processed || 0) + (data.failed || 0);
 
           // Calcula tempo restante estimado
           const elapsedMs = Date.now() - globalProgress.startTime;
           const avgTimePerQuestion = elapsedMs / Math.max(totalProcessed, 1);
-          const remainingQuestions = totalPending - totalProcessed;
+          const remainingQuestions = totalPending - totalProcessed - totalFailed;
           const remainingMs = avgTimePerQuestion * remainingQuestions;
           const remainingMinutes = Math.ceil(remainingMs / 60000);
+          const remainingHours = Math.floor(remainingMinutes / 60);
 
           setGlobalProgress(prev => ({
             ...prev,
             processedQuestions: totalProcessed,
-            estimatedRemaining: remainingMinutes > 60 
-              ? `~${Math.ceil(remainingMinutes / 60)}h ${remainingMinutes % 60}min`
+            estimatedRemaining: remainingHours > 0
+              ? `~${remainingHours}h ${remainingMinutes % 60}min`
               : `~${remainingMinutes} min`
           }));
 
           // Se não processou nenhuma, sai do loop (não há mais pendentes)
-          if (data.processed === 0) break;
+          if ((data.processed || 0) === 0 && (data.failed || 0) === 0) break;
 
-          // Pausa automática a cada N batches para evitar exceder limites
-          if (batchCount % PAUSE_EVERY_N_BATCHES === 0) {
-            console.log(`[GlobalClassification] Pausa automática após ${batchCount} batches...`);
+          // Pausa automática a cada N requests para recuperar tokens
+          if (requestCount % PAUSE_EVERY_N_REQUESTS === 0) {
+            console.log(`[GlobalClassification] Pausa automática após ${requestCount} requests (economia de tokens)...`);
+            toast.info(`Pausa de ${PAUSE_DURATION_SECONDS}s para recuperar tokens...`);
             setGlobalProgress(prev => ({ ...prev, isPaused: true, pauseCountdown: PAUSE_DURATION_SECONDS }));
             
-            for (let countdown = PAUSE_DURATION_SECONDS; countdown > 0; countdown--) {
+            for (let countdown = PAUSE_DURATION_SECONDS; countdown > 0 && !cancelled; countdown--) {
               setGlobalProgress(prev => ({ ...prev, pauseCountdown: countdown }));
               await new Promise(resolve => setTimeout(resolve, 1000));
             }
             
             setGlobalProgress(prev => ({ ...prev, isPaused: false, pauseCountdown: 0 }));
           } else {
-            // Pequena pausa entre batches
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            // Pausa entre requests normais (5 segundos)
+            await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS_MS));
           }
         }
       }
