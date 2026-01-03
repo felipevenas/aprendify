@@ -34,50 +34,6 @@ interface QuestionCache {
   usedIds: Set<string>;
 }
 
-
-const EXTERNAL_API_BASE = "https://api.enem.dev/v1";
-
-// Cache simples em memória
-const externalExamTotalsCache = new Map<string, number>();
-
-const canonicalizeDiscipline = (discipline: string) => {
-  const d = discipline.toLowerCase();
-  if (d === "ciencias-humanas") return "humanas";
-  if (d === "ciencias-natureza" || d === "ciencias-da-natureza") return "natureza";
-  return d;
-};
-
-const disciplineMatchesFilter = (questionDiscipline: unknown, selectedDiscipline: string) => {
-  if (selectedDiscipline === "all") return true;
-  if (typeof questionDiscipline !== "string") return false;
-  return canonicalizeDiscipline(questionDiscipline) === canonicalizeDiscipline(selectedDiscipline);
-};
-
-const getExternalExamTotal = async (year: string, language: string): Promise<number> => {
-  const key = `${year}:${language}`;
-  const cached = externalExamTotalsCache.get(key);
-  if (cached) return cached;
-
-  try {
-    const params = new URLSearchParams({ limit: "1", offset: "0" });
-    if (language !== "all") params.append("language", language);
-
-    const url = `${EXTERNAL_API_BASE}/exams/${year}/questions?${params.toString()}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error("API error");
-
-    const data = await response.json();
-    const total =
-      typeof data?.metadata?.total === "number" && data.metadata.total > 0 ? data.metadata.total : 180;
-
-    externalExamTotalsCache.set(key, total);
-    return total;
-  } catch {
-    externalExamTotalsCache.set(key, 180);
-    return 180;
-  }
-};
-
 /**
  * Hook otimizado para gerenciar banco de questões
  * Suporta filtros por ano, disciplina, idioma, dificuldade, tópico, status e busca
@@ -226,47 +182,6 @@ export const useQuestionBank = () => {
     };
   }, []);
 
-  // Busca questão da API externa
-  const fetchFromExternalAPI = useCallback(async (
-    year: string,
-    discipline: string,
-    language: string,
-    random: boolean
-  ): Promise<QuestionData | null> => {
-    const total = await getExternalExamTotal(year, language);
-
-    const attempts = discipline === "all" ? 1 : 12;
-
-    for (let i = 0; i < attempts; i++) {
-      const offset = random
-        ? Math.floor(Math.random() * total)
-        : discipline === "all"
-          ? 0
-          : Math.floor(Math.random() * total);
-
-      const params = new URLSearchParams({ limit: "1", offset: offset.toString() });
-      if (language !== "all") params.append("language", language);
-
-      const url = `${EXTERNAL_API_BASE}/exams/${year}/questions?${params.toString()}`;
-
-      try {
-        const response = await fetch(url);
-        if (!response.ok) continue;
-
-        const data = await response.json();
-        const q = data?.questions?.[0];
-        if (!q) continue;
-
-        if (!disciplineMatchesFilter(q.discipline, discipline)) continue;
-
-        return { ...q, year: year.toString(), difficulty: null };
-      } catch {
-        // ignora e tenta novamente
-      }
-    }
-
-    return null;
-  }, []);
 
   // Função principal para buscar questão
   const fetchQuestion = useCallback(async (
@@ -330,7 +245,7 @@ export const useQuestionBank = () => {
           return { success: false, message: "Erro ao carregar questão" };
         }
       } else if (year === "all") {
-        // "Todos os anos" - busca do banco local primeiro, depois API
+        // "Todos os anos" - busca apenas do banco local
         if (!isCacheValid("all", discipline, language, difficulty, mainTopic, status, keyword)) {
           const ids = await loadQuestionIds("all", discipline, language, difficulty, mainTopic, status, keyword, userId);
           cacheRef.current = {
@@ -359,31 +274,43 @@ export const useQuestionBank = () => {
           }
         }
         
-        // Fallback: API externa (sem filtros avançados)
-        if (status === "all" && keyword === "") {
-          const years = ["2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015"];
-          const randomYear = years[Math.floor(Math.random() * years.length)];
-          const question = await fetchFromExternalAPI(randomYear, discipline, language, random);
-          
-          if (question) {
-            setCurrentQuestion(question);
-            setLoading(false);
-            return { success: true };
-          }
-        }
-        
         setCurrentQuestion(null);
         setLoading(false);
         return { success: false, message: "Nenhuma questão encontrada" };
       } else {
-        // Anos 2009-2023 usam API externa (sem filtros avançados)
-        if (status !== "all" || keyword !== "" || mainTopic !== "all") {
+        // Anos específicos (2009-2023) - busca do banco local
+        if (!isCacheValid(year, discipline, language, difficulty, mainTopic, status, keyword)) {
+          const ids = await loadQuestionIds(year, discipline, language, difficulty, mainTopic, status, keyword, userId);
+          cacheRef.current = {
+            key: { year, discipline, language, difficulty, mainTopic, status, keyword },
+            questionIds: ids,
+            usedIds: new Set(),
+          };
+        }
+
+        const cache = cacheRef.current!;
+        
+        if (cache.questionIds.length === 0) {
           setCurrentQuestion(null);
           setLoading(false);
-          return { success: false, message: "Filtros avançados disponíveis apenas para questões do banco local (2024+)" };
+          return { success: false, message: "Nenhuma questão encontrada com esses filtros" };
         }
+
+        let availableIds = cache.questionIds.filter(id => !cache.usedIds.has(id));
         
-        const question = await fetchFromExternalAPI(year, discipline, language, random);
+        if (availableIds.length === 0) {
+          cache.usedIds.clear();
+          availableIds = cache.questionIds;
+        }
+
+        const randomIndex = random 
+          ? Math.floor(Math.random() * availableIds.length) 
+          : 0;
+        const selectedId = availableIds[randomIndex];
+        
+        cache.usedIds.add(selectedId);
+
+        const question = await fetchQuestionById(selectedId);
         
         if (question) {
           setCurrentQuestion(question);
@@ -392,7 +319,7 @@ export const useQuestionBank = () => {
         } else {
           setCurrentQuestion(null);
           setLoading(false);
-          return { success: false, message: "Nenhuma questão encontrada" };
+          return { success: false, message: "Erro ao carregar questão" };
         }
       }
     } catch {
@@ -400,7 +327,7 @@ export const useQuestionBank = () => {
       setLoading(false);
       return { success: false, message: "Erro ao carregar questão" };
     }
-  }, [isCacheValid, loadQuestionIds, fetchQuestionById, fetchFromExternalAPI]);
+  }, [isCacheValid, loadQuestionIds, fetchQuestionById]);
 
   const clearCache = useCallback(() => {
     cacheRef.current = null;
