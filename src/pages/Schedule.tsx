@@ -28,11 +28,7 @@ interface ScheduleItem {
   is_ai_generated?: boolean;
   completed?: boolean;
   completed_at?: string;
-  subject_id?: string;
-  subjects?: {
-    name: string;
-    color: string;
-  };
+  subject_id?: string | null;
 }
 
 interface ScheduleGeneration {
@@ -137,7 +133,7 @@ const Schedule = () => {
 
       const { data, error } = await supabase
         .from("schedule_items")
-        .select("*, subjects(name, color)")
+        .select("*")
         .eq("user_id", user.id)
         .not("scheduled_date", "is", null)
         .order("scheduled_date")

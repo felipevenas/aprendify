@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AddScheduleDialog from "./AddScheduleDialog";
+import { getSubjectById } from "@/lib/subjects";
 
 interface ScheduleItem {
   id: string;
@@ -12,11 +13,7 @@ interface ScheduleItem {
   start_time: string;
   end_time: string;
   notes?: string;
-  subject_id?: string;
-  subjects?: {
-    name: string;
-    color: string;
-  };
+  subject_id?: string | null;
 }
 
 const DAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
@@ -34,7 +31,7 @@ const ScheduleGrid = () => {
 
       const { data, error } = await supabase
         .from("schedule_items")
-        .select("*, subjects(name, color)")
+        .select("*")
         .eq("user_id", user.id)
         .order("day_of_week")
         .order("start_time");
@@ -112,13 +109,15 @@ const ScheduleGrid = () => {
               <p className="text-sm text-muted-foreground italic py-4">Sem atividades</p>
             ) : (
               <div className="space-y-2">
-                {dayItems.map((item) => (
+                {dayItems.map((item) => {
+                  const subject = item.subject_id ? getSubjectById(item.subject_id) : null;
+                  return (
                   <div
                     key={item.id}
                     className="p-3 rounded-lg border border-border bg-card hover:shadow-md transition-shadow group"
                     style={{
                       borderLeftWidth: "4px",
-                      borderLeftColor: item.subjects?.color || "#3B82F6",
+                      borderLeftColor: subject?.color || "#3B82F6",
                     }}
                   >
                     <div className="flex justify-between items-start mb-1">
@@ -145,9 +144,9 @@ const ScheduleGrid = () => {
                         </Button>
                       </div>
                     </div>
-                    {item.subjects && (
+                    {subject && (
                       <p className="text-xs text-muted-foreground mb-1">
-                        {item.subjects.name}
+                        {subject.name}
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground">
@@ -159,7 +158,8 @@ const ScheduleGrid = () => {
                       </p>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
