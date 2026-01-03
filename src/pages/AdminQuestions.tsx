@@ -534,10 +534,10 @@ const AdminQuestions = () => {
    * 
    * LIMITES GROQ API (llama-3.3-70b-versatile):
    * - RPM: 30 requests/min
-   * - TPM: 12K tokens/min  
-   * - TPD: 100K tokens/day
+   * - TPM: 15K tokens/min  
+   * - RPD: 7K requests/day
    * 
-   * Estratégia: 1 questão por vez, pausa de 5s entre cada, pausa longa a cada 10 questões
+   * Estratégia: 2s entre requests (30 RPM), pausa apenas se houver rate limit
    */
   const runGlobalClassification = async () => {
     const totalPending = yearStats.reduce((acc, s) => acc + s.pending, 0);
@@ -567,16 +567,12 @@ const AdminQuestions = () => {
     let totalReady = 0;
     let totalNeedsReview = 0;
     let totalFailed = 0;
-    let requestCount = 0;
     
-    // Configurações de rate limiting baseadas nos limites do Groq
-    const QUESTIONS_PER_BATCH = 1; // 1 questão por chamada (conservador)
-    const DELAY_BETWEEN_REQUESTS_MS = 5000; // 5 segundos entre requests (12 RPM conservador)
-    const PAUSE_EVERY_N_REQUESTS = 10; // Pausa a cada 10 questões
-    const PAUSE_DURATION_SECONDS = 60; // Pausa de 1 minuto para recuperar tokens
-    const RATE_LIMIT_PAUSE_SECONDS = 120; // Pausa de 2 minutos se atingir rate limit
+    // Rate limits: 30 RPM = 2s entre requests
+    const QUESTIONS_PER_BATCH = 1;
+    const DELAY_BETWEEN_REQUESTS_MS = 2100; // 2.1s = ~28 RPM
+    const RATE_LIMIT_PAUSE_SECONDS = 65; // 1 min + 5s quando atingir limite
 
-    // Ref para controle de cancelamento
     let cancelled = false;
 
     try {
@@ -602,7 +598,7 @@ const AdminQuestions = () => {
           
           if (cancelled) break;
 
-          console.log(`[GlobalClassification] Processando ${yearStat.year} - ${yearPending} pendentes (request ${requestCount + 1})`);
+          console.log(`[GlobalClassification] Processando ${yearStat.year} - ${yearPending} pendentes`);
           
           const { data, error } = await supabase.functions.invoke("classify-questions", {
             body: { batchSize: QUESTIONS_PER_BATCH, year: yearStat.year },
@@ -632,7 +628,6 @@ const AdminQuestions = () => {
             continue;
           }
 
-          requestCount++;
           totalProcessed += data.processed || 0;
           totalReady += data.ready || 0;
           totalNeedsReview += data.needsReview || 0;
@@ -655,25 +650,11 @@ const AdminQuestions = () => {
               : `~${remainingMinutes} min`
           }));
 
-          // Se não processou nenhuma, sai do loop (não há mais pendentes)
+          // Se não processou nenhuma, sai do loop
           if ((data.processed || 0) === 0 && (data.failed || 0) === 0) break;
 
-          // Pausa automática a cada N requests para recuperar tokens
-          if (requestCount % PAUSE_EVERY_N_REQUESTS === 0) {
-            console.log(`[GlobalClassification] Pausa automática após ${requestCount} requests (economia de tokens)...`);
-            toast.info(`Pausa de ${PAUSE_DURATION_SECONDS}s para recuperar tokens...`);
-            setGlobalProgress(prev => ({ ...prev, isPaused: true, pauseCountdown: PAUSE_DURATION_SECONDS }));
-            
-            for (let countdown = PAUSE_DURATION_SECONDS; countdown > 0 && !cancelled; countdown--) {
-              setGlobalProgress(prev => ({ ...prev, pauseCountdown: countdown }));
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-            
-            setGlobalProgress(prev => ({ ...prev, isPaused: false, pauseCountdown: 0 }));
-          } else {
-            // Pausa entre requests normais (5 segundos)
-            await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS_MS));
-          }
+          // Delay de 2.1s entre requests (28 RPM)
+          await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS_MS));
         }
       }
 
