@@ -118,6 +118,7 @@ const AdminQuestions = () => {
   
   // Estado para classificação global (todas as questões)
   const [isGlobalClassifying, setIsGlobalClassifying] = useState(false);
+  const [globalClassificationPaused, setGlobalClassificationPaused] = useState(false);
   const [globalProgress, setGlobalProgress] = useState({ 
     currentYear: "", 
     processedYears: 0, 
@@ -125,7 +126,9 @@ const AdminQuestions = () => {
     processedQuestions: 0,
     totalPending: 0,
     startTime: 0,
-    estimatedRemaining: ""
+    estimatedRemaining: "",
+    isPaused: false,
+    pauseCountdown: 0
   });
   
   // Estatísticas por ano
@@ -523,6 +526,7 @@ const AdminQuestions = () => {
   /**
    * Classifica TODAS as questões pendentes do banco de dados
    * Processa ano por ano para dar feedback de progresso
+   * Com pausas entre batches para evitar exceder limites de tokens
    */
   const runGlobalClassification = async () => {
     const totalPending = yearStats.reduce((acc, s) => acc + s.pending, 0);
@@ -533,6 +537,7 @@ const AdminQuestions = () => {
     }
 
     setIsGlobalClassifying(true);
+    setGlobalClassificationPaused(false);
     const yearsWithPending = yearStats.filter(s => s.pending > 0);
     
     setGlobalProgress({
@@ -542,13 +547,21 @@ const AdminQuestions = () => {
       processedQuestions: 0,
       totalPending,
       startTime: Date.now(),
-      estimatedRemaining: "Calculando..."
+      estimatedRemaining: "Calculando...",
+      isPaused: false,
+      pauseCountdown: 0
     });
 
     let totalProcessed = 0;
     let totalReady = 0;
     let totalNeedsReview = 0;
     let totalFailed = 0;
+    let batchCount = 0;
+    const PAUSE_EVERY_N_BATCHES = 3; // Pausa a cada 3 batches
+    const PAUSE_DURATION_SECONDS = 30; // Pausa de 30 segundos
+
+    // Ref para acessar estado de pausa dentro do loop
+    const pauseRef = { current: false };
 
     try {
       for (let i = 0; i < yearsWithPending.length; i++) {
@@ -564,17 +577,38 @@ const AdminQuestions = () => {
 
         // Processa todas as questões pendentes deste ano em batches
         while (yearPending > 0) {
-          console.log(`[GlobalClassification] Processando ${yearStat.year} - ${yearPending} pendentes`);
+          // Verifica se está pausado manualmente
+          while (pauseRef.current) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+
+          console.log(`[GlobalClassification] Processando ${yearStat.year} - ${yearPending} pendentes (batch ${batchCount + 1})`);
           
           const { data, error } = await supabase.functions.invoke("classify-questions", {
-            body: { batchSize: 20, year: yearStat.year },
+            body: { batchSize: 10, year: yearStat.year }, // Batch menor para evitar timeout
           });
 
           if (error) {
             console.error(`[GlobalClassification] Erro no ano ${yearStat.year}:`, error);
+            
+            // Se for erro de rate limit ou tokens, pausa automaticamente
+            if (error.message?.includes("rate") || error.message?.includes("token") || error.message?.includes("429")) {
+              toast.warning("Limite de taxa atingido. Pausando por 60 segundos...");
+              setGlobalProgress(prev => ({ ...prev, isPaused: true, pauseCountdown: 60 }));
+              
+              for (let countdown = 60; countdown > 0; countdown--) {
+                setGlobalProgress(prev => ({ ...prev, pauseCountdown: countdown }));
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              }
+              
+              setGlobalProgress(prev => ({ ...prev, isPaused: false, pauseCountdown: 0 }));
+              continue; // Tenta novamente após a pausa
+            }
+            
             break;
           }
 
+          batchCount++;
           totalProcessed += data.processed || 0;
           totalReady += data.ready || 0;
           totalNeedsReview += data.needsReview || 0;
@@ -599,8 +633,21 @@ const AdminQuestions = () => {
           // Se não processou nenhuma, sai do loop (não há mais pendentes)
           if (data.processed === 0) break;
 
-          // Pequena pausa entre batches
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Pausa automática a cada N batches para evitar exceder limites
+          if (batchCount % PAUSE_EVERY_N_BATCHES === 0) {
+            console.log(`[GlobalClassification] Pausa automática após ${batchCount} batches...`);
+            setGlobalProgress(prev => ({ ...prev, isPaused: true, pauseCountdown: PAUSE_DURATION_SECONDS }));
+            
+            for (let countdown = PAUSE_DURATION_SECONDS; countdown > 0; countdown--) {
+              setGlobalProgress(prev => ({ ...prev, pauseCountdown: countdown }));
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            setGlobalProgress(prev => ({ ...prev, isPaused: false, pauseCountdown: 0 }));
+          } else {
+            // Pequena pausa entre batches
+            await new Promise(resolve => setTimeout(resolve, 3000));
+          }
         }
       }
 
@@ -617,6 +664,7 @@ const AdminQuestions = () => {
       toast.error("Erro durante classificação global");
     } finally {
       setIsGlobalClassifying(false);
+      setGlobalClassificationPaused(false);
       setGlobalProgress({
         currentYear: "",
         processedYears: 0,
@@ -624,9 +672,39 @@ const AdminQuestions = () => {
         processedQuestions: 0,
         totalPending: 0,
         startTime: 0,
-        estimatedRemaining: ""
+        estimatedRemaining: "",
+        isPaused: false,
+        pauseCountdown: 0
       });
     }
+  };
+
+  /**
+   * Pausa/retoma classificação global
+   */
+  const toggleGlobalClassificationPause = () => {
+    setGlobalClassificationPaused(prev => !prev);
+    toast.info(globalClassificationPaused ? "Classificação retomada" : "Classificação pausada");
+  };
+
+  /**
+   * Cancela classificação global
+   */
+  const cancelGlobalClassification = () => {
+    setIsGlobalClassifying(false);
+    setGlobalClassificationPaused(false);
+    setGlobalProgress({
+      currentYear: "",
+      processedYears: 0,
+      totalYears: 0,
+      processedQuestions: 0,
+      totalPending: 0,
+      startTime: 0,
+      estimatedRemaining: "",
+      isPaused: false,
+      pauseCountdown: 0
+    });
+    toast.info("Classificação global cancelada");
   };
 
   if (loading) {
@@ -700,21 +778,48 @@ const AdminQuestions = () => {
                   </div>
                 </div>
                 
-                {/* Botão de Classificação Global */}
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Button
-                    onClick={runGlobalClassification}
-                    disabled={isGlobalClassifying || yearStats.reduce((acc, s) => acc + s.pending, 0) === 0}
-                    className="gap-2 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-md hover:shadow-lg transition-all"
-                  >
-                    {isGlobalClassifying ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Wand2 className="h-4 w-4" />
-                    )}
-                    Classificar Todas ({yearStats.reduce((acc, s) => acc + s.pending, 0)})
-                  </Button>
-                </motion.div>
+                {/* Botões de Classificação Global */}
+                <div className="flex gap-2">
+                  {isGlobalClassifying ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        onClick={toggleGlobalClassificationPause}
+                        className="gap-2"
+                      >
+                        {globalClassificationPaused ? (
+                          <>
+                            <Play className="h-4 w-4" />
+                            Retomar
+                          </>
+                        ) : (
+                          <>
+                            <Pause className="h-4 w-4" />
+                            Pausar
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={cancelGlobalClassification}
+                        className="gap-2"
+                      >
+                        Cancelar
+                      </Button>
+                    </>
+                  ) : (
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Button
+                        onClick={runGlobalClassification}
+                        disabled={yearStats.reduce((acc, s) => acc + s.pending, 0) === 0}
+                        className="gap-2 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-md hover:shadow-lg transition-all"
+                      >
+                        <Wand2 className="h-4 w-4" />
+                        Classificar Todas ({yearStats.reduce((acc, s) => acc + s.pending, 0)})
+                      </Button>
+                    </motion.div>
+                  )}
+                </div>
               </div>
 
               {/* Barra de progresso da classificação global */}
@@ -726,19 +831,29 @@ const AdminQuestions = () => {
                     exit={{ opacity: 0, height: 0 }}
                     className="mb-6 p-4 rounded-lg bg-primary/5 border border-primary/20"
                   >
-                    <div className="flex items-center justify-between text-sm mb-2">
-                      <span className="text-muted-foreground flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                        Classificando ano {globalProgress.currentYear}... 
-                        ({globalProgress.processedQuestions}/{globalProgress.totalPending})
-                      </span>
-                      <span className="text-primary font-medium">
-                        {globalProgress.totalPending > 0 
-                          ? `${Math.round((globalProgress.processedQuestions / globalProgress.totalPending) * 100)}%`
-                          : "0%"
-                        }
-                      </span>
-                    </div>
+                    {/* Status de pausa */}
+                    {globalProgress.isPaused ? (
+                      <div className="flex items-center justify-center gap-3 py-4 text-amber-500">
+                        <Pause className="h-5 w-5" />
+                        <span className="text-lg font-medium">
+                          Pausando por {globalProgress.pauseCountdown}s para evitar exceder limites...
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="text-muted-foreground flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                          Classificando ano {globalProgress.currentYear}... 
+                          ({globalProgress.processedQuestions}/{globalProgress.totalPending})
+                        </span>
+                        <span className="text-primary font-medium">
+                          {globalProgress.totalPending > 0 
+                            ? `${Math.round((globalProgress.processedQuestions / globalProgress.totalPending) * 100)}%`
+                            : "0%"
+                          }
+                        </span>
+                      </div>
+                    )}
                     <Progress 
                       value={globalProgress.totalPending > 0 
                         ? (globalProgress.processedQuestions / globalProgress.totalPending) * 100 
