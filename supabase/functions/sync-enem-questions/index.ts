@@ -1,0 +1,209 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+const EXTERNAL_API_BASE = "https://api.enem.dev/v1";
+
+// Mapeia número da questão para disciplina (baseado na estrutura do ENEM)
+function getDisciplineFromNumber(questionNumber: number): string {
+  if (questionNumber >= 1 && questionNumber <= 45) {
+    return "linguagens";
+  } else if (questionNumber >= 46 && questionNumber <= 90) {
+    return "humanas";
+  } else if (questionNumber >= 91 && questionNumber <= 135) {
+    return "natureza";
+  } else if (questionNumber >= 136 && questionNumber <= 180) {
+    return "matematica";
+  }
+  return "outros";
+}
+
+// Detecta idioma para questões de língua estrangeira (1-5)
+function getLanguageFromQuestion(questionNumber: number, content: string): string | null {
+  if (questionNumber >= 1 && questionNumber <= 5) {
+    const lowerContent = content.toLowerCase();
+    if (lowerContent.includes("inglês") || lowerContent.includes("english")) {
+      return "ingles";
+    }
+    if (lowerContent.includes("espanhol") || lowerContent.includes("español")) {
+      return "espanhol";
+    }
+    return "ingles";
+  }
+  return null;
+}
+
+// Transforma questão do formato da API externa para o formato do banco
+function transformQuestion(raw: any, year: string): any {
+  const questionNumber = raw.index || raw.number || 1;
+  const context = raw.context || "";
+  const discipline = raw.discipline || getDisciplineFromNumber(questionNumber);
+  const language = getLanguageFromQuestion(questionNumber, context);
+  
+  // Alternativas podem vir em diferentes formatos
+  let alternativesArray = raw.alternatives;
+  if (!Array.isArray(alternativesArray)) {
+    alternativesArray = Object.values(alternativesArray || {});
+  }
+  
+  // Normaliza alternativas
+  const normalizedAlternatives = alternativesArray.map((alt: any, idx: number) => ({
+    letter: alt.letter || String.fromCharCode(65 + idx),
+    text: alt.text || alt.content || "",
+    files: alt.files || alt.file ? [alt.file] : undefined
+  }));
+  
+  return {
+    year: year.toString(),
+    index: questionNumber,
+    title: raw.title || `Questão ${questionNumber}`,
+    discipline: discipline,
+    language: language,
+    context: context,
+    files: raw.files || null,
+    alternatives_introduction: raw.alternativesIntroduction || null,
+    alternatives: normalizedAlternatives,
+    correct_alternative: raw.correctAlternative || "A",
+    origin: 'enem_api',
+    classification_status: 'pending_classification',
+  };
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Parse request body
+    let years: string[] = [];
+    let language = "ingles";
+    
+    try {
+      const body = await req.json();
+      if (body.years && Array.isArray(body.years)) {
+        years = body.years;
+      } else if (body.year) {
+        years = [body.year];
+      }
+      if (body.language) language = body.language;
+    } catch {
+      // Default: sync all years from 2009 to 2023
+      years = ["2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", "2014", "2013", "2012", "2011", "2010", "2009"];
+    }
+
+    if (years.length === 0) {
+      years = ["2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", "2014", "2013", "2012", "2011", "2010", "2009"];
+    }
+
+    console.log(`🔄 Syncing ENEM questions for years: ${years.join(", ")}`);
+
+    let totalInserted = 0;
+    let totalSkipped = 0;
+    let totalErrors = 0;
+    const results: any[] = [];
+
+    for (const year of years) {
+      console.log(`📥 Fetching year ${year}...`);
+      
+      try {
+        // Check which questions we already have for this year
+        const { data: existingQuestions } = await supabase
+          .from('enem_questions')
+          .select('index')
+          .eq('year', year);
+        
+        const existingIndexes = new Set((existingQuestions || []).map(q => q.index));
+        console.log(`  Already have ${existingIndexes.size} questions for ${year}`);
+
+        // Fetch questions from external API
+        const url = `${EXTERNAL_API_BASE}/exams/${year}/questions?limit=200&language=${language}`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          console.error(`  ❌ Failed to fetch ${year}: ${response.status}`);
+          results.push({ year, success: false, error: `API returned ${response.status}` });
+          totalErrors++;
+          continue;
+        }
+
+        const data = await response.json();
+        const questions = data?.questions || [];
+        
+        console.log(`  Found ${questions.length} questions from API`);
+
+        // Filter out questions we already have
+        const newQuestions = questions.filter((q: any) => {
+          const idx = q.index || q.number || 0;
+          return !existingIndexes.has(idx);
+        });
+
+        if (newQuestions.length === 0) {
+          console.log(`  ✅ All questions for ${year} already exist`);
+          results.push({ year, success: true, inserted: 0, skipped: questions.length });
+          totalSkipped += questions.length;
+          continue;
+        }
+
+        console.log(`  📝 Inserting ${newQuestions.length} new questions...`);
+
+        // Transform and insert questions
+        const transformedQuestions = newQuestions.map((q: any) => transformQuestion(q, year));
+
+        const { data: inserted, error: insertError } = await supabase
+          .from('enem_questions')
+          .insert(transformedQuestions)
+          .select('id');
+
+        if (insertError) {
+          console.error(`  ❌ Insert error for ${year}:`, insertError);
+          results.push({ year, success: false, error: insertError.message });
+          totalErrors++;
+        } else {
+          const insertedCount = inserted?.length || 0;
+          console.log(`  ✅ Inserted ${insertedCount} questions for ${year}`);
+          results.push({ year, success: true, inserted: insertedCount, skipped: existingIndexes.size });
+          totalInserted += insertedCount;
+        }
+      } catch (error) {
+        console.error(`  ❌ Error processing ${year}:`, error);
+        results.push({ year, success: false, error: String(error) });
+        totalErrors++;
+      }
+
+      // Rate limiting between years
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    const summary = {
+      success: true,
+      totalInserted,
+      totalSkipped,
+      totalErrors,
+      results,
+    };
+
+    console.log(`📊 Sync complete:`, summary);
+
+    return new Response(
+      JSON.stringify(summary),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('❌ Sync error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});

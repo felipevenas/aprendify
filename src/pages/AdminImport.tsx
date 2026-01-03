@@ -6,11 +6,17 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Upload, FileJson, CheckCircle, AlertCircle, PenLine } from "lucide-react";
+import { ArrowLeft, Upload, FileJson, CheckCircle, AlertCircle, PenLine, CloudDownload, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import AddManualQuestionForm from "@/components/admin/AddManualQuestionForm";
+import { Checkbox } from "@/components/ui/checkbox";
+
+const AVAILABLE_YEARS = [
+  "2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", 
+  "2014", "2013", "2012", "2011", "2010", "2009"
+];
 
 const AdminImport = () => {
   const navigate = useNavigate();
@@ -18,6 +24,11 @@ const AdminImport = () => {
   const [jsonFile, setJsonFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<any>(null);
+  
+  // Estado para sincronização da API
+  const [syncing, setSyncing] = useState(false);
+  const [selectedYears, setSelectedYears] = useState<string[]>(["2023", "2022", "2021"]);
+  const [syncResult, setSyncResult] = useState<any>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -39,11 +50,8 @@ const AdminImport = () => {
     setResult(null);
 
     try {
-      // Lê o arquivo JSON
       const text = await jsonFile.text();
       const json = JSON.parse(text);
-      
-      // Extrai as questões do JSON (suporta formato {data: [...]} ou [...])
       const questions = json.data || json;
       
       if (!Array.isArray(questions)) {
@@ -52,13 +60,11 @@ const AdminImport = () => {
 
       console.log(`📤 Enviando ${questions.length} questões para importação...`);
 
-      // Obtém o token de autenticação
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error("Você precisa estar logado");
       }
 
-      // Chama a Edge Function
       const response = await supabase.functions.invoke('import-enem-questions', {
         body: { year, questions }
       });
@@ -77,6 +83,54 @@ const AdminImport = () => {
     } finally {
       setImporting(false);
     }
+  };
+
+  const handleSyncFromAPI = async () => {
+    if (selectedYears.length === 0) {
+      toast.error("Selecione pelo menos um ano");
+      return;
+    }
+
+    setSyncing(true);
+    setSyncResult(null);
+
+    try {
+      console.log(`🔄 Sincronizando anos: ${selectedYears.join(", ")}`);
+
+      const response = await supabase.functions.invoke('sync-enem-questions', {
+        body: { years: selectedYears }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      setSyncResult(response.data);
+      toast.success(`Sincronização concluída! ${response.data.totalInserted} questões importadas.`);
+      
+    } catch (error: any) {
+      console.error("Erro na sincronização:", error);
+      toast.error(error.message || "Erro ao sincronizar questões");
+      setSyncResult({ error: error.message });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const toggleYear = (year: string) => {
+    setSelectedYears(prev => 
+      prev.includes(year) 
+        ? prev.filter(y => y !== year)
+        : [...prev, year]
+    );
+  };
+
+  const selectAllYears = () => {
+    setSelectedYears(AVAILABLE_YEARS);
+  };
+
+  const clearSelection = () => {
+    setSelectedYears([]);
   };
 
   return (
@@ -101,23 +155,128 @@ const AdminImport = () => {
             <div>
               <h1 className="text-2xl font-bold">Gerenciar Questões ENEM</h1>
               <p className="text-muted-foreground">
-                Adicione questões manualmente ou importe via JSON
+                Adicione questões manualmente, importe via JSON ou sincronize da API
               </p>
             </div>
           </div>
 
           {/* Tabs para alternar entre métodos de adição */}
-          <Tabs defaultValue="manual" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
+          <Tabs defaultValue="sync" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsTrigger value="sync" className="flex items-center gap-2">
+                <CloudDownload className="h-4 w-4" />
+                Sincronizar API
+              </TabsTrigger>
               <TabsTrigger value="manual" className="flex items-center gap-2">
                 <PenLine className="h-4 w-4" />
-                Adicionar Manual
+                Manual
               </TabsTrigger>
               <TabsTrigger value="json" className="flex items-center gap-2">
                 <FileJson className="h-4 w-4" />
-                Importar JSON
+                JSON
               </TabsTrigger>
             </TabsList>
+
+            {/* Tab: Sincronização da API */}
+            <TabsContent value="sync">
+              <Card className="p-6 space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label>Selecione os anos para sincronizar</Label>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={selectAllYears}>
+                        Todos
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={clearSelection}>
+                        Limpar
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-5 gap-2">
+                    {AVAILABLE_YEARS.map((y) => (
+                      <div
+                        key={y}
+                        className={`flex items-center justify-center p-2 rounded-lg border cursor-pointer transition-colors ${
+                          selectedYears.includes(y)
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-muted/50 hover:bg-muted border-border'
+                        }`}
+                        onClick={() => toggleYear(y)}
+                      >
+                        <span className="text-sm font-medium">{y}</span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <p className="text-sm text-muted-foreground">
+                    {selectedYears.length} ano(s) selecionado(s)
+                  </p>
+                </div>
+
+                <Button 
+                  onClick={handleSyncFromAPI} 
+                  disabled={selectedYears.length === 0 || syncing}
+                  className="w-full"
+                >
+                  {syncing ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Sincronizando...
+                    </>
+                  ) : (
+                    <>
+                      <CloudDownload className="h-4 w-4 mr-2" />
+                      Sincronizar Questões da API
+                    </>
+                  )}
+                </Button>
+
+                {/* Resultado da sincronização */}
+                {syncResult && (
+                  <div className={`p-4 rounded-lg ${syncResult.error ? 'bg-destructive/10' : 'bg-green-500/10'}`}>
+                    {syncResult.error ? (
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-destructive">Erro na sincronização</p>
+                          <p className="text-sm text-muted-foreground">{syncResult.error}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-green-500">Sincronização concluída!</p>
+                          <p className="text-sm text-muted-foreground">
+                            {syncResult.totalInserted} novas questões importadas
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {syncResult.totalSkipped} questões já existentes
+                          </p>
+                          {syncResult.totalErrors > 0 && (
+                            <p className="text-sm text-destructive mt-1">
+                              {syncResult.totalErrors} erros encontrados
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Card>
+
+              <Card className="p-6 mt-6">
+                <h3 className="font-semibold mb-3">Como funciona a sincronização</h3>
+                <ul className="text-sm text-muted-foreground space-y-2">
+                  <li>1. Selecione os anos que deseja importar (2009-2023)</li>
+                  <li>2. O sistema busca as questões da API pública do ENEM</li>
+                  <li>3. Questões novas são salvas com status <code className="bg-muted px-1 rounded">pending_classification</code></li>
+                  <li>4. Após a sincronização, vá em <strong>Gerenciar Questões</strong> e clique em <strong>Classificar IA</strong></li>
+                  <li>5. Questões classificadas com confiança ≥70% ficam disponíveis no Banco de Questões</li>
+                </ul>
+              </Card>
+            </TabsContent>
 
             {/* Tab: Adição Manual */}
             <TabsContent value="manual">
