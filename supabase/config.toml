@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.classify-questions]
 verify_jwt = false
+
+[functions.sync-enem-questions]
+verify_jwt = false
