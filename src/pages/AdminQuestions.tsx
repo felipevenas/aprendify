@@ -51,7 +51,13 @@ interface Question {
   difficulty: "easy" | "medium" | "hard" | null;
   files: string[] | null;
   language: string | null;
-  isFromAPI?: boolean; // Flag para identificar questões da API externa
+  isFromAPI?: boolean;
+  // Novos campos de classificação
+  mainTopic?: string | null;
+  subtopics?: string[] | null;
+  confidence?: number | null;
+  classificationStatus?: string | null;
+  origin?: string | null;
 }
 
 /**
@@ -98,6 +104,9 @@ const AdminQuestions = () => {
   
   // Estado para análise individual
   const [analyzingQuestionId, setAnalyzingQuestionId] = useState<string | null>(null);
+  
+  // Estado para classificação em lote
+  const [isClassifying, setIsClassifying] = useState(false);
 
   // Verifica se é admin
   useEffect(() => {
@@ -161,6 +170,11 @@ const AdminQuestions = () => {
           files: q.files,
           language: q.language,
           isFromAPI: false,
+          mainTopic: (q as any).main_topic,
+          subtopics: (q as any).subtopics,
+          confidence: (q as any).confidence,
+          classificationStatus: (q as any).classification_status,
+          origin: (q as any).origin,
         }));
         
         setQuestions(mappedQuestions);
@@ -263,6 +277,10 @@ const AdminQuestions = () => {
           alternatives: editingQuestion.alternatives,
           correct_alternative: editingQuestion.correctAlternative,
           difficulty: editingQuestion.difficulty,
+          main_topic: editingQuestion.mainTopic,
+          subtopics: editingQuestion.subtopics,
+          // Ao salvar manualmente, força status = ready
+          classification_status: 'ready',
         })
         .eq("id", editingQuestion.id);
       
@@ -445,6 +463,7 @@ const AdminQuestions = () => {
   const filteredQuestions = questions.filter(q => 
     q.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     q.discipline?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    q.mainTopic?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     q.index.toString().includes(searchTerm)
   );
 
@@ -454,6 +473,35 @@ const AdminQuestions = () => {
     medium: questions.filter(q => q.difficulty === "medium").length,
     hard: questions.filter(q => q.difficulty === "hard").length,
     unset: questions.filter(q => !q.difficulty).length,
+  };
+
+  // Estatísticas de classificação
+  const classificationStats = {
+    ready: questions.filter(q => q.classificationStatus === "ready").length,
+    pending: questions.filter(q => q.classificationStatus === "pending_classification").length,
+    needsReview: questions.filter(q => q.classificationStatus === "needs_review").length,
+  };
+
+  // Função para executar classificação em lote
+  const runBatchClassification = async () => {
+    setIsClassifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("classify-questions", {
+        body: { batchSize: 20 },
+      });
+
+      if (error) throw error;
+
+      toast.success(`Classificação concluída: ${data.processed} questões processadas (${data.ready} prontas, ${data.needsReview} para revisão)`);
+      
+      // Recarrega as questões
+      loadQuestions();
+    } catch (err) {
+      console.error("[Classification] Erro:", err);
+      toast.error("Erro ao executar classificação");
+    } finally {
+      setIsClassifying(false);
+    }
   };
 
   if (loading) {
@@ -557,8 +605,26 @@ const AdminQuestions = () => {
                 </div>
               </div>
 
-              {/* Botão de Automação com visual premium */}
-              <div className="flex items-end gap-2">
+              {/* Botões de ação */}
+              <div className="flex items-end gap-2 flex-wrap">
+                {/* Botão de Classificação Assíncrona */}
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    onClick={runBatchClassification}
+                    disabled={isClassifying || classificationStats.pending === 0}
+                    variant="outline"
+                    className="gap-2 border-accent/30 hover:border-accent/50 hover:bg-accent/10"
+                  >
+                    {isClassifying ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                    Classificar IA ({classificationStats.pending})
+                  </Button>
+                </motion.div>
+
+                {/* Botão de Automação de Dificuldade */}
                 {!isAutomating ? (
                   <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                     <Button
@@ -567,7 +633,7 @@ const AdminQuestions = () => {
                       className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-md hover:shadow-lg transition-all"
                     >
                       <Wand2 className="h-4 w-4" />
-                      Automatizar ({difficultyStats.unset})
+                      Dificuldade ({difficultyStats.unset})
                     </Button>
                   </motion.div>
                 ) : (
@@ -653,7 +719,32 @@ const AdminQuestions = () => {
                 whileHover={{ scale: 1.02 }}
               >
                 <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/30" />
-                <span className="text-sm font-medium text-muted-foreground">Sem classificação: {difficultyStats.unset}</span>
+                <span className="text-sm font-medium text-muted-foreground">Sem dificuldade: {difficultyStats.unset}</span>
+              </motion.div>
+            </div>
+
+            {/* Estatísticas de classificação */}
+            <div className="mt-3 pt-3 border-t border-border/30 flex flex-wrap gap-4">
+              <motion.div 
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20"
+                whileHover={{ scale: 1.02 }}
+              >
+                <CheckCircle className="w-3.5 h-3.5 text-blue-500" />
+                <span className="text-sm font-medium text-blue-700 dark:text-blue-400">Prontas: {classificationStats.ready}</span>
+              </motion.div>
+              <motion.div 
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/20"
+                whileHover={{ scale: 1.02 }}
+              >
+                <Loader2 className="w-3.5 h-3.5 text-yellow-500" />
+                <span className="text-sm font-medium text-yellow-700 dark:text-yellow-400">Pendentes: {classificationStats.pending}</span>
+              </motion.div>
+              <motion.div 
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20"
+                whileHover={{ scale: 1.02 }}
+              >
+                <AlertCircle className="w-3.5 h-3.5 text-orange-500" />
+                <span className="text-sm font-medium text-orange-700 dark:text-orange-400">Revisão: {classificationStats.needsReview}</span>
               </motion.div>
             </div>
           </Card>
@@ -698,13 +789,28 @@ const AdminQuestions = () => {
                           {question.title?.substring(0, 100) || "Sem título"}
                           {question.title && question.title.length > 100 && "..."}
                         </p>
-                        <div className="flex items-center gap-2 mt-1.5">
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                           <Badge variant="secondary" className="text-xs bg-secondary/50">
                             {formatDisciplineName(question.discipline)}
                           </Badge>
+                          {question.mainTopic && (
+                            <Badge variant="outline" className="text-xs border-primary/30 bg-primary/5 text-primary">
+                              {question.mainTopic}
+                            </Badge>
+                          )}
                           {question.language && (
                             <Badge variant="outline" className="text-xs border-border/50">
                               {question.language === "ingles" ? "Inglês" : "Espanhol"}
+                            </Badge>
+                          )}
+                          {question.classificationStatus === "pending_classification" && (
+                            <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-500/50 bg-yellow-500/5">
+                              Pendente
+                            </Badge>
+                          )}
+                          {question.classificationStatus === "needs_review" && (
+                            <Badge variant="outline" className="text-xs text-orange-600 border-orange-500/50 bg-orange-500/5">
+                              Revisão
                             </Badge>
                           )}
                           {question.isFromAPI && (
@@ -846,6 +952,34 @@ const AdminQuestions = () => {
                     })}
                     rows={5}
                     className="resize-none"
+                  />
+                </div>
+
+                {/* Assunto Principal */}
+                <div className="space-y-2">
+                  <Label htmlFor="mainTopic">Assunto Principal</Label>
+                  <Input
+                    id="mainTopic"
+                    value={editingQuestion.mainTopic || ""}
+                    onChange={(e) => setEditingQuestion({
+                      ...editingQuestion,
+                      mainTopic: e.target.value,
+                    })}
+                    placeholder="Ex: Revolução Industrial, Genética Mendeliana..."
+                  />
+                </div>
+
+                {/* Subassuntos */}
+                <div className="space-y-2">
+                  <Label htmlFor="subtopics">Subassuntos (separados por vírgula)</Label>
+                  <Input
+                    id="subtopics"
+                    value={editingQuestion.subtopics?.join(", ") || ""}
+                    onChange={(e) => setEditingQuestion({
+                      ...editingQuestion,
+                      subtopics: e.target.value.split(",").map(s => s.trim()).filter(Boolean),
+                    })}
+                    placeholder="Ex: Máquina a vapor, Têxtil, Urbanização..."
                   />
                 </div>
 

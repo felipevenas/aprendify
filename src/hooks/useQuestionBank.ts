@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface QuestionData {
-  id?: string; // ID da questão no banco (para atualizar dificuldade)
+  id?: string;
   index: number;
   title: string;
   discipline: string;
@@ -13,7 +13,9 @@ interface QuestionData {
   alternatives: any;
   correctAlternative: string;
   year: string;
-  difficulty: "easy" | "medium" | "hard" | null; // Nível de dificuldade
+  difficulty: "easy" | "medium" | "hard" | null;
+  mainTopic?: string | null;
+  subtopics?: string[] | null;
 }
 
 interface CacheKey {
@@ -21,6 +23,7 @@ interface CacheKey {
   discipline: string;
   language: string;
   difficulty: string;
+  mainTopic: string;
 }
 
 interface QuestionCache {
@@ -83,17 +86,18 @@ export const useQuestionBank = () => {
   const cacheRef = useRef<QuestionCache | null>(null);
 
   // Verifica se o cache é válido para os filtros atuais
-  const isCacheValid = useCallback((year: string, discipline: string, language: string, difficulty: string) => {
+  const isCacheValid = useCallback((year: string, discipline: string, language: string, difficulty: string, mainTopic: string = "all") => {
     if (!cacheRef.current) return false;
     const { key } = cacheRef.current;
-    return key.year === year && key.discipline === discipline && key.language === language && key.difficulty === difficulty;
+    return key.year === year && key.discipline === discipline && key.language === language && key.difficulty === difficulty && key.mainTopic === mainTopic;
   }, []);
 
-  // Carrega IDs das questões para o cache (banco local)
-  const loadQuestionIds = useCallback(async (year: string, discipline: string, language: string, difficulty: string) => {
+  // Carrega IDs das questões para o cache (banco local - apenas questões 'ready')
+  const loadQuestionIds = useCallback(async (year: string, discipline: string, language: string, difficulty: string, mainTopic: string = "all") => {
     let query = supabase
       .from('enem_questions')
-      .select('id');
+      .select('id')
+      .eq('classification_status', 'ready'); // Apenas questões classificadas e prontas
     
     // Filtra por ano apenas se não for "all"
     if (year !== "all") {
@@ -108,6 +112,10 @@ export const useQuestionBank = () => {
     // Filtra por dificuldade apenas se não for "all"
     if (difficulty !== "all") {
       query = query.eq('difficulty', difficulty);
+    }
+    // Filtra por assunto principal se não for "all"
+    if (mainTopic !== "all") {
+      query = query.eq('main_topic', mainTopic);
     }
 
     const { data, error } = await query;
@@ -144,6 +152,8 @@ export const useQuestionBank = () => {
       correctAlternative: data.correct_alternative,
       year: data.year,
       difficulty: data.difficulty as "easy" | "medium" | "hard" | null,
+      mainTopic: (data as any).main_topic,
+      subtopics: (data as any).subtopics,
     };
   }, []);
 
@@ -200,7 +210,8 @@ export const useQuestionBank = () => {
     discipline: string,
     language: string,
     difficulty: string = "all",
-    random: boolean = true
+    random: boolean = true,
+    mainTopic: string = "all"
   ) => {
     setLoading(true);
     
@@ -210,10 +221,10 @@ export const useQuestionBank = () => {
       // Anos 2024+ usam banco local com cache
       if (yearNum >= 2024) {
         // Carrega cache se necessário
-        if (!isCacheValid(year, discipline, language, difficulty)) {
-          const ids = await loadQuestionIds(year, discipline, language, difficulty);
+        if (!isCacheValid(year, discipline, language, difficulty, mainTopic)) {
+          const ids = await loadQuestionIds(year, discipline, language, difficulty, mainTopic);
           cacheRef.current = {
-            key: { year, discipline, language, difficulty },
+            key: { year, discipline, language, difficulty, mainTopic },
             questionIds: ids,
             usedIds: new Set(),
           };
@@ -262,10 +273,10 @@ export const useQuestionBank = () => {
         
         if (useLocalDB) {
           // Busca do banco local (2024)
-          if (!isCacheValid("2024", discipline, language, difficulty)) {
-            const ids = await loadQuestionIds("2024", discipline, language, difficulty);
+          if (!isCacheValid("2024", discipline, language, difficulty, mainTopic)) {
+            const ids = await loadQuestionIds("2024", discipline, language, difficulty, mainTopic);
             cacheRef.current = {
-              key: { year: "2024", discipline, language, difficulty },
+              key: { year: "2024", discipline, language, difficulty, mainTopic },
               questionIds: ids,
               usedIds: new Set(),
             };
