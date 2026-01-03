@@ -126,23 +126,31 @@ serve(async (req) => {
     // Parse request body for optional parameters
     let batchSize = 10;
     let maxRetries = 3;
+    let year: string | null = null;
     
     try {
       const body = await req.json();
       if (body.batchSize) batchSize = Math.min(body.batchSize, 50);
       if (body.maxRetries) maxRetries = body.maxRetries;
+      if (body.year) year = body.year;
     } catch {
       // Use defaults if no body
     }
 
-    console.log(`🔄 Starting classification job (batch: ${batchSize})`);
+    console.log(`🔄 Starting classification job (batch: ${batchSize}, year: ${year || 'all'})`);
 
     // Fetch pending questions
-    const { data: questions, error: fetchError } = await supabase
+    let query = supabase
       .from('enem_questions')
       .select('id, title, context, alternatives, discipline')
-      .eq('classification_status', 'pending_classification')
-      .limit(batchSize);
+      .eq('classification_status', 'pending_classification');
+    
+    // Filter by year if specified
+    if (year) {
+      query = query.eq('year', year);
+    }
+    
+    const { data: questions, error: fetchError } = await query.limit(batchSize);
 
     if (fetchError) {
       throw new Error(`Error fetching questions: ${fetchError.message}`);
