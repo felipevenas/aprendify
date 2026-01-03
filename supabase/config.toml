@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.format-question]
 verify_jwt = false
+
+[functions.classify-questions]
+verify_jwt = false
