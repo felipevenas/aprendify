@@ -144,15 +144,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "flashcards_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       notes: {
         Row: {
@@ -312,13 +304,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "questions_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "questions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -419,13 +404,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "schedule_items_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "schedule_items_user_id_fkey"
             columns: ["user_id"]
@@ -689,13 +667,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "tasks_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "tasks_user_id_fkey"
             columns: ["user_id"]
