@@ -85,7 +85,6 @@ serve(async (req) => {
 
     // Parse request body
     let years: string[] = [];
-    let language = "ingles";
     
     try {
       const body = await req.json();
@@ -94,15 +93,16 @@ serve(async (req) => {
       } else if (body.year) {
         years = [body.year];
       }
-      if (body.language) language = body.language;
     } catch {
-      // Default: sync all years from 2009 to 2023
       years = ["2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", "2014", "2013", "2012", "2011", "2010", "2009"];
     }
 
     if (years.length === 0) {
       years = ["2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", "2014", "2013", "2012", "2011", "2010", "2009"];
     }
+
+    // Sort years in descending order (newest first)
+    years.sort((a, b) => parseInt(b) - parseInt(a));
 
     console.log(`🔄 Syncing ENEM questions for years: ${years.join(", ")}`);
 
@@ -118,16 +118,21 @@ serve(async (req) => {
         // Check which questions we already have for this year
         const { data: existingQuestions } = await supabase
           .from('enem_questions')
-          .select('index')
+          .select('index, language')
           .eq('year', year);
         
-        const existingIndexes = new Set((existingQuestions || []).map(q => q.index));
-        console.log(`  Already have ${existingIndexes.size} questions for ${year}`);
+        // Create a Set of existing (index, language) pairs to handle duplicates
+        const existingKeys = new Set(
+          (existingQuestions || []).map(q => `${q.index}:${q.language || 'null'}`)
+        );
+        console.log(`  Already have ${existingKeys.size} questions for ${year}`);
 
         // Fetch questions from external API - paginate to get all
         let allQuestions: any[] = [];
         let offset = 0;
         const pageSize = 50;
+        let retryCount = 0;
+        const maxRetries = 3;
         
         while (true) {
           const url = `${EXTERNAL_API_BASE}/exams/${year}/questions?limit=${pageSize}&offset=${offset}`;
@@ -138,8 +143,16 @@ serve(async (req) => {
           if (!response.ok) {
             if (response.status === 429) {
               // Rate limited - wait and retry
-              console.log(`  ⏳ Rate limited, waiting 3 seconds...`);
-              await new Promise(resolve => setTimeout(resolve, 3000));
+              retryCount++;
+              if (retryCount > maxRetries) {
+                console.error(`  ❌ Max retries reached for ${year}`);
+                results.push({ year, success: false, error: `Rate limited after ${maxRetries} retries` });
+                totalErrors++;
+                break;
+              }
+              const waitTime = Math.min(5000 * retryCount, 15000);
+              console.log(`  ⏳ Rate limited, waiting ${waitTime/1000}s (retry ${retryCount}/${maxRetries})...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
               continue;
             }
             console.error(`  ❌ Failed to fetch ${year}: ${response.status}`);
@@ -148,6 +161,7 @@ serve(async (req) => {
             break;
           }
 
+          retryCount = 0; // Reset retry count on success
           const data = await response.json();
           const questions = data?.questions || [];
           
@@ -167,7 +181,7 @@ serve(async (req) => {
           offset += pageSize;
           
           // Rate limiting between pages
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
         
         if (allQuestions.length === 0) {
@@ -176,39 +190,74 @@ serve(async (req) => {
         
         console.log(`  Found ${allQuestions.length} questions from API`);
 
-        // Filter out questions we already have
-        const newQuestions = allQuestions.filter((q: any) => {
-          const idx = q.index || q.number || 0;
-          return !existingIndexes.has(idx);
+        // Transform all questions first
+        const transformedQuestions = allQuestions.map((q: any) => transformQuestion(q, year));
+
+        // Filter out questions we already have (by index + language pair)
+        const newQuestions = transformedQuestions.filter((q: any) => {
+          const key = `${q.index}:${q.language || 'null'}`;
+          return !existingKeys.has(key);
         });
 
-        if (newQuestions.length === 0) {
+        // Also deduplicate within the batch (API might return duplicates)
+        const seenKeys = new Set<string>();
+        const uniqueNewQuestions = newQuestions.filter((q: any) => {
+          const key = `${q.index}:${q.language || 'null'}`;
+          if (seenKeys.has(key)) {
+            return false;
+          }
+          seenKeys.add(key);
+          return true;
+        });
+
+        if (uniqueNewQuestions.length === 0) {
           console.log(`  ✅ All questions for ${year} already exist`);
           results.push({ year, success: true, inserted: 0, skipped: allQuestions.length });
           totalSkipped += allQuestions.length;
           continue;
         }
 
-        console.log(`  📝 Inserting ${newQuestions.length} new questions...`);
+        console.log(`  📝 Inserting ${uniqueNewQuestions.length} new questions (filtered from ${allQuestions.length})...`);
 
-        // Transform and insert questions
-        const transformedQuestions = newQuestions.map((q: any) => transformQuestion(q, year));
+        // Insert in smaller batches to avoid issues
+        const batchSize = 20;
+        let yearInserted = 0;
+        let yearErrors = 0;
 
-        const { data: inserted, error: insertError } = await supabase
-          .from('enem_questions')
-          .insert(transformedQuestions)
-          .select('id');
+        for (let i = 0; i < uniqueNewQuestions.length; i += batchSize) {
+          const batch = uniqueNewQuestions.slice(i, i + batchSize);
+          
+          const { data: inserted, error: insertError } = await supabase
+            .from('enem_questions')
+            .upsert(batch, { 
+              onConflict: 'year,index',
+              ignoreDuplicates: true 
+            })
+            .select('id');
 
-        if (insertError) {
-          console.error(`  ❌ Insert error for ${year}:`, insertError);
-          results.push({ year, success: false, error: insertError.message });
-          totalErrors++;
-        } else {
-          const insertedCount = inserted?.length || 0;
-          console.log(`  ✅ Inserted ${insertedCount} questions for ${year}`);
-          results.push({ year, success: true, inserted: insertedCount, skipped: existingIndexes.size });
-          totalInserted += insertedCount;
+          if (insertError) {
+            console.error(`  ❌ Batch insert error:`, insertError.message);
+            yearErrors++;
+          } else {
+            yearInserted += inserted?.length || 0;
+          }
+          
+          // Small delay between batches
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
+
+        console.log(`  ✅ Inserted ${yearInserted} questions for ${year}${yearErrors > 0 ? ` (${yearErrors} batch errors)` : ''}`);
+        results.push({ 
+          year, 
+          success: yearErrors === 0, 
+          inserted: yearInserted, 
+          skipped: allQuestions.length - uniqueNewQuestions.length,
+          errors: yearErrors 
+        });
+        totalInserted += yearInserted;
+        totalSkipped += allQuestions.length - uniqueNewQuestions.length;
+        if (yearErrors > 0) totalErrors++;
+        
       } catch (error) {
         console.error(`  ❌ Error processing ${year}:`, error);
         results.push({ year, success: false, error: String(error) });
@@ -216,7 +265,7 @@ serve(async (req) => {
       }
 
       // Rate limiting between years - longer delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     const summary = {
