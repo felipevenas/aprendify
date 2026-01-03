@@ -18,6 +18,8 @@ export type Database = {
         Row: {
           alternatives: Json
           alternatives_introduction: string | null
+          classification_status: string | null
+          confidence: number | null
           context: string | null
           correct_alternative: string
           created_at: string | null
@@ -27,12 +29,17 @@ export type Database = {
           id: string
           index: number
           language: string | null
+          main_topic: string | null
+          origin: string | null
+          subtopics: string[] | null
           title: string
           year: string
         }
         Insert: {
           alternatives: Json
           alternatives_introduction?: string | null
+          classification_status?: string | null
+          confidence?: number | null
           context?: string | null
           correct_alternative: string
           created_at?: string | null
@@ -42,12 +49,17 @@ export type Database = {
           id?: string
           index: number
           language?: string | null
+          main_topic?: string | null
+          origin?: string | null
+          subtopics?: string[] | null
           title: string
           year: string
         }
         Update: {
           alternatives?: Json
           alternatives_introduction?: string | null
+          classification_status?: string | null
+          confidence?: number | null
           context?: string | null
           correct_alternative?: string
           created_at?: string | null
@@ -57,6 +69,9 @@ export type Database = {
           id?: string
           index?: number
           language?: string | null
+          main_topic?: string | null
+          origin?: string | null
+          subtopics?: string[] | null
           title?: string
           year?: string
         }
