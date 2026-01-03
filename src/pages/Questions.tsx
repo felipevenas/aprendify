@@ -18,26 +18,28 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 /**
  * Página de prática de questões do ENEM
  * Integra com a API do ENEM para buscar questões reais
- * Permite filtrar por ano, disciplina e idioma
+ * Permite filtrar por ano, disciplina, idioma, dificuldade, tópico e status
  */
 const Questions = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
-  const [noteDialogOpen, setNoteDialogOpen] = useState(false); // Controla o diálogo de anotação
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { isPremium, isLoading: premiumLoading, dailyQuestionCount } = usePremium();
   const { currentQuestion, loading: loadingQuestion, fetchQuestion, clearCache } = useQuestionBank();
-  // Usa o contexto global de streak para atualização em tempo real
   const { recordQuestionAnswered } = useStreakContext();
   
-  // Limite de questões para usuários free
   const FREE_DAILY_LIMIT = 10;
 
-  // Filtros - inicialmente busca de todos os anos
+  // Filtros
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>("all");
   const [selectedLanguage, setSelectedLanguage] = useState<string>("all");
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
+  const [selectedTopic, setSelectedTopic] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [searchKeyword, setSearchKeyword] = useState<string>("");
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -46,6 +48,7 @@ const Questions = () => {
         navigate("/auth");
         return;
       }
+      setUserId(session.user.id);
       setInitialLoading(false);
     };
 
@@ -54,18 +57,27 @@ const Questions = () => {
 
   // Busca questão com verificação de limite
   const handleFetchQuestion = useCallback(async (random: boolean = true) => {
-    // Verifica limite de questões para usuários free
     if (!isPremium && dailyQuestionCount >= FREE_DAILY_LIMIT) {
       toast.error("Você atingiu o limite de 10 questões diárias. Assine o Premium para questões ilimitadas!");
       return;
     }
 
-    const result = await fetchQuestion(selectedYear, selectedDiscipline, selectedLanguage, selectedDifficulty, random);
+    const result = await fetchQuestion(
+      selectedYear, 
+      selectedDiscipline, 
+      selectedLanguage, 
+      selectedDifficulty, 
+      random, 
+      selectedTopic,
+      selectedStatus,
+      searchKeyword,
+      userId
+    );
     
     if (!result.success && result.message) {
       toast.error(result.message);
     }
-  }, [isPremium, dailyQuestionCount, fetchQuestion, selectedYear, selectedDiscipline, selectedLanguage, selectedDifficulty]);
+  }, [isPremium, dailyQuestionCount, fetchQuestion, selectedYear, selectedDiscipline, selectedLanguage, selectedDifficulty, selectedTopic, selectedStatus, searchKeyword, userId]);
 
   // Extrai o tópico específico da questão via IA
   const extractQuestionTopic = async (question: typeof currentQuestion): Promise<string | null> => {
@@ -109,22 +121,18 @@ const Questions = () => {
     }
 
     try {
-      // Captura a questão atual antes de qualquer operação assíncrona
       const questionToExtract = currentQuestion;
-      
-      // Extrai o tópico específico via IA (em paralelo com feedback visual)
       const topicPromise = extractQuestionTopic(questionToExtract);
       
-      // Salva a tentativa imediatamente com tópico pendente
       const attemptData = {
         user_id: user.id,
         question_id: questionId,
         discipline: currentQuestion?.discipline || "desconhecida",
-        year: selectedYear,
+        year: selectedYear === "all" ? (currentQuestion?.year || new Date().getFullYear().toString()) : selectedYear,
         selected_answer: selectedAnswer,
         correct_answer: correctAnswer,
         is_correct: isCorrect,
-        topic: null, // Será atualizado após extração
+        topic: null,
         language: currentQuestion?.language || null,
       };
       
@@ -140,12 +148,9 @@ const Questions = () => {
         return;
       }
       
-      // Registra a questão respondida no sistema de streak
       await recordQuestionAnswered();
-      
       toast.success("Resposta registrada!");
 
-      // Atualiza o tópico quando a IA retornar
       const extractedTopic = await topicPromise;
       if (extractedTopic && insertedAttempt?.id) {
         const { error: updateError } = await supabase
@@ -168,17 +173,16 @@ const Questions = () => {
   // Aplica filtros e busca nova questão
   const handleApplyFilters = useCallback(() => {
     setShowFilters(false);
-    clearCache(); // Limpa cache ao mudar filtros
+    clearCache();
     handleFetchQuestion(false);
   }, [clearCache, handleFetchQuestion]);
 
-  // Carrega questão aleatória ao montar o componente (apenas uma vez)
+  // Carrega questão aleatória ao montar o componente
   useEffect(() => {
-    if (!initialLoading && !currentQuestion && !loadingQuestion) {
-      fetchQuestion(selectedYear, selectedDiscipline, selectedLanguage, selectedDifficulty, true);
+    if (!initialLoading && !currentQuestion && !loadingQuestion && userId) {
+      fetchQuestion(selectedYear, selectedDiscipline, selectedLanguage, selectedDifficulty, true, selectedTopic, selectedStatus, searchKeyword, userId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialLoading]);
+  }, [initialLoading, userId]);
 
   if (initialLoading) {
     return (
@@ -196,7 +200,7 @@ const Questions = () => {
       <Navbar />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header com ações integradas */}
+        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -213,7 +217,6 @@ const Questions = () => {
               </p>
             </div>
             
-            {/* Ações discretas - botões quadrados com ícones */}
             <div className="flex items-center gap-2">
               <Button 
                 variant="ghost" 
@@ -224,7 +227,6 @@ const Questions = () => {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               
-              {/* Botão de anotação - discreto no header */}
               <Button 
                 variant="outline"
                 size="icon"
@@ -300,10 +302,16 @@ const Questions = () => {
                 selectedDiscipline={selectedDiscipline}
                 selectedLanguage={selectedLanguage}
                 selectedDifficulty={selectedDifficulty}
+                selectedTopic={selectedTopic}
+                selectedStatus={selectedStatus}
+                searchKeyword={searchKeyword}
                 onYearChange={setSelectedYear}
                 onDisciplineChange={setSelectedDiscipline}
                 onLanguageChange={setSelectedLanguage}
                 onDifficultyChange={setSelectedDifficulty}
+                onTopicChange={setSelectedTopic}
+                onStatusChange={setSelectedStatus}
+                onSearchChange={setSearchKeyword}
                 onApply={handleApplyFilters}
               />
             </Card>
@@ -342,7 +350,6 @@ const Questions = () => {
         )}
       </main>
 
-      {/* Diálogo de anotação - movido para o nível da página */}
       <AddQuestionNoteDialog
         open={noteDialogOpen}
         onOpenChange={setNoteDialogOpen}
