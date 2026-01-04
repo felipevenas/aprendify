@@ -197,10 +197,19 @@ serve(async (req) => {
       if (result) {
         const newStatus = result.confidence >= 0.7 ? 'ready' : 'needs_review';
         
+        // Mapeia a matéria para o formato padrão do banco
+        const disciplineMap: Record<string, string> = {
+          'ciências humanas': 'ciencias-humanas',
+          'ciências da natureza': 'ciencias-natureza',
+          'matemática': 'matematica',
+          'linguagens': 'linguagens',
+        };
+        const normalizedDiscipline = disciplineMap[result.materia.toLowerCase()] || question.discipline;
+        
         const { error: updateError } = await supabase
           .from('enem_questions')
           .update({
-            discipline: result.materia.toLowerCase().replace('ciências ', '').replace(' ', '-'),
+            discipline: normalizedDiscipline,
             main_topic: result.assunto_principal,
             subtopics: result.subassuntos,
             confidence: result.confidence,
