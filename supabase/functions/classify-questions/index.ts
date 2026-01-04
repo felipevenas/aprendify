@@ -62,7 +62,7 @@ Regras:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "meta-llama/llama-4-scout-17b-16e-instruct",
         messages: [
           { role: "system", content: "Você é um classificador educacional. Responda apenas com JSON válido." },
           { role: "user", content: prompt }
@@ -124,9 +124,8 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Parse request body for optional parameters
-    // IMPORTANTE: Reduzimos batch para 1-3 questões para respeitar limites do Groq
-    // Limites Groq llama-3.3-70b-versatile: 30 RPM, 12K TPM, 100K TPD
-    let batchSize = 1; // Processa apenas 1 por vez para evitar rate limits
+    // Limites Groq meta-llama/llama-4-scout-17b-16e-instruct: 30 RPM, 1K TPM, 30K RPD, 500K TPD
+    let batchSize = 1;
     let year: string | null = null;
     
     try {
@@ -214,10 +213,9 @@ serve(async (req) => {
         console.error(`❌ Failed to classify question ${question.id}`);
       }
 
-      // Rate limiting mais agressivo: 2.5 segundos entre requisições
-      // Para não exceder 30 RPM (1 a cada 2 segundos)
+      // Rate limiting: 30 RPM = 2s entre requisições
       if (questions.length > 1) {
-        await new Promise(resolve => setTimeout(resolve, 2500));
+        await new Promise(resolve => setTimeout(resolve, 2100));
       }
     }
 
