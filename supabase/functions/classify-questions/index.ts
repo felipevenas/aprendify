@@ -26,7 +26,7 @@ async function classifyQuestion(
     .map((alt: any) => `${alt.letter}: ${alt.text}`)
     .join("\n");
 
-  const prompt = `Você é um classificador educacional especializado em questões do ENEM.
+  const prompt = `Você é um classificador educacional especializado em questões do ENEM. Sua função é identificar o TÓPICO DE ESTUDO que um vestibulando precisaria dominar para resolver esta questão.
 
 Classifique a seguinte questão:
 
@@ -42,17 +42,26 @@ ${alternativesText}
 Responda APENAS com um JSON válido no seguinte formato (sem explicações):
 {
   "materia": "Ciências Humanas | Ciências da Natureza | Matemática | Linguagens",
-  "assunto_principal": "string curta, específica e padronizada",
-  "subassuntos": ["string", "string"],
+  "assunto_principal": "tópico de estudo para vestibular",
+  "subassuntos": ["subtópico 1", "subtópico 2"],
   "confidence": number entre 0 e 1
 }
 
-Regras:
+REGRAS CRÍTICAS para assunto_principal:
+- Use APENAS tópicos que aparecem em materiais de estudo para vestibular/ENEM
+- NÃO use temas abstratos como "Amizade", "Amor", "Natureza", "Vida"
+- NÃO use o assunto do texto, mas sim a COMPETÊNCIA/HABILIDADE testada
+
+EXEMPLOS CORRETOS por área:
+- Linguagens: "Interpretação de Texto", "Figuras de Linguagem", "Variação Linguística", "Gêneros Textuais", "Funções da Linguagem", "Intertextualidade", "Modernismo Brasileiro", "Literatura Contemporânea"
+- Ciências Humanas: "Guerra Fria", "Revolução Industrial", "Era Vargas", "Globalização", "Urbanização", "Movimentos Sociais", "Iluminismo", "Imperialismo"
+- Ciências da Natureza: "Ciclos Biogeoquímicos", "Genética Mendeliana", "Termodinâmica", "Eletromagnetismo", "Reações Orgânicas", "Ecologia", "Citologia", "Ondas"
+- Matemática: "Geometria Plana", "Funções", "Probabilidade", "Estatística", "Porcentagem", "Razão e Proporção", "Geometria Espacial", "Análise Combinatória"
+
+Regras adicionais:
 - Use português do Brasil
-- Não repita o nome da matéria como assunto
-- Seja específico no assunto_principal (ex: "Revolução Industrial", "Genética Mendeliana", "Função Quadrática")
-- Subassuntos devem ser relacionados ao tema principal
-- Confidence deve refletir sua certeza na classificação`;
+- Seja específico mas usando termos de estudo tradicionais
+- Subassuntos devem ser tópicos relacionados do currículo escolar`;
 
   try {
     const response = await fetch(GROQ_API_URL, {
