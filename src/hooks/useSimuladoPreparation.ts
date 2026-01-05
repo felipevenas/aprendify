@@ -204,7 +204,8 @@ export const useSimuladoPreparation = () => {
     let query = supabase
       .from("enem_questions")
       .select("*")
-      .in("discipline", disciplines);
+      .in("discipline", disciplines)
+      .eq("is_active", true);
 
     if (year) {
       query = query.eq("year", year);
