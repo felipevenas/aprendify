@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -138,14 +139,15 @@ const AddQuestionDialog = ({ open, onOpenChange, editQuestion }: AddQuestionDial
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{editQuestion ? "Editar Questão" : "Nova Questão"}</DialogTitle>
-          <DialogDescription>
-            {editQuestion ? "Edite sua questão" : "Adicione uma questão de concurso ou vestibular para praticar"}
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] p-0">
+        <ScrollArea className="max-h-[85vh] px-6 py-6">
+          <DialogHeader className="mb-4">
+            <DialogTitle>{editQuestion ? "Editar Questão" : "Nova Questão"}</DialogTitle>
+            <DialogDescription>
+              {editQuestion ? "Edite sua questão" : "Adicione uma questão de concurso ou vestibular para praticar"}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label>Tipo de Questão *</Label>
             <RadioGroup value={questionType} onValueChange={(value) => setQuestionType(value as any)}>
@@ -265,7 +267,8 @@ const AddQuestionDialog = ({ open, onOpenChange, editQuestion }: AddQuestionDial
               {loading ? "Salvando..." : editQuestion ? "Atualizar questão" : "Adicionar questão"}
             </Button>
           </div>
-        </form>
+          </form>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
