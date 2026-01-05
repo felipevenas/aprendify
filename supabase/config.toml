@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.classify-and-difficulty]
 verify_jwt = false
+
+[functions.verify-recaptcha]
+verify_jwt = false
