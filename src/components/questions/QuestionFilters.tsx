@@ -106,6 +106,7 @@ const QuestionFilters = ({
           .from('enem_questions')
           .select('main_topic')
           .eq('discipline', selectedDiscipline)
+          .eq('is_active', true)
           .not('main_topic', 'is', null)
           .order('main_topic');
 

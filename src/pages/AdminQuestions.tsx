@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { CursorGlow } from "@/components/ui/cursor-glow";
@@ -27,6 +28,7 @@ import {
   Sparkles,
   Database,
   Globe,
+  Power,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -58,6 +60,8 @@ interface Question {
   confidence?: number | null;
   classificationStatus?: string | null;
   origin?: string | null;
+  // Campo de ativação
+  isActive?: boolean;
 }
 
 /**
@@ -241,6 +245,7 @@ const AdminQuestions = () => {
         confidence: (q as any).confidence,
         classificationStatus: (q as any).classification_status,
         origin: (q as any).origin,
+        isActive: (q as any).is_active ?? true,
       }));
       
       setQuestions(mappedQuestions);
@@ -302,6 +307,7 @@ const AdminQuestions = () => {
           difficulty: editingQuestion.difficulty,
           main_topic: editingQuestion.mainTopic,
           subtopics: editingQuestion.subtopics,
+          is_active: editingQuestion.isActive,
           // Ao salvar manualmente, força status = ready
           classification_status: 'ready',
         })
@@ -1274,6 +1280,12 @@ const AdminQuestions = () => {
                               API Externa
                             </Badge>
                           )}
+                          {question.isActive === false && (
+                            <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-500/50 bg-yellow-500/10">
+                              <Power className="h-3 w-3 mr-1" />
+                              Desativada
+                            </Badge>
+                          )}
                         </div>
                       </div>
 
@@ -1346,6 +1358,23 @@ const AdminQuestions = () => {
           {editingQuestion && (
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
               <div className="space-y-6 p-6">
+                {/* Status Ativo/Desativado */}
+                <div className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-muted/30">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-medium">Status da Questão</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Questões desativadas não aparecem para usuários
+                    </p>
+                  </div>
+                  <Switch
+                    checked={editingQuestion.isActive !== false}
+                    onCheckedChange={(checked) => setEditingQuestion({
+                      ...editingQuestion,
+                      isActive: checked,
+                    })}
+                  />
+                </div>
+
                 {/* Dificuldade */}
                 <div className="space-y-2">
                   <Label>Dificuldade</Label>
