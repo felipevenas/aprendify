@@ -190,10 +190,35 @@ const Auth = () => {
         navigate("/dashboard");
       } else {
         // Validação do reCAPTCHA V2 antes do cadastro (apenas se a chave estiver configurada)
-        if (RECAPTCHA_SITE_KEY && !recaptchaToken) {
-          toast.error("Por favor, complete o reCAPTCHA para continuar.");
-          setLoading(false);
-          return;
+        if (RECAPTCHA_SITE_KEY) {
+          if (!recaptchaToken) {
+            toast.error("Por favor, complete o reCAPTCHA para continuar.");
+            setLoading(false);
+            return;
+          }
+
+          // Validar token no backend
+          try {
+            const { data, error } = await supabase.functions.invoke('verify-recaptcha', {
+              body: { token: recaptchaToken }
+            });
+
+            if (error || !data?.success) {
+              console.error("Erro na verificação reCAPTCHA:", error || data?.error);
+              toast.error("Verificação de segurança falhou. Tente novamente.");
+              recaptchaRef.current?.reset();
+              setRecaptchaToken(null);
+              setLoading(false);
+              return;
+            }
+          } catch (err) {
+            console.error("Erro ao verificar reCAPTCHA:", err);
+            toast.error("Erro na verificação de segurança. Tente novamente.");
+            recaptchaRef.current?.reset();
+            setRecaptchaToken(null);
+            setLoading(false);
+            return;
+          }
         }
 
         // Validações de cadastro com zod
