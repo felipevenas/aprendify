@@ -227,27 +227,42 @@ const Questions = () => {
               </p>
             </div>
             
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => navigate("/dashboard")} 
-                title="Voltar ao Dashboard"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              
-              <Button 
-                variant="outline"
-                size="icon"
-                onClick={() => setNoteDialogOpen(true)}
-                disabled={!currentQuestion}
-                title="Fazer anotação"
-              >
-                <StickyNote className="h-4 w-4" />
-              </Button>
+            <TooltipProvider>
+              <div className="flex items-center gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => navigate("/dashboard")} 
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p>Voltar ao Dashboard</p>
+                  </TooltipContent>
+                </Tooltip>
+                
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setNoteDialogOpen(true)}
+                      disabled={!currentQuestion}
+                    >
+                      <StickyNote className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p className="font-medium">Fazer Anotação</p>
+                    <p className="text-xs text-muted-foreground">
+                      Crie uma nota sobre esta questão para revisar depois.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
 
-              <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button 
@@ -266,26 +281,44 @@ const Questions = () => {
                     </p>
                   </TooltipContent>
                 </Tooltip>
-              </TooltipProvider>
 
-              <Button 
-                onClick={() => setShowFilters(!showFilters)} 
-                variant="outline"
-                size="icon"
-                title="Filtros"
-              >
-                <Filter className="h-4 w-4" />
-              </Button>
-              
-              <Button 
-                onClick={() => handleFetchQuestion(true)}
-                size="icon"
-                disabled={loadingQuestion}
-                title="Questão aleatória"
-              >
-                <Shuffle className="h-4 w-4" />
-              </Button>
-            </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      onClick={() => setShowFilters(!showFilters)} 
+                      variant="outline"
+                      size="icon"
+                    >
+                      <Filter className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p className="font-medium">Filtros</p>
+                    <p className="text-xs text-muted-foreground">
+                      Filtre por ano, disciplina, dificuldade, tópico e muito mais.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+                
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      onClick={() => handleFetchQuestion(true)}
+                      size="icon"
+                      disabled={loadingQuestion}
+                    >
+                      <Shuffle className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p className="font-medium">Questão Aleatória</p>
+                    <p className="text-xs text-muted-foreground">
+                      Busca uma nova questão aleatória com base nos filtros selecionados.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </TooltipProvider>
           </div>
 
           {/* Alerta de limite para usuários free */}
