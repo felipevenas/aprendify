@@ -335,6 +335,7 @@ export type Database = {
           created_at: string
           generated_at: string
           id: string
+          last_forced_at: string | null
           next_regeneration_at: string
           performance_snapshot: Json | null
           user_id: string
@@ -343,6 +344,7 @@ export type Database = {
           created_at?: string
           generated_at?: string
           id?: string
+          last_forced_at?: string | null
           next_regeneration_at?: string
           performance_snapshot?: Json | null
           user_id: string
@@ -351,6 +353,7 @@ export type Database = {
           created_at?: string
           generated_at?: string
           id?: string
+          last_forced_at?: string | null
           next_regeneration_at?: string
           performance_snapshot?: Json | null
           user_id?: string
