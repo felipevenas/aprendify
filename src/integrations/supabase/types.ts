@@ -28,6 +28,7 @@ export type Database = {
           files: string[] | null
           id: string
           index: number
+          is_active: boolean
           language: string | null
           main_topic: string | null
           origin: string | null
@@ -48,6 +49,7 @@ export type Database = {
           files?: string[] | null
           id?: string
           index: number
+          is_active?: boolean
           language?: string | null
           main_topic?: string | null
           origin?: string | null
@@ -68,6 +70,7 @@ export type Database = {
           files?: string[] | null
           id?: string
           index?: number
+          is_active?: boolean
           language?: string | null
           main_topic?: string | null
           origin?: string | null
