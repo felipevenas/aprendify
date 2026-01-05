@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, BookOpen, Shuffle, Filter, Lock, StickyNote, Crown } from "lucide-react";
+import { ArrowLeft, BookOpen, Shuffle, Filter, Lock, StickyNote, Crown, RefreshCw } from "lucide-react";
+import { clearCache as clearIndexedDBCache } from "@/lib/questionCache";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import QuestionPractice from "@/components/questions/QuestionPractice";
@@ -177,6 +178,14 @@ const Questions = () => {
     handleFetchQuestion(false);
   }, [clearCache, handleFetchQuestion]);
 
+  // Limpa todos os caches e busca nova questão
+  const handleClearCache = useCallback(async () => {
+    clearCache();
+    await clearIndexedDBCache();
+    toast.success("Cache limpo! Buscando questões atualizadas...");
+    handleFetchQuestion(true);
+  }, [clearCache, handleFetchQuestion]);
+
   // Carrega questão aleatória ao montar o componente
   useEffect(() => {
     if (!initialLoading && !currentQuestion && !loadingQuestion && userId) {
@@ -235,6 +244,16 @@ const Questions = () => {
                 title="Fazer anotação"
               >
                 <StickyNote className="h-4 w-4" />
+              </Button>
+
+              <Button 
+                variant="outline"
+                size="icon"
+                onClick={handleClearCache}
+                disabled={loadingQuestion}
+                title="Limpar cache e recarregar"
+              >
+                <RefreshCw className="h-4 w-4" />
               </Button>
 
               <Button 
