@@ -20,7 +20,7 @@ import { useWindowSize } from "@/hooks/useWindowSize";
  * A chave deve ser configurada como RECAPTCHA_SITE_KEY nos secrets do projeto
  * Como é uma chave pública, ela é segura para uso no frontend
  */
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "";
+const RECAPTCHA_SITE_KEY = "6LezXEAsAAAAAOo6AkVD45Qo8JXucgmzsjTpcMZB";
 
 // Schema de validação com zod para segurança
 const emailSchema = z.string().trim().email("E-mail inválido").max(255, "E-mail muito longo");
