@@ -1183,15 +1183,63 @@ const AdminQuestions = () => {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: Math.min(index * 0.02, 0.3) }}
-                      className="p-4 flex items-center gap-4 hover:bg-gradient-to-r hover:from-primary/5 hover:to-transparent transition-all duration-300 group"
+                      className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 hover:bg-gradient-to-r hover:from-primary/5 hover:to-transparent transition-all duration-300 group"
                     >
-                      {/* Número da questão com efeito hover */}
-                      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center font-bold text-primary group-hover:shadow-[0_0_15px_hsl(217,91%,50%/0.2)] transition-shadow">
-                        {question.index}
+                      {/* Número da questão e info principal */}
+                      <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+                        <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center font-bold text-primary text-sm sm:text-base group-hover:shadow-[0_0_15px_hsl(217,91%,50%/0.2)] transition-shadow">
+                          {question.index}
+                        </div>
+
+                        {/* Info da questão - mobile first */}
+                        <div className="flex-1 min-w-0 sm:hidden">
+                          <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                            {question.title?.substring(0, 50) || "Sem título"}
+                            {question.title && question.title.length > 50 && "..."}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <Badge variant="secondary" className="text-xs bg-secondary/50">
+                              {formatDisciplineName(question.discipline)}
+                            </Badge>
+                            {question.difficulty && (
+                              <DifficultyIndicator 
+                                difficulty={question.difficulty} 
+                                showLabel={false}
+                                size="sm"
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Botões mobile */}
+                        <div className="flex items-center gap-1 sm:hidden">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => analyzeIndividualQuestion(question)}
+                            disabled={question.isFromAPI || analyzingQuestionId === question.id}
+                            className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
+                          >
+                            {analyzingQuestionId === question.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                            ) : (
+                              <Wand2 className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(question)}
+                            disabled={question.isFromAPI}
+                            className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </div>
 
-                      {/* Info da questão */}
-                      <div className="flex-1 min-w-0">
+                      {/* Info da questão - desktop */}
+                      <div className="hidden sm:block flex-1 min-w-0">
                         <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
                           {question.title?.substring(0, 100) || "Sem título"}
                           {question.title && question.title.length > 100 && "..."}
@@ -1229,8 +1277,8 @@ const AdminQuestions = () => {
                         </div>
                       </div>
 
-                      {/* Indicador de dificuldade */}
-                      <div className="flex-shrink-0">
+                      {/* Indicador de dificuldade - desktop */}
+                      <div className="hidden sm:block flex-shrink-0">
                         <DifficultyIndicator 
                           difficulty={question.difficulty} 
                           showLabel={true}
@@ -1238,8 +1286,8 @@ const AdminQuestions = () => {
                         />
                       </div>
 
-                      {/* Botão de análise individual com tooltip visual */}
-                      <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                      {/* Botão de análise individual - desktop */}
+                      <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="hidden sm:block">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -1259,8 +1307,8 @@ const AdminQuestions = () => {
                         </Button>
                       </motion.div>
 
-                      {/* Botão de edição */}
-                      <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                      {/* Botão de edição - desktop */}
+                      <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="hidden sm:block">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -1288,16 +1336,16 @@ const AdminQuestions = () => {
 
       {/* Dialog de Edição */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] p-0 flex flex-col overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50 flex-shrink-0">
             <DialogTitle>
               Editar Questão {editingQuestion?.index} - ENEM {editingQuestion?.year}
             </DialogTitle>
           </DialogHeader>
 
           {editingQuestion && (
-            <ScrollArea className="flex-1 pr-4">
-              <div className="space-y-6 py-4">
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="space-y-6 p-6">
                 {/* Dificuldade */}
                 <div className="space-y-2">
                   <Label>Dificuldade</Label>
@@ -1456,7 +1504,7 @@ const AdminQuestions = () => {
             </ScrollArea>
           )}
 
-          <DialogFooter className="mt-4">
+          <DialogFooter className="px-6 py-4 border-t border-border/50 flex-shrink-0 bg-background">
             <Button
               variant="outline"
               onClick={() => setEditDialogOpen(false)}
