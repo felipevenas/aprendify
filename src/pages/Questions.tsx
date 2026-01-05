@@ -15,6 +15,7 @@ import { usePremium } from "@/hooks/usePremium";
 import { useQuestionBank } from "@/hooks/useQuestionBank";
 import { useStreakContext } from "@/contexts/StreakContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 /**
  * Página de prática de questões do ENEM
@@ -246,15 +247,26 @@ const Questions = () => {
                 <StickyNote className="h-4 w-4" />
               </Button>
 
-              <Button 
-                variant="outline"
-                size="icon"
-                onClick={handleClearCache}
-                disabled={loadingQuestion}
-                title="Limpar cache e recarregar"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline"
+                      size="icon"
+                      onClick={handleClearCache}
+                      disabled={loadingQuestion}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p className="font-medium">Limpar Cache</p>
+                    <p className="text-xs text-muted-foreground">
+                      Remove questões salvas localmente e busca as versões mais atualizadas do banco de dados.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
               <Button 
                 onClick={() => setShowFilters(!showFilters)} 
