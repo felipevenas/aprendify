@@ -80,7 +80,8 @@ export const useQuestionBank = () => {
     let query = supabase
       .from('enem_questions')
       .select('id, title, context')
-      .eq('classification_status', 'ready');
+      .eq('classification_status', 'ready')
+      .eq('is_active', true);
     
     if (year !== "all") {
       query = query.eq('year', year);
