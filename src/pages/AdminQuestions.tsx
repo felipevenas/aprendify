@@ -1175,7 +1175,7 @@ const AdminQuestions = () => {
                 <p className="text-sm text-muted-foreground/70 mt-1">Tente alterar os filtros de busca</p>
               </div>
             ) : (
-              <ScrollArea className="h-[600px]">
+              <ScrollArea className="h-[60vh] sm:h-[600px]">
                 <div className="divide-y divide-border/50">
                   {filteredQuestions.map((question, index) => (
                     <motion.div
@@ -1344,7 +1344,7 @@ const AdminQuestions = () => {
           </DialogHeader>
 
           {editingQuestion && (
-            <ScrollArea className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
               <div className="space-y-6 p-6">
                 {/* Dificuldade */}
                 <div className="space-y-2">
@@ -1411,33 +1411,33 @@ const AdminQuestions = () => {
                     className="resize-none"
                   />
                 </div>
+                {/* Assuntos (classificação) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="mainTopic">Assunto Principal</Label>
+                    <Input
+                      id="mainTopic"
+                      value={editingQuestion.mainTopic || ""}
+                      onChange={(e) => setEditingQuestion({
+                        ...editingQuestion,
+                        mainTopic: e.target.value,
+                      })}
+                      placeholder="Ex: Revolução Industrial, Genética Mendeliana..."
+                    />
+                  </div>
 
-                {/* Assunto Principal */}
-                <div className="space-y-2">
-                  <Label htmlFor="mainTopic">Assunto Principal</Label>
-                  <Input
-                    id="mainTopic"
-                    value={editingQuestion.mainTopic || ""}
-                    onChange={(e) => setEditingQuestion({
-                      ...editingQuestion,
-                      mainTopic: e.target.value,
-                    })}
-                    placeholder="Ex: Revolução Industrial, Genética Mendeliana..."
-                  />
-                </div>
-
-                {/* Subassuntos */}
-                <div className="space-y-2">
-                  <Label htmlFor="subtopics">Subassuntos (separados por vírgula)</Label>
-                  <Input
-                    id="subtopics"
-                    value={editingQuestion.subtopics?.join(", ") || ""}
-                    onChange={(e) => setEditingQuestion({
-                      ...editingQuestion,
-                      subtopics: e.target.value.split(",").map(s => s.trim()).filter(Boolean),
-                    })}
-                    placeholder="Ex: Máquina a vapor, Têxtil, Urbanização..."
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="subtopics">Subassuntos (separados por vírgula)</Label>
+                    <Input
+                      id="subtopics"
+                      value={editingQuestion.subtopics?.join(", ") || ""}
+                      onChange={(e) => setEditingQuestion({
+                        ...editingQuestion,
+                        subtopics: e.target.value.split(",").map(s => s.trim()).filter(Boolean),
+                      })}
+                      placeholder="Ex: Máquina a vapor, Têxtil, Urbanização..."
+                    />
+                  </div>
                 </div>
 
                 {/* Introdução das Alternativas */}
@@ -1501,7 +1501,7 @@ const AdminQuestions = () => {
                   </Select>
                 </div>
               </div>
-            </ScrollArea>
+            </div>
           )}
 
           <DialogFooter className="px-6 py-4 border-t border-border/50 flex-shrink-0 bg-background">
