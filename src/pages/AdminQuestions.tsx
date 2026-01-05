@@ -29,6 +29,9 @@ import {
   Database,
   Globe,
   Power,
+  Upload,
+  Image,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -1705,23 +1708,127 @@ const AdminQuestions = () => {
                 <div className="space-y-4">
                   <Label>Alternativas</Label>
                   {editingQuestion.alternatives?.map((alt: any, idx: number) => (
-                    <div key={idx} className="flex gap-3 items-start">
-                      <div className={cn(
-                        "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2",
-                        alt.letter === editingQuestion.correctAlternative
-                          ? "bg-green-500 border-green-500 text-white"
-                          : "bg-muted border-border"
-                      )}>
-                        {alt.letter?.toUpperCase()}
+                    <div key={idx} className="space-y-2">
+                      <div className="flex gap-3 items-start">
+                        <div className={cn(
+                          "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2",
+                          alt.letter === editingQuestion.correctAlternative
+                            ? "bg-green-500 border-green-500 text-white"
+                            : "bg-muted border-border"
+                        )}>
+                          {alt.letter?.toUpperCase()}
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <Textarea
+                            value={alt.text || ""}
+                            onChange={(e) => updateAlternative(idx, "text", e.target.value)}
+                            rows={2}
+                            className="resize-none"
+                          />
+                          {/* Upload de imagem para a alternativa */}
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              id={`alt-image-${idx}`}
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                
+                                // Validar tamanho (max 5MB)
+                                if (file.size > 5 * 1024 * 1024) {
+                                  toast.error("Imagem muito grande. Máximo 5MB.");
+                                  return;
+                                }
+                                
+                                try {
+                                  const fileName = `${editingQuestion.id}-alt-${alt.letter}-${Date.now()}.${file.name.split('.').pop()}`;
+                                  const filePath = `alternatives/${fileName}`;
+                                  
+                                  const { error: uploadError } = await supabase.storage
+                                    .from('enem-images')
+                                    .upload(filePath, file);
+                                  
+                                  if (uploadError) throw uploadError;
+                                  
+                                  const { data: { publicUrl } } = supabase.storage
+                                    .from('enem-images')
+                                    .getPublicUrl(filePath);
+                                  
+                                  // Atualiza a alternativa com a URL da imagem
+                                  const newAlternatives = [...editingQuestion.alternatives];
+                                  newAlternatives[idx] = {
+                                    ...newAlternatives[idx],
+                                    file: publicUrl,
+                                  };
+                                  setEditingQuestion({
+                                    ...editingQuestion,
+                                    alternatives: newAlternatives,
+                                  });
+                                  
+                                  toast.success("Imagem carregada!");
+                                } catch (error) {
+                                  console.error("Erro ao enviar imagem:", error);
+                                  toast.error("Erro ao enviar imagem");
+                                }
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="gap-2"
+                              onClick={() => document.getElementById(`alt-image-${idx}`)?.click()}
+                            >
+                              <Upload className="h-3.5 w-3.5" />
+                              Adicionar Imagem
+                            </Button>
+                            {alt.file && (
+                              <div className="flex items-center gap-2">
+                                <a 
+                                  href={alt.file} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                                >
+                                  <Image className="h-3 w-3" />
+                                  Ver imagem
+                                </a>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-destructive hover:text-destructive"
+                                  onClick={() => {
+                                    const newAlternatives = [...editingQuestion.alternatives];
+                                    newAlternatives[idx] = {
+                                      ...newAlternatives[idx],
+                                      file: null,
+                                    };
+                                    setEditingQuestion({
+                                      ...editingQuestion,
+                                      alternatives: newAlternatives,
+                                    });
+                                  }}
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <Textarea
-                          value={alt.text || ""}
-                          onChange={(e) => updateAlternative(idx, "text", e.target.value)}
-                          rows={2}
-                          className="resize-none"
-                        />
-                      </div>
+                      {/* Preview da imagem */}
+                      {alt.file && (
+                        <div className="ml-11 mt-2">
+                          <img 
+                            src={alt.file} 
+                            alt={`Imagem alternativa ${alt.letter}`}
+                            className="max-h-32 rounded-lg border border-border/50 object-contain"
+                          />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

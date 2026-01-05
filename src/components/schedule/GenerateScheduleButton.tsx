@@ -33,6 +33,7 @@ interface GenerateScheduleButtonProps {
   lastGeneration?: {
     generated_at: string;
     next_regeneration_at: string;
+    last_forced_at?: string | null;
   } | null;
 }
 
@@ -49,7 +50,15 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
     ? Math.max(0, differenceInDays(new Date(lastGeneration.next_regeneration_at), new Date()))
     : 0;
 
-  const handleGenerate = async () => {
+  // Verifica se pode forçar regeneração (1x por semana)
+  const canForceRegenerate = !lastGeneration?.last_forced_at || 
+    differenceInDays(new Date(), new Date(lastGeneration.last_forced_at)) >= 7;
+  
+  const daysUntilCanForce = lastGeneration?.last_forced_at
+    ? Math.max(0, 7 - differenceInDays(new Date(), new Date(lastGeneration.last_forced_at)))
+    : 0;
+
+  const handleGenerate = async (isForced: boolean = false) => {
     setLoading(true);
 
     try {
@@ -57,10 +66,15 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
         data: { session },
       } = await supabase.auth.getSession();
 
-      const accessToken = session?.access_token;
+      if (!session) {
+        toast.error("Sessão expirada. Faça login novamente.");
+        return;
+      }
+
+      const accessToken = session.access_token;
 
       const { data, error } = await supabase.functions.invoke("generate-study-schedule", {
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (error) {
@@ -73,6 +87,23 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
       if (data?.error) {
         toast.error(data.error);
         return;
+      }
+
+      // Se foi regeneração forçada, atualiza o tracking
+      if (isForced && lastGeneration) {
+        await supabase
+          .from("schedule_generations")
+          .update({ last_forced_at: new Date().toISOString() })
+          .eq("id", lastGeneration.generated_at ? undefined : lastGeneration.next_regeneration_at)
+          .eq("user_id", session.user.id);
+        
+        // Atualiza via query direta pelo user_id
+        await supabase
+          .from("schedule_generations")
+          .update({ last_forced_at: new Date().toISOString() })
+          .eq("user_id", session.user.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
       }
 
       toast.success(`Cronograma gerado com ${data.itemsCreated} sessões de estudo!`);
@@ -179,30 +210,41 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
           </p>
         </div>
         
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <RefreshCw className="h-4 w-4" />
-              Forçar Regeneração
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Regenerar cronograma agora?</AlertDialogTitle>
-              <AlertDialogDescription>
-                O cronograma será regenerado antes do prazo de 7 dias. 
-                Isso irá substituir todas as sessões de estudo geradas pela IA.
-                Sessões adicionadas manualmente serão mantidas.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleGenerate}>
-                Regenerar Agora
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        {canForceRegenerate ? (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <RefreshCw className="h-4 w-4" />
+                Forçar Regeneração
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Regenerar cronograma agora?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  O cronograma será regenerado antes do prazo de 7 dias. 
+                  Isso irá substituir todas as sessões de estudo geradas pela IA.
+                  Sessões adicionadas manualmente serão mantidas.
+                  <br /><br />
+                  <span className="text-amber-600 dark:text-amber-500">
+                    ⚠️ Você só pode forçar regeneração 1 vez por semana.
+                  </span>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => handleGenerate(true)}>
+                  Regenerar Agora
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : (
+          <Button variant="outline" size="sm" className="gap-2 cursor-not-allowed opacity-50" disabled>
+            <Lock className="h-4 w-4" />
+            Forçar ({daysUntilCanForce}d)
+          </Button>
+        )}
       </div>
     );
   }
@@ -244,7 +286,7 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={handleGenerate} className="gap-2">
+          <AlertDialogAction onClick={() => handleGenerate(false)} className="gap-2">
             <Sparkles className="h-4 w-4" />
             Gerar Cronograma
           </AlertDialogAction>

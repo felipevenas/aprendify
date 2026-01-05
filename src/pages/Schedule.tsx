@@ -34,6 +34,7 @@ interface ScheduleItem {
 interface ScheduleGeneration {
   generated_at: string;
   next_regeneration_at: string;
+  last_forced_at?: string | null;
 }
 
 const Schedule = () => {
@@ -156,7 +157,7 @@ const Schedule = () => {
 
       const { data, error } = await supabase
         .from("schedule_generations")
-        .select("generated_at, next_regeneration_at")
+        .select("generated_at, next_regeneration_at, last_forced_at")
         .eq("user_id", user.id)
         .order("generated_at", { ascending: false })
         .limit(1)
