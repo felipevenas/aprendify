@@ -43,10 +43,14 @@ export const cleanMarkdownArtifacts = (text: string): string => {
   cleaned = cleaned.replace(/&quot;/g, '"');
   cleaned = cleaned.replace(/&#39;/g, "'");
   
-  // Remove espaços duplicados e quebras de linha extras
-  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+  // Remove apenas espaços horizontais duplicados (preserva quebras de linha!)
+  // [^\S\n\r]+ = qualquer whitespace EXCETO \n e \r
+  cleaned = cleaned.replace(/[^\S\n\r]+/g, ' ');
   
-  return cleaned;
+  // Remove linhas em branco duplicadas (mais de 2 quebras consecutivas)
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+  
+  return cleaned.trim();
 };
 
 /**
@@ -107,8 +111,11 @@ export const separateTextAndReference = (text: string): { mainText: string; refe
     }
   }
   
-  // Limpa o texto principal
-  mainText = mainText.replace(/\s+/g, ' ').trim();
+  // Limpa espaços horizontais duplicados (preserva quebras de linha!)
+  mainText = mainText.replace(/[^\S\n\r]+/g, ' ');
+  
+  // Remove linhas em branco duplicadas
+  mainText = mainText.replace(/\n{3,}/g, '\n\n');
   
   // Remove pontuação solta no início/fim
   mainText = mainText.replace(/^\s*[.,;:]\s*/, '').replace(/\s*[.,;:]\s*$/, '').trim();
