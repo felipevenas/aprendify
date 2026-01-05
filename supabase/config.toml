@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.sync-enem-questions]
 verify_jwt = false
+
+[functions.classify-and-difficulty]
+verify_jwt = false
