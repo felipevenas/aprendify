@@ -125,6 +125,16 @@ const AdminQuestions = () => {
   // Estado para classificação em lote
   const [isClassifying, setIsClassifying] = useState(false);
   
+  // Estado para classificação + dificuldade combinada
+  const [isProcessingAll, setIsProcessingAll] = useState(false);
+  const [processingAllProgress, setProcessingAllProgress] = useState({
+    processed: 0,
+    total: 0,
+    isPaused: false,
+    pauseCountdown: 0,
+  });
+  const [processingAllPaused, setProcessingAllPaused] = useState(false);
+  
   // Estado para classificação global (todas as questões)
   const [isGlobalClassifying, setIsGlobalClassifying] = useState(false);
   const [globalClassificationPaused, setGlobalClassificationPaused] = useState(false);
@@ -532,6 +542,134 @@ const AdminQuestions = () => {
     } finally {
       setIsClassifying(false);
     }
+  };
+
+  /**
+   * Executa classificação + dificuldade combinada para o ano selecionado
+   * Processa todas as questões pendentes respeitando o rate-limit
+   */
+  const runClassifyAndDifficulty = async () => {
+    // Conta questões que precisam de processamento
+    const needsProcessing = questions.filter(
+      q => q.classificationStatus === 'pending_classification' || !q.difficulty
+    ).length;
+    
+    if (needsProcessing === 0) {
+      toast.info("Todas as questões do ano já foram processadas!");
+      return;
+    }
+
+    setIsProcessingAll(true);
+    setProcessingAllPaused(false);
+    setProcessingAllProgress({
+      processed: 0,
+      total: needsProcessing,
+      isPaused: false,
+      pauseCountdown: 0,
+    });
+
+    let totalProcessed = 0;
+    let totalFailed = 0;
+    let remaining = needsProcessing;
+    let cancelled = false;
+
+    const DELAY_BETWEEN_REQUESTS_MS = 2500; // 2.5s = ~24 RPM (conservador)
+    const RATE_LIMIT_PAUSE_SECONDS = 65;
+
+    try {
+      while (remaining > 0 && !cancelled) {
+        // Verifica pausa manual
+        while (processingAllPaused && !cancelled) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        if (cancelled) break;
+
+        const { data, error } = await supabase.functions.invoke("classify-and-difficulty", {
+          body: { batchSize: 1, year: selectedYear },
+        });
+
+        if (error) {
+          const errorStr = error.message?.toLowerCase() || '';
+          
+          // Rate limit - pausa automática
+          if (errorStr.includes("rate") || errorStr.includes("429") || errorStr.includes("limit")) {
+            toast.warning(`Rate limit atingido. Pausando ${RATE_LIMIT_PAUSE_SECONDS}s...`);
+            setProcessingAllProgress(prev => ({ ...prev, isPaused: true, pauseCountdown: RATE_LIMIT_PAUSE_SECONDS }));
+            
+            for (let countdown = RATE_LIMIT_PAUSE_SECONDS; countdown > 0 && !cancelled; countdown--) {
+              setProcessingAllProgress(prev => ({ ...prev, pauseCountdown: countdown }));
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            setProcessingAllProgress(prev => ({ ...prev, isPaused: false, pauseCountdown: 0 }));
+            continue;
+          }
+          
+          totalFailed++;
+          remaining--;
+          continue;
+        }
+
+        totalProcessed += data.processed || 0;
+        totalFailed += data.failed || 0;
+        remaining -= (data.processed || 0) + (data.failed || 0);
+
+        setProcessingAllProgress(prev => ({
+          ...prev,
+          processed: totalProcessed + totalFailed,
+        }));
+
+        // Se não processou nenhuma, pode ter acabado
+        if ((data.processed || 0) === 0 && data.message === "No questions to process") {
+          break;
+        }
+
+        // Delay entre requests
+        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS_MS));
+      }
+
+      toast.success(`Processamento concluído! ${totalProcessed} questões processadas, ${totalFailed} falhas.`);
+      
+      // Recarrega as questões e estatísticas
+      loadQuestions();
+      loadYearStats();
+    } catch (err) {
+      console.error("[ClassifyAndDifficulty] Erro:", err);
+      toast.error("Erro durante processamento");
+    } finally {
+      setIsProcessingAll(false);
+      setProcessingAllPaused(false);
+      setProcessingAllProgress({
+        processed: 0,
+        total: 0,
+        isPaused: false,
+        pauseCountdown: 0,
+      });
+    }
+  };
+
+  /**
+   * Pausa/retoma processamento combinado
+   */
+  const toggleProcessingAllPause = () => {
+    setProcessingAllPaused(prev => !prev);
+    toast.info(processingAllPaused ? "Processamento retomado" : "Processamento pausado");
+  };
+
+  /**
+   * Cancela processamento combinado
+   */
+  const cancelProcessingAll = () => {
+    setIsProcessingAll(false);
+    setProcessingAllPaused(false);
+    setProcessingAllProgress({
+      processed: 0,
+      total: 0,
+      isPaused: false,
+      pauseCountdown: 0,
+    });
+    toast.info("Processamento cancelado");
   };
 
   /**
@@ -1024,7 +1162,7 @@ const AdminQuestions = () => {
                 <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                   <Button
                     onClick={runBatchClassification}
-                    disabled={isClassifying || classificationStats.pending === 0}
+                    disabled={isClassifying || classificationStats.pending === 0 || isProcessingAll}
                     variant="outline"
                     className="gap-2 border-accent/30 hover:border-accent/50 hover:bg-accent/10"
                   >
@@ -1042,7 +1180,7 @@ const AdminQuestions = () => {
                   <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                     <Button
                       onClick={startAutomation}
-                      disabled={difficultyStats.unset === 0}
+                      disabled={difficultyStats.unset === 0 || isProcessingAll}
                       className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-md hover:shadow-lg transition-all"
                     >
                       <Wand2 className="h-4 w-4" />
@@ -1064,6 +1202,43 @@ const AdminQuestions = () => {
                     </Button>
                     <Button
                       onClick={cancelAutomation}
+                      variant="destructive"
+                      size="icon"
+                      className="shadow-sm"
+                    >
+                      ×
+                    </Button>
+                  </div>
+                )}
+
+                {/* Botão de Classificação + Dificuldade Combinada */}
+                {!isProcessingAll ? (
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Button
+                      onClick={runClassifyAndDifficulty}
+                      disabled={isClassifying || isAutomating || (classificationStats.pending === 0 && difficultyStats.unset === 0)}
+                      className="gap-2 bg-gradient-to-r from-accent to-primary hover:from-accent/90 hover:to-primary/90 shadow-md hover:shadow-lg transition-all"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      <Wand2 className="h-4 w-4" />
+                      Processar Tudo ({Math.max(classificationStats.pending, difficultyStats.unset)})
+                    </Button>
+                  </motion.div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={toggleProcessingAllPause}
+                      variant="outline"
+                      className="gap-2 border-accent/30 hover:border-accent/50"
+                    >
+                      {processingAllPaused ? (
+                        <><Play className="h-4 w-4" /> Retomar</>
+                      ) : (
+                        <><Pause className="h-4 w-4" /> Pausar</>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={cancelProcessingAll}
                       variant="destructive"
                       size="icon"
                       className="shadow-sm"
@@ -1099,6 +1274,50 @@ const AdminQuestions = () => {
                   />
                   <p className="text-xs text-muted-foreground mt-2">
                     Taxa: {REQUESTS_PER_MINUTE} requisições/min (1 a cada {REQUEST_INTERVAL_MS / 1000}s)
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Barra de progresso do processamento combinado */}
+            <AnimatePresence>
+              {isProcessingAll && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-4 overflow-hidden p-4 rounded-lg bg-gradient-to-r from-accent/10 to-primary/10 border border-accent/20"
+                >
+                  {processingAllProgress.isPaused ? (
+                    <div className="flex items-center justify-center gap-3 py-2 text-amber-500">
+                      <Pause className="h-5 w-5" />
+                      <span className="text-lg font-medium">
+                        Pausando por {processingAllProgress.pauseCountdown}s (rate limit)...
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="text-muted-foreground flex items-center gap-2">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />
+                        Classificando + Dificuldade... ({processingAllProgress.processed}/{processingAllProgress.total})
+                      </span>
+                      <span className="text-accent font-medium">
+                        {processingAllProgress.total > 0 
+                          ? `${Math.round((processingAllProgress.processed / processingAllProgress.total) * 100)}%`
+                          : "0%"
+                        }
+                      </span>
+                    </div>
+                  )}
+                  <Progress 
+                    value={processingAllProgress.total > 0 
+                      ? (processingAllProgress.processed / processingAllProgress.total) * 100 
+                      : 0
+                    } 
+                    className="h-2 bg-muted/50"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Taxa: ~24 requisições/min | Combina classificação + dificuldade em uma chamada
                   </p>
                 </motion.div>
               )}
