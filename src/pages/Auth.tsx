@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,14 @@ import { BookOpen, Mail, Lock, User, ArrowRight, Eye, EyeOff, Check, X, ShieldCh
 import authHero from "@/assets/auth-hero.jpg";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { z } from "zod";
+import ReCAPTCHA from "react-google-recaptcha";
+
+/**
+ * Chave pública do reCAPTCHA V2 (site key)
+ * A chave deve ser configurada como RECAPTCHA_SITE_KEY nos secrets do projeto
+ * Como é uma chave pública, ela é segura para uso no frontend
+ */
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "";
 
 // Schema de validação com zod para segurança
 const emailSchema = z.string().trim().email("E-mail inválido").max(255, "E-mail muito longo");
@@ -98,6 +106,13 @@ const Auth = () => {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
 
+  // Estado para reCAPTCHA V2 - apenas para cadastro
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
+
+  // Estados para efeitos visuais de foco nos inputs
+  const [focusedInput, setFocusedInput] = useState<string | null>(null);
+
   const navigate = useNavigate();
 
   // Validação de senha
@@ -149,6 +164,13 @@ const Auth = () => {
         toast.success("Login realizado com sucesso!");
         navigate("/dashboard");
       } else {
+        // Validação do reCAPTCHA V2 antes do cadastro
+        if (!recaptchaToken) {
+          toast.error("Por favor, complete o reCAPTCHA para continuar.");
+          setLoading(false);
+          return;
+        }
+
         // Validações de cadastro com zod
         try {
           emailSchema.parse(email);
@@ -225,9 +247,17 @@ const Auth = () => {
             icon: <ShieldCheck className="h-5 w-5 text-green-500" />,
           }
         );
+        
+        // Reset do reCAPTCHA após cadastro bem-sucedido
+        recaptchaRef.current?.reset();
+        setRecaptchaToken(null);
         setIsLogin(true);
       }
     } catch (error: any) {
+      // Reset do reCAPTCHA em caso de erro
+      recaptchaRef.current?.reset();
+      setRecaptchaToken(null);
+      
       // Mapeamento de erros para mensagens amigáveis
       const errorMessages: Record<string, string> = {
         "Invalid login credentials": "E-mail ou senha incorretos.",
@@ -401,82 +431,106 @@ const Auth = () => {
             {/* Campos de cadastro - Nova ordem: Nome, Email, Usuário, Senha, Confirmar Senha, Nascimento, Telefone */}
             {!isLogin && (
               <>
-                {/* Nome completo */}
-                <div className="space-y-2">
+                {/* Nome completo - com efeito visual de foco */}
+                <motion.div 
+                  className="space-y-2"
+                  animate={{ scale: focusedInput === "fullName" ? 1.02 : 1 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <Label htmlFor="fullName" className="text-base font-medium">
                     Nome Completo
                   </Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <div className={`relative rounded-md transition-all duration-300 ${focusedInput === "fullName" ? "ring-2 ring-primary/50 shadow-lg shadow-primary/20" : ""}`}>
+                    <User className={`absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors duration-300 ${focusedInput === "fullName" ? "text-primary" : "text-muted-foreground"}`} />
                     <Input
                       id="fullName"
                       type="text"
                       placeholder="Seu nome completo"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
+                      onFocus={() => setFocusedInput("fullName")}
+                      onBlur={() => setFocusedInput(null)}
                       required={!isLogin}
                       disabled={loading}
-                      className="pl-11 h-12 text-base"
+                      className="pl-11 h-12 text-base transition-all duration-300"
                     />
                   </div>
-                </div>
+                </motion.div>
 
-                {/* Email (cadastro) */}
-                <div className="space-y-2">
+                {/* Email (cadastro) - com efeito visual de foco */}
+                <motion.div 
+                  className="space-y-2"
+                  animate={{ scale: focusedInput === "email" ? 1.02 : 1 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <Label htmlFor="email" className="text-base font-medium">
                     E-mail
                   </Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <div className={`relative rounded-md transition-all duration-300 ${focusedInput === "email" ? "ring-2 ring-primary/50 shadow-lg shadow-primary/20" : ""}`}>
+                    <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors duration-300 ${focusedInput === "email" ? "text-primary" : "text-muted-foreground"}`} />
                     <Input
                       id="email"
                       type="email"
                       placeholder="seu@email.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      onFocus={() => setFocusedInput("email")}
+                      onBlur={() => setFocusedInput(null)}
                       required
                       disabled={loading}
-                      className="pl-11 h-12 text-base"
+                      className="pl-11 h-12 text-base transition-all duration-300"
                     />
                   </div>
-                </div>
+                </motion.div>
 
-                {/* Nome de usuário */}
-                <div className="space-y-2">
+                {/* Nome de usuário - com efeito visual de foco */}
+                <motion.div 
+                  className="space-y-2"
+                  animate={{ scale: focusedInput === "username" ? 1.02 : 1 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <Label htmlFor="username" className="text-base font-medium">
                     Nome de Usuário
                   </Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <div className={`relative rounded-md transition-all duration-300 ${focusedInput === "username" ? "ring-2 ring-primary/50 shadow-lg shadow-primary/20" : ""}`}>
+                    <User className={`absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors duration-300 ${focusedInput === "username" ? "text-primary" : "text-muted-foreground"}`} />
                     <Input
                       id="username"
                       type="text"
                       placeholder="seunome123"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
+                      onFocus={() => setFocusedInput("username")}
+                      onBlur={() => setFocusedInput(null)}
                       required={!isLogin}
                       disabled={loading}
-                      className="pl-11 h-12 text-base"
+                      className="pl-11 h-12 text-base transition-all duration-300"
                     />
                   </div>
-                </div>
+                </motion.div>
 
-                {/* Senha */}
-                <div className="space-y-2">
+                {/* Senha - com efeito visual de foco */}
+                <motion.div 
+                  className="space-y-2"
+                  animate={{ scale: focusedInput === "password" ? 1.02 : 1 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <Label htmlFor="password" className="text-base font-medium">
                     Senha
                   </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <div className={`relative rounded-md transition-all duration-300 ${focusedInput === "password" ? "ring-2 ring-primary/50 shadow-lg shadow-primary/20" : ""}`}>
+                    <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors duration-300 ${focusedInput === "password" ? "text-primary" : "text-muted-foreground"}`} />
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      onFocus={() => setFocusedInput("password")}
+                      onBlur={() => setFocusedInput(null)}
                       required
                       disabled={loading}
-                      className="pl-11 pr-11 h-12 text-base"
+                      className="pl-11 pr-11 h-12 text-base transition-all duration-300"
                     />
                     <button
                       type="button"
@@ -488,59 +542,72 @@ const Auth = () => {
                     </button>
                   </div>
 
-                  {/* Validador de senha forte */}
-                  {password.length > 0 && (
-                    <div className="grid grid-cols-2 gap-1 mt-2 text-xs">
-                      <div
-                        className={`flex items-center gap-1 ${passwordValidation.minLength ? "text-green-500" : "text-muted-foreground"}`}
+                  {/* Validador de senha forte com animação */}
+                  <AnimatePresence>
+                    {password.length > 0 && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="grid grid-cols-2 gap-1 mt-2 text-xs overflow-hidden"
                       >
-                        {passwordValidation.minLength ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                        <span>Mínimo 8 caracteres</span>
-                      </div>
-                      <div
-                        className={`flex items-center gap-1 ${passwordValidation.hasUpperCase ? "text-green-500" : "text-muted-foreground"}`}
-                      >
-                        {passwordValidation.hasUpperCase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                        <span>Letra maiúscula</span>
-                      </div>
-                      <div
-                        className={`flex items-center gap-1 ${passwordValidation.hasLowerCase ? "text-green-500" : "text-muted-foreground"}`}
-                      >
-                        {passwordValidation.hasLowerCase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                        <span>Letra minúscula</span>
-                      </div>
-                      <div
-                        className={`flex items-center gap-1 ${passwordValidation.hasNumber ? "text-green-500" : "text-muted-foreground"}`}
-                      >
-                        {passwordValidation.hasNumber ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                        <span>Número</span>
-                      </div>
-                      <div
-                        className={`flex items-center gap-1 ${passwordValidation.hasSpecialChar ? "text-green-500" : "text-muted-foreground"}`}
-                      >
-                        {passwordValidation.hasSpecialChar ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                        <span>Caractere especial</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                        <div
+                          className={`flex items-center gap-1 transition-colors duration-300 ${passwordValidation.minLength ? "text-green-500" : "text-muted-foreground"}`}
+                        >
+                          {passwordValidation.minLength ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                          <span>Mínimo 8 caracteres</span>
+                        </div>
+                        <div
+                          className={`flex items-center gap-1 transition-colors duration-300 ${passwordValidation.hasUpperCase ? "text-green-500" : "text-muted-foreground"}`}
+                        >
+                          {passwordValidation.hasUpperCase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                          <span>Letra maiúscula</span>
+                        </div>
+                        <div
+                          className={`flex items-center gap-1 transition-colors duration-300 ${passwordValidation.hasLowerCase ? "text-green-500" : "text-muted-foreground"}`}
+                        >
+                          {passwordValidation.hasLowerCase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                          <span>Letra minúscula</span>
+                        </div>
+                        <div
+                          className={`flex items-center gap-1 transition-colors duration-300 ${passwordValidation.hasNumber ? "text-green-500" : "text-muted-foreground"}`}
+                        >
+                          {passwordValidation.hasNumber ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                          <span>Número</span>
+                        </div>
+                        <div
+                          className={`flex items-center gap-1 transition-colors duration-300 ${passwordValidation.hasSpecialChar ? "text-green-500" : "text-muted-foreground"}`}
+                        >
+                          {passwordValidation.hasSpecialChar ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                          <span>Caractere especial</span>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
 
-                {/* Confirmar Senha */}
-                <div className="space-y-2">
+                {/* Confirmar Senha - com efeito visual de foco */}
+                <motion.div 
+                  className="space-y-2"
+                  animate={{ scale: focusedInput === "confirmPassword" ? 1.02 : 1 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <Label htmlFor="confirmPassword" className="text-base font-medium">
                     Confirmar Senha
                   </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <div className={`relative rounded-md transition-all duration-300 ${focusedInput === "confirmPassword" ? "ring-2 ring-primary/50 shadow-lg shadow-primary/20" : ""}`}>
+                    <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors duration-300 ${focusedInput === "confirmPassword" ? "text-primary" : "text-muted-foreground"}`} />
                     <Input
                       id="confirmPassword"
                       type={showConfirmPassword ? "text" : "password"}
                       placeholder="••••••••"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
+                      onFocus={() => setFocusedInput("confirmPassword")}
+                      onBlur={() => setFocusedInput(null)}
                       required
                       disabled={loading}
-                      className={`pl-11 pr-11 h-12 text-base ${
+                      className={`pl-11 pr-11 h-12 text-base transition-all duration-300 ${
                         confirmPassword.length > 0
                           ? passwordsMatch
                             ? "border-green-500 focus-visible:ring-green-500"
@@ -557,90 +624,149 @@ const Auth = () => {
                       {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
-                  {confirmPassword.length > 0 && !passwordsMatch && (
-                    <p className="text-xs text-destructive flex items-center gap-1">
-                      <X className="h-3 w-3" /> As senhas não coincidem
-                    </p>
-                  )}
-                  {passwordsMatch && (
-                    <p className="text-xs text-green-500 flex items-center gap-1">
-                      <Check className="h-3 w-3" /> As senhas coincidem
-                    </p>
-                  )}
-                </div>
+                  <AnimatePresence>
+                    {confirmPassword.length > 0 && !passwordsMatch && (
+                      <motion.p 
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        className="text-xs text-destructive flex items-center gap-1"
+                      >
+                        <X className="h-3 w-3" /> As senhas não coincidem
+                      </motion.p>
+                    )}
+                    {passwordsMatch && (
+                      <motion.p 
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        className="text-xs text-green-500 flex items-center gap-1"
+                      >
+                        <Check className="h-3 w-3" /> As senhas coincidem
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
 
-                {/* Data de nascimento */}
-                <div className="space-y-2">
+                {/* Data de nascimento - com efeito visual de foco */}
+                <motion.div 
+                  className="space-y-2"
+                  animate={{ scale: focusedInput === "birthdate" ? 1.02 : 1 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <Label htmlFor="birthdate" className="text-base font-medium">
                     Data de Nascimento
                   </Label>
-                  <Input
-                    id="birthdate"
-                    type="date"
-                    value={birthdate}
-                    onChange={(e) => setBirthdate(e.target.value)}
-                    disabled={loading}
-                    className="h-12 text-base"
-                  />
-                </div>
+                  <div className={`relative rounded-md transition-all duration-300 ${focusedInput === "birthdate" ? "ring-2 ring-primary/50 shadow-lg shadow-primary/20" : ""}`}>
+                    <Input
+                      id="birthdate"
+                      type="date"
+                      value={birthdate}
+                      onChange={(e) => setBirthdate(e.target.value)}
+                      onFocus={() => setFocusedInput("birthdate")}
+                      onBlur={() => setFocusedInput(null)}
+                      disabled={loading}
+                      className="h-12 text-base transition-all duration-300"
+                    />
+                  </div>
+                </motion.div>
 
-                {/* Celular */}
-                <div className="space-y-2">
+                {/* Celular - com efeito visual de foco */}
+                <motion.div 
+                  className="space-y-2"
+                  animate={{ scale: focusedInput === "phone" ? 1.02 : 1 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <Label htmlFor="phone" className="text-base font-medium">
                     Celular
                   </Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="(00) 00000-0000"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    required={!isLogin}
-                    disabled={loading}
-                    className="h-12 text-base"
-                  />
-                </div>
+                  <div className={`relative rounded-md transition-all duration-300 ${focusedInput === "phone" ? "ring-2 ring-primary/50 shadow-lg shadow-primary/20" : ""}`}>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="(00) 00000-0000"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      onFocus={() => setFocusedInput("phone")}
+                      onBlur={() => setFocusedInput(null)}
+                      required={!isLogin}
+                      disabled={loading}
+                      className="h-12 text-base transition-all duration-300"
+                    />
+                  </div>
+                </motion.div>
+
+                {/* reCAPTCHA V2 - apenas no cadastro */}
+                {RECAPTCHA_SITE_KEY && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.2 }}
+                    className="flex justify-center"
+                  >
+                    <ReCAPTCHA
+                      ref={recaptchaRef}
+                      sitekey={RECAPTCHA_SITE_KEY}
+                      onChange={(token) => setRecaptchaToken(token)}
+                      onExpired={() => setRecaptchaToken(null)}
+                      onErrored={() => setRecaptchaToken(null)}
+                      theme="light"
+                    />
+                  </motion.div>
+                )}
               </>
             )}
 
-            {/* Campo de login (email ou username) */}
+            {/* Campo de login (email ou username) - com efeitos visuais */}
             {isLogin && (
               <>
-                <div className="space-y-2">
+                <motion.div 
+                  className="space-y-2"
+                  animate={{ scale: focusedInput === "loginIdentifier" ? 1.02 : 1 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <Label htmlFor="loginIdentifier" className="text-base font-medium">
                     E-mail ou Usuário
                   </Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <div className={`relative rounded-md transition-all duration-300 ${focusedInput === "loginIdentifier" ? "ring-2 ring-primary/50 shadow-lg shadow-primary/20" : ""}`}>
+                    <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors duration-300 ${focusedInput === "loginIdentifier" ? "text-primary" : "text-muted-foreground"}`} />
                     <Input
                       id="loginIdentifier"
                       type="text"
                       placeholder="seu@email.com ou seunome123"
                       value={loginIdentifier}
                       onChange={(e) => setLoginIdentifier(e.target.value)}
+                      onFocus={() => setFocusedInput("loginIdentifier")}
+                      onBlur={() => setFocusedInput(null)}
                       required
                       disabled={loading}
-                      className="pl-11 h-12 text-base"
+                      className="pl-11 h-12 text-base transition-all duration-300"
                     />
                   </div>
-                </div>
+                </motion.div>
 
-                {/* Senha (login) */}
-                <div className="space-y-2">
+                {/* Senha (login) - com efeitos visuais */}
+                <motion.div 
+                  className="space-y-2"
+                  animate={{ scale: focusedInput === "passwordLogin" ? 1.02 : 1 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <Label htmlFor="passwordLogin" className="text-base font-medium">
                     Senha
                   </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <div className={`relative rounded-md transition-all duration-300 ${focusedInput === "passwordLogin" ? "ring-2 ring-primary/50 shadow-lg shadow-primary/20" : ""}`}>
+                    <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors duration-300 ${focusedInput === "passwordLogin" ? "text-primary" : "text-muted-foreground"}`} />
                     <Input
                       id="passwordLogin"
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      onFocus={() => setFocusedInput("passwordLogin")}
+                      onBlur={() => setFocusedInput(null)}
                       required
                       disabled={loading}
-                      className="pl-11 pr-11 h-12 text-base"
+                      className="pl-11 pr-11 h-12 text-base transition-all duration-300"
                     />
                     <button
                       type="button"
@@ -651,7 +777,7 @@ const Auth = () => {
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
-                </div>
+                </motion.div>
 
                 {/* Link Esqueci minha senha */}
                 <div className="flex justify-end">
@@ -666,17 +792,38 @@ const Auth = () => {
               </>
             )}
 
-            {/* Botão de submit */}
-            <Button type="submit" className="w-full h-12 text-base font-semibold gap-2" disabled={loading}>
-              {loading ? (
-                "Processando..."
-              ) : (
-                <>
-                  {isLogin ? "Entrar" : "Criar conta"}
-                  <ArrowRight className="h-5 w-5" />
-                </>
-              )}
-            </Button>
+            {/* Botão de submit com efeito de hover aprimorado */}
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Button 
+                type="submit" 
+                className="w-full h-12 text-base font-semibold gap-2 transition-all duration-300" 
+                disabled={loading || (!isLogin && !recaptchaToken)}
+              >
+                {loading ? (
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-center gap-2"
+                  >
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full"
+                    />
+                    Processando...
+                  </motion.span>
+                ) : (
+                  <>
+                    {isLogin ? "Entrar" : "Criar conta"}
+                    <ArrowRight className="h-5 w-5" />
+                  </>
+                )}
+              </Button>
+            </motion.div>
 
             {/* Separador */}
             <div className="relative my-2">
