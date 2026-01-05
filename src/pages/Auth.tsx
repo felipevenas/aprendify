@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,11 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, Mail, Lock, User, ArrowRight, Eye, EyeOff, Check, X, ShieldCheck } from "lucide-react";
+import { BookOpen, Mail, Lock, User, ArrowRight, Eye, EyeOff, Check, X, ShieldCheck, PartyPopper } from "lucide-react";
 import authHero from "@/assets/auth-hero.jpg";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { z } from "zod";
 import ReCAPTCHA from "react-google-recaptcha";
+import Confetti from "react-confetti";
+import { useWindowSize } from "@/hooks/useWindowSize";
 
 /**
  * Chave pública do reCAPTCHA V2 (site key)
@@ -106,14 +108,22 @@ const Auth = () => {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
 
-  // Estado para reCAPTCHA V2 - apenas para cadastro
+  // Estado para reCAPTCHA V2 - apenas para cadastro (opcional se a chave não estiver configurada)
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   // Estados para efeitos visuais de foco nos inputs
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
 
+  // Estado para animação de sucesso no cadastro
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { width, height } = useWindowSize();
+
+  // Verificar se há parâmetro de sucesso na URL (após cadastro)
+  const registrationSuccess = searchParams.get("registered") === "true";
 
   // Validação de senha
   const passwordValidation = useMemo(() => validatePassword(password), [password]);
@@ -127,6 +137,21 @@ const Auth = () => {
     }, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // Efeito para mostrar toast de sucesso quando redirecionado após cadastro
+  useEffect(() => {
+    if (registrationSuccess) {
+      toast.success(
+        "Cadastro realizado com sucesso! Verifique seu e-mail e faça login.",
+        {
+          duration: 8000,
+          icon: <PartyPopper className="h-5 w-5 text-green-500" />,
+        }
+      );
+      // Limpar o parâmetro da URL
+      window.history.replaceState({}, "", "/auth");
+    }
+  }, [registrationSuccess]);
 
   const currentContent = dynamicContent[contentIndex];
 
@@ -164,8 +189,8 @@ const Auth = () => {
         toast.success("Login realizado com sucesso!");
         navigate("/dashboard");
       } else {
-        // Validação do reCAPTCHA V2 antes do cadastro
-        if (!recaptchaToken) {
+        // Validação do reCAPTCHA V2 antes do cadastro (apenas se a chave estiver configurada)
+        if (RECAPTCHA_SITE_KEY && !recaptchaToken) {
           toast.error("Por favor, complete o reCAPTCHA para continuar.");
           setLoading(false);
           return;
@@ -240,18 +265,27 @@ const Auth = () => {
           return;
         }
 
-        toast.success(
-          "Cadastro realizado! Verifique seu e-mail para confirmar sua conta.",
-          {
-            duration: 6000,
-            icon: <ShieldCheck className="h-5 w-5 text-green-500" />,
-          }
-        );
+        // Mostrar animação de sucesso com confetti
+        setShowSuccessAnimation(true);
         
         // Reset do reCAPTCHA após cadastro bem-sucedido
         recaptchaRef.current?.reset();
         setRecaptchaToken(null);
-        setIsLogin(true);
+
+        // Aguardar a animação e redirecionar para login com mensagem
+        setTimeout(() => {
+          setShowSuccessAnimation(false);
+          navigate("/auth?registered=true");
+          setIsLogin(true);
+          // Limpar campos do formulário
+          setEmail("");
+          setPassword("");
+          setConfirmPassword("");
+          setFullName("");
+          setUsername("");
+          setPhone("");
+          setBirthdate("");
+        }, 2500);
       }
     } catch (error: any) {
       // Reset do reCAPTCHA em caso de erro
@@ -324,7 +358,47 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
+    <div className="min-h-screen flex flex-col lg:flex-row relative">
+      {/* Animação de confetti ao cadastrar com sucesso */}
+      <AnimatePresence>
+        {showSuccessAnimation && (
+          <>
+            <Confetti
+              width={width}
+              height={height}
+              recycle={false}
+              numberOfPieces={300}
+              gravity={0.3}
+              colors={["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#ec4899"]}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+            >
+              <motion.div
+                initial={{ y: 20 }}
+                animate={{ y: 0 }}
+                className="bg-card p-8 rounded-2xl shadow-2xl text-center max-w-md mx-4"
+              >
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                  className="w-20 h-20 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center"
+                >
+                  <PartyPopper className="h-10 w-10 text-green-500" />
+                </motion.div>
+                <h2 className="text-2xl font-bold text-foreground mb-2">Cadastro realizado!</h2>
+                <p className="text-muted-foreground">
+                  Verifique seu e-mail para confirmar sua conta e fazer login.
+                </p>
+              </motion.div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
       {/* Lado esquerdo - Imagem Hero (hidden em mobile) */}
       <motion.div
         initial={{ opacity: 0, x: -50 }}
@@ -801,7 +875,7 @@ const Auth = () => {
               <Button 
                 type="submit" 
                 className="w-full h-12 text-base font-semibold gap-2 transition-all duration-300" 
-                disabled={loading || (!isLogin && !recaptchaToken)}
+                disabled={loading || (!isLogin && RECAPTCHA_SITE_KEY && !recaptchaToken)}
               >
                 {loading ? (
                   <motion.span
