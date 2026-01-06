@@ -1,4 +1,5 @@
 import { useCallback, useRef } from "react";
+import { isSoundEnabled } from "./useSoundPreferences";
 
 /**
  * Hook para gerenciar efeitos sonoros do aplicativo
@@ -20,6 +21,8 @@ export const useSoundEffects = () => {
    * Som agudo e curto, similar a "ding!"
    */
   const playCorrectSound = useCallback(() => {
+    if (!isSoundEnabled()) return;
+    
     try {
       const ctx = getAudioContext();
       const oscillator = ctx.createOscillator();
@@ -49,6 +52,8 @@ export const useSoundEffects = () => {
    * Som grave e curto
    */
   const playIncorrectSound = useCallback(() => {
+    if (!isSoundEnabled()) return;
+    
     try {
       const ctx = getAudioContext();
       const oscillator = ctx.createOscillator();
@@ -77,6 +82,8 @@ export const useSoundEffects = () => {
    * Som mais elaborado, tipo fanfarra curta
    */
   const playSuccessSound = useCallback(() => {
+    if (!isSoundEnabled()) return;
+    
     try {
       const ctx = getAudioContext();
 
@@ -114,6 +121,8 @@ export const useSoundEffects = () => {
    * Som muito curto e sutil
    */
   const playClickSound = useCallback(() => {
+    if (!isSoundEnabled()) return;
+    
     try {
       const ctx = getAudioContext();
       const oscillator = ctx.createOscillator();
@@ -135,10 +144,56 @@ export const useSoundEffects = () => {
     }
   }, [getAudioContext]);
 
+  /**
+   * Toca um som de conquista de streak
+   * Som celebratório mais longo e festivo
+   */
+  const playStreakSound = useCallback(() => {
+    if (!isSoundEnabled()) return;
+    
+    try {
+      const ctx = getAudioContext();
+
+      const playNote = (frequency: number, startTime: number, duration: number, gain: number = 0.2) => {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequency, startTime);
+
+        gainNode.gain.setValueAtTime(gain, startTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      };
+
+      // Som festivo: melodia ascendente com acorde final
+      const now = ctx.currentTime;
+      playNote(392.00, now, 0.12);          // G4
+      playNote(440.00, now + 0.1, 0.12);    // A4
+      playNote(493.88, now + 0.2, 0.12);    // B4
+      playNote(523.25, now + 0.3, 0.12);    // C5
+      playNote(659.25, now + 0.4, 0.12);    // E5
+      playNote(783.99, now + 0.5, 0.25);    // G5
+      // Acorde final
+      playNote(523.25, now + 0.6, 0.4, 0.15);  // C5
+      playNote(659.25, now + 0.6, 0.4, 0.15);  // E5
+      playNote(783.99, now + 0.6, 0.4, 0.15);  // G5
+      playNote(1046.50, now + 0.6, 0.5, 0.2);  // C6
+    } catch (error) {
+      console.log("[Sound] Erro ao tocar som de streak:", error);
+    }
+  }, [getAudioContext]);
+
   return {
     playCorrectSound,
     playIncorrectSound,
     playSuccessSound,
     playClickSound,
+    playStreakSound,
   };
 };

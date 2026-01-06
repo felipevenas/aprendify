@@ -7,11 +7,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Upload, Loader2, Shield, Users, ChevronRight } from "lucide-react";
+import { Upload, Loader2, Shield, Users, ChevronRight, Volume2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import TwoFactorAuth from "@/components/settings/TwoFactorAuth";
+import { useSoundPreferences } from "@/hooks/useSoundPreferences";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
 
 /**
  * Página de configurações do usuário
@@ -28,6 +31,8 @@ const Settings = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  const { soundEnabled, setSoundEnabled } = useSoundPreferences();
+  const { playClickSound } = useSoundEffects();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -295,6 +300,40 @@ const Settings = () => {
                   {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   Atualizar Senha
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* Preferências de Som */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Volume2 className="h-5 w-5" />
+                  Efeitos Sonoros
+                </CardTitle>
+                <CardDescription>
+                  Configure os sons do aplicativo
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="sound-toggle">Ativar efeitos sonoros</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Sons ao acertar questões, completar streaks e gerar cronogramas
+                    </p>
+                  </div>
+                  <Switch
+                    id="sound-toggle"
+                    checked={soundEnabled}
+                    onCheckedChange={(checked) => {
+                      setSoundEnabled(checked);
+                      if (checked) {
+                        playClickSound();
+                      }
+                      toast.success(checked ? "Sons ativados" : "Sons desativados");
+                    }}
+                  />
+                </div>
               </CardContent>
             </Card>
 

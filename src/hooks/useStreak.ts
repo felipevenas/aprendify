@@ -10,6 +10,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useSoundEffects } from './useSoundEffects';
 
 // Constantes do sistema de streak
 const REQUIRED_DAILY_QUESTIONS = 5;
@@ -32,6 +33,7 @@ interface UseStreakReturn {
 export const useStreak = (): UseStreakReturn => {
   const [streakData, setStreakData] = useState<StreakData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { playStreakSound } = useSoundEffects();
 
   /**
    * Obtém a data atual no formato YYYY-MM-DD (timezone local)
@@ -249,6 +251,9 @@ export const useStreak = (): UseStreakReturn => {
           description: `Você está em uma sequência de ${newStreak} dia(s)! Continue assim!`,
           duration: 4000,
         });
+        
+        // Toca som de celebração
+        playStreakSound();
       }
 
       // Atualiza maior streak se necessário
