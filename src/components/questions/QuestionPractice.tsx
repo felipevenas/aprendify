@@ -80,9 +80,43 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
   const [hadDoubt, setHadDoubt] = useState<boolean | null>(null);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [analyzingDifficulty, setAnalyzingDifficulty] = useState(false);
+  const [previousFeedback, setPreviousFeedback] = useState<boolean | null>(null);
 
   // Gera chave única para esta questão
   const questionKey = useMemo(() => getQuestionKey(question), [question]);
+
+  // Busca feedback anterior da questão
+  useEffect(() => {
+    const fetchPreviousFeedback = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const questionId = `${question.year}-${question.discipline}-${question.index}`;
+        
+        const { data } = await supabase
+          .from("question_attempts")
+          .select("had_doubt")
+          .eq("user_id", user.id)
+          .eq("question_id", questionId)
+          .not("had_doubt", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (data && data.length > 0) {
+          setPreviousFeedback(data[0].had_doubt);
+        } else {
+          setPreviousFeedback(null);
+        }
+      } catch (error) {
+        console.error("[PreviousFeedback] Erro ao buscar:", error);
+        setPreviousFeedback(null);
+      }
+    };
+
+    setPreviousFeedback(null);
+    fetchPreviousFeedback();
+  }, [question.year, question.discipline, question.index]);
 
   // Processa o contexto para separar texto da referência
   const processedContext = useMemo(() => {
@@ -234,10 +268,39 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
         {/* Header da questão */}
         <div className="mb-6 pb-6 border-b border-border">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            {/* Lado esquerdo: Número da questão */}
-            <Badge variant="outline" className="text-sm font-semibold bg-primary/5 border-primary/30">
-              Questão {question.index} - ENEM {question.year || new Date().getFullYear()}
-            </Badge>
+            {/* Lado esquerdo: Número da questão + badge de avaliação anterior */}
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-sm font-semibold bg-primary/5 border-primary/30">
+                Questão {question.index} - ENEM {question.year || new Date().getFullYear()}
+              </Badge>
+              
+              {/* Badge de avaliação anterior */}
+              {previousFeedback !== null && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                        className={cn(
+                          "w-6 h-6 rounded-full flex items-center justify-center",
+                          previousFeedback
+                            ? "bg-amber-100 dark:bg-amber-900/30"
+                            : "bg-green-100 dark:bg-green-900/30"
+                        )}
+                      >
+                        {previousFeedback ? (
+                          <HelpCircle className="h-3.5 w-3.5 text-amber-600" />
+                        ) : (
+                          <ThumbsUp className="h-3.5 w-3.5 text-green-600" />
+                        )}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{previousFeedback ? "Teve dúvidas anteriormente" : "Respondeu tranquilamente"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
             
             {/* Lado direito: Disciplina + Dificuldade + Idioma */}
             <div className="flex items-center gap-2">
