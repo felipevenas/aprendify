@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Settings, LogOut, Moon, Sun, BookOpen, Crown, CreditCard } from "lucide-react";
+import { Settings, LogOut, Moon, Sun, BookOpen, Crown, CreditCard, Sparkles } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
 import { usePremiumContext } from "@/contexts/PremiumContext";
@@ -30,9 +30,10 @@ const Navbar = () => {
   const [user, setUser] = useState<User | null>(null);
   const [userName, setUserName] = useState<string>("");
   const [showPremiumModal, setShowPremiumModal] = useState(false);
-  const { isPremium, isLoading } = usePremiumContext();
+  const { isPremium, isLoading, planType } = usePremiumContext();
   // Usa o contexto global de streak para atualizações em tempo real
   const { streakData, loading: streakLoading } = useStreakContext();
+  const isCreator = planType === "creator";
   useEffect(() => {
     // Busca usuário atual
     const fetchUser = async () => {
@@ -111,9 +112,17 @@ const Navbar = () => {
                 longestStreak={streakData.longestStreak}
               />
             )}
-            {/* Badge Premium ou Free baseado no status de assinatura */}
+            {/* Badge Premium, Criador ou Free baseado no status de assinatura */}
             {!isLoading &&
-              (isPremium ? (
+              (isCreator ? (
+                <Badge
+                  onClick={() => navigate("/creator")}
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0 px-3 sm:px-4 py-1.5 shadow-md hover:shadow-lg flex items-center cursor-pointer transition-all duration-300 hover:scale-105 rounded-full"
+                >
+                  <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
+                  <span className="hidden sm:inline font-semibold">Criador</span>
+                </Badge>
+              ) : isPremium ? (
                 <Badge
                   onClick={() => setShowPremiumModal(true)}
                   className="bg-gradient-to-r from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-white border-0 px-3 sm:px-4 py-1.5 shadow-md hover:shadow-lg flex items-center cursor-pointer transition-all duration-300 hover:scale-105 rounded-full"
