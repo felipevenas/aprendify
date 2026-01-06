@@ -26,6 +26,7 @@ import Subscription from "./pages/Subscription";
 import Simulados from "./pages/Simulados";
 import SimuladoActive from "./pages/SimuladoActive";
 import SimuladoResults from "./pages/SimuladoResults";
+import CreatorDashboard from "./pages/CreatorDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -67,6 +68,7 @@ const App = () => (
                 <Route path="/simulados" element={<Simulados />} />
                 <Route path="/simulados/:id" element={<SimuladoActive />} />
                 <Route path="/simulados/:id/resultado" element={<SimuladoResults />} />
+                <Route path="/creator" element={<CreatorDashboard />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
