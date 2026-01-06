@@ -240,6 +240,7 @@ export type Database = {
           correct_answer: string
           created_at: string
           discipline: string
+          had_doubt: boolean | null
           id: string
           is_correct: boolean
           language: string | null
@@ -253,6 +254,7 @@ export type Database = {
           correct_answer: string
           created_at?: string
           discipline: string
+          had_doubt?: boolean | null
           id?: string
           is_correct: boolean
           language?: string | null
@@ -266,6 +268,7 @@ export type Database = {
           correct_answer?: string
           created_at?: string
           discipline?: string
+          had_doubt?: boolean | null
           id?: string
           is_correct?: boolean
           language?: string | null
