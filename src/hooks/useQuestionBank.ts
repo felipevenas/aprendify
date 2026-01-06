@@ -114,6 +114,20 @@ export const useQuestionBank = () => {
 
     let questionIds = data?.map(q => q.id) || [];
 
+    // Busca questões que o usuário teve dúvida (para dar 10% mais chance)
+    let doubtQuestionIds: string[] = [];
+    if (userId) {
+      const { data: doubtAttempts } = await supabase
+        .from('question_attempts')
+        .select('question_id')
+        .eq('user_id', userId)
+        .eq('had_doubt', true);
+      
+      if (doubtAttempts) {
+        doubtQuestionIds = doubtAttempts.map(a => a.question_id);
+      }
+    }
+
     // Filtra por status (requer busca de tentativas do usuário)
     if (status !== "all" && userId) {
       const { data: attempts, error: attemptsError } = await supabase
@@ -150,7 +164,20 @@ export const useQuestionBank = () => {
       }
     }
 
-    return questionIds;
+    // Adiciona 10% extra de chance para questões com dúvida
+    // Fazemos isso adicionando IDs duplicados (aproximadamente 10% extras)
+    const idsWithDoubtBoost: string[] = [...questionIds];
+    doubtQuestionIds.forEach(doubtId => {
+      if (questionIds.includes(doubtId)) {
+        // Adiciona o ID mais uma vez (aproximadamente 10% de boost = 1 extra a cada ~10)
+        const extraChances = Math.ceil(questionIds.length * 0.1 / Math.max(1, doubtQuestionIds.length));
+        for (let i = 0; i < Math.min(extraChances, 2); i++) {
+          idsWithDoubtBoost.push(doubtId);
+        }
+      }
+    });
+
+    return idsWithDoubtBoost;
   }, []);
 
   // Busca uma questão específica por ID

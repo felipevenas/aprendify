@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { usePremium } from "@/hooks/usePremium";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +42,7 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
   const [loading, setLoading] = useState(false);
   const [premiumDialogOpen, setPremiumDialogOpen] = useState(false);
   const { isPremium, isLoading: premiumLoading } = usePremium();
+  const { playSuccessSound } = useSoundEffects();
   const navigate = useNavigate();
 
   const canRegenerate = !lastGeneration || 
@@ -106,6 +108,9 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
           .limit(1);
       }
 
+      // Toca som de sucesso
+      playSuccessSound();
+      
       toast.success(`Cronograma gerado com ${data.itemsCreated} sessões de estudo!`);
       onGenerated();
     } catch (error) {

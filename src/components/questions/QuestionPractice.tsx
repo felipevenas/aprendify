@@ -3,12 +3,14 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import { CheckCircle2, XCircle, ChevronRight, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, ChevronRight, Loader2, ThumbsUp, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDisciplineName, cleanMarkdownArtifacts, separateTextAndReference } from "@/lib/formatters";
 import QuestionExplanation from "./QuestionExplanation";
 import DifficultyIndicator from "./DifficultyIndicator";
 import { supabase } from "@/integrations/supabase/client";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // ============= Cache de Dificuldade (localStorage) =============
 // Usado para questões da API externa (2009-2023) que não têm banco de dados
@@ -66,14 +68,17 @@ const setCachedDifficulty = (questionKey: string, difficulty: "easy" | "medium" 
 interface QuestionPracticeProps {
   question: any;
   onNext: () => void;
-  onAnswer?: (questionId: string, selectedAnswer: string, correctAnswer: string, isCorrect: boolean) => void;
+  onAnswer?: (questionId: string, selectedAnswer: string, correctAnswer: string, isCorrect: boolean, hadDoubt?: boolean) => void;
   isPremium?: boolean;
 }
 
 const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: QuestionPracticeProps) => {
+  const { playCorrectSound, playIncorrectSound } = useSoundEffects();
   const [selectedAlternative, setSelectedAlternative] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard" | null>(null);
+  const [hadDoubt, setHadDoubt] = useState<boolean | null>(null);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [analyzingDifficulty, setAnalyzingDifficulty] = useState(false);
 
   // Gera chave única para esta questão
@@ -151,16 +156,53 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
     if (!selectedAlternative) return;
     setShowResult(true);
 
-    // Salva a resposta se a callback foi fornecida
+    const correctAlt = question.correctAlternative;
+    const isCorrectAnswer = selectedAlternative === correctAlt;
+
+    // Toca som baseado no resultado
+    if (isCorrectAnswer) {
+      playCorrectSound();
+    } else {
+      playIncorrectSound();
+    }
+
+    // Salva a resposta se a callback foi fornecida (sem hadDoubt ainda)
     if (onAnswer) {
-      const correctAlt = question.correctAlternative;
-      const isCorrect = selectedAlternative === correctAlt;
-
-      // Cria ID único da questão: ano-disciplina-index
-      // Ex: "2023-ciencias-natureza-99"
       const questionId = `${question.year}-${question.discipline}-${question.index}`;
+      onAnswer(questionId, selectedAlternative, correctAlt, isCorrectAnswer);
+    }
+  };
 
-      onAnswer(questionId, selectedAlternative, correctAlt, isCorrect);
+  // Handler para feedback de dúvida (apenas para acertos)
+  const handleFeedback = async (wasEasy: boolean) => {
+    const doubtValue = !wasEasy;
+    setHadDoubt(doubtValue);
+    setFeedbackSubmitted(true);
+
+    // Atualiza a última tentativa com o feedback
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const questionId = `${question.year}-${question.discipline}-${question.index}`;
+      
+      // Busca a última tentativa deste usuário para esta questão
+      const { data: attempts } = await supabase
+        .from("question_attempts")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("question_id", questionId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (attempts && attempts.length > 0) {
+        await supabase
+          .from("question_attempts")
+          .update({ had_doubt: doubtValue })
+          .eq("id", attempts[0].id);
+      }
+    } catch (error) {
+      console.error("[Feedback] Erro ao salvar feedback:", error);
     }
   };
 
@@ -168,6 +210,8 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
   const handleNextQuestion = () => {
     setSelectedAlternative(null);
     setShowResult(false);
+    setHadDoubt(null);
+    setFeedbackSubmitted(false);
     onNext();
   };
 
@@ -352,28 +396,72 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
               isCorrect ? "bg-green-500/10 border border-green-500" : "bg-red-500/10 border border-red-500",
             )}
           >
-            <div className="flex items-center gap-3">
-              {isCorrect ? (
-                <>
-                  <CheckCircle2 className="h-8 w-8 text-green-600 flex-shrink-0" />
-                  <div>
-                    <h4 className="font-semibold text-green-700 mb-1">Parabéns! Resposta correta!</h4>
-                    <p className="text-sm text-green-600">
-                      Você selecionou a alternativa {selectedAlternative}, que é a resposta correta.
-                    </p>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                {isCorrect ? (
+                  <>
+                    <CheckCircle2 className="h-8 w-8 text-green-600 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-semibold text-green-700 mb-1">Parabéns! Resposta correta!</h4>
+                      <p className="text-sm text-green-600">
+                        Você selecionou a alternativa {selectedAlternative}, que é a resposta correta.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-8 w-8 text-red-600 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-semibold text-red-700 mb-1">Ops! Resposta incorreta</h4>
+                      <p className="text-sm text-red-600">
+                        Você selecionou a alternativa {selectedAlternative}, mas a resposta correta é{" "}
+                        {question.correctAlternative}.
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Botões de feedback - apenas para acertos */}
+              {isCorrect && !feedbackSubmitted && (
+                <TooltipProvider>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-green-600 hidden sm:block">Como foi?</p>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleFeedback(true)}
+                          className="w-10 h-10 rounded-full bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-900/50 flex items-center justify-center transition-colors"
+                        >
+                          <ThumbsUp className="h-5 w-5 text-green-600" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Tranquilo, sem dúvidas</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleFeedback(false)}
+                          className="w-10 h-10 rounded-full bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 flex items-center justify-center transition-colors"
+                        >
+                          <HelpCircle className="h-5 w-5 text-amber-600" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Tive dúvidas (revisar depois)</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-8 w-8 text-red-600 flex-shrink-0" />
-                  <div>
-                    <h4 className="font-semibold text-red-700 mb-1">Ops! Resposta incorreta</h4>
-                    <p className="text-sm text-red-600">
-                      Você selecionou a alternativa {selectedAlternative}, mas a resposta correta é{" "}
-                      {question.correctAlternative}.
-                    </p>
-                  </div>
-                </>
+                </TooltipProvider>
+              )}
+
+              {/* Feedback salvo */}
+              {isCorrect && feedbackSubmitted && (
+                <div className="text-xs text-green-600">
+                  {hadDoubt ? "📝 Marcado para revisão" : "✓ Registrado"}
+                </div>
               )}
             </div>
           </motion.div>
