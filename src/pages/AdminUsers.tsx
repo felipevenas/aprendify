@@ -21,7 +21,8 @@ import {
   Pencil,
   RotateCcw,
   FileText,
-  HelpCircle
+  HelpCircle,
+  Sparkles
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -68,6 +69,8 @@ interface UserData {
   role: string;
   is_premium: boolean;
   subscription_status: string | null;
+  plan_type: string | null;
+  coupon_code: string | null;
 }
 
 const AdminUsers = () => {
@@ -81,10 +84,12 @@ const AdminUsers = () => {
   
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
-    type: "premium" | "revoke" | "ban" | "reset-essays" | "reset-questions" | null;
+    type: "premium" | "revoke" | "ban" | "reset-essays" | "reset-questions" | "creator" | "revoke-creator" | null;
     userId: string;
     userName: string;
   }>({ open: false, type: null, userId: "", userName: "" });
+
+  const [creatorCouponCode, setCreatorCouponCode] = useState("");
 
   const [editDialog, setEditDialog] = useState<{
     open: boolean;
@@ -138,7 +143,7 @@ const AdminUsers = () => {
           // Busca subscription mais recente do usuário (qualquer status)
           const { data: subscriptionData } = await supabase
             .from("subscriptions")
-            .select("status, plan_id")
+            .select("status, plan_id, plan_type")
             .eq("user_id", profile.id)
             .order("created_at", { ascending: false })
             .limit(1)
@@ -147,11 +152,20 @@ const AdminUsers = () => {
           // Premium = qualquer subscription com status "authorized"
           const isPremium = subscriptionData?.status === "authorized";
 
+          // Check for creator coupon
+          const { data: couponData } = await supabase
+            .from("creator_coupons")
+            .select("coupon_code")
+            .eq("user_id", profile.id)
+            .maybeSingle();
+
           return {
             ...profile,
             role: roleData?.role || "user",
             is_premium: isPremium,
             subscription_status: subscriptionData?.status || null,
+            plan_type: subscriptionData?.plan_type || null,
+            coupon_code: couponData?.coupon_code || null,
           };
         })
       );
@@ -283,6 +297,113 @@ const AdminUsers = () => {
     } catch (error) {
       console.error("Erro ao resetar contador:", error);
       toast.error("Erro ao resetar contador de redações");
+    } finally {
+      setActionLoading(null);
+      setConfirmDialog({ open: false, type: null, userId: "", userName: "" });
+    }
+  };
+
+  const grantCreator = async (userId: string, couponCode: string) => {
+    if (!couponCode.trim()) {
+      toast.error("Digite um código de cupom válido");
+      return;
+    }
+
+    setActionLoading(userId);
+    try {
+      // Check if coupon code already exists
+      const { data: existingCoupon } = await supabase
+        .from("creator_coupons")
+        .select("id")
+        .eq("coupon_code", couponCode.toUpperCase())
+        .maybeSingle();
+
+      if (existingCoupon) {
+        toast.error("Este código de cupom já está em uso");
+        setActionLoading(null);
+        return;
+      }
+
+      // Create or update subscription to creator type
+      const { data: existingSubscription } = await supabase
+        .from("subscriptions")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (existingSubscription) {
+        const { error } = await supabase
+          .from("subscriptions")
+          .update({
+            status: "authorized",
+            plan_type: "creator",
+            plan_id: "creator_grant",
+            start_date: new Date().toISOString(),
+            end_date: null,
+          })
+          .eq("user_id", userId);
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("subscriptions")
+          .insert({
+            user_id: userId,
+            status: "authorized",
+            plan_type: "creator",
+            plan_id: "creator_grant",
+            start_date: new Date().toISOString(),
+            end_date: null,
+          });
+
+        if (error) throw error;
+      }
+
+      // Create coupon for the creator
+      const { error: couponError } = await supabase
+        .from("creator_coupons")
+        .insert({
+          user_id: userId,
+          coupon_code: couponCode.toUpperCase(),
+          is_active: true,
+        });
+
+      if (couponError) throw couponError;
+
+      toast.success("Assinatura Criador concedida com sucesso!");
+      setCreatorCouponCode("");
+      fetchUsers();
+    } catch (error) {
+      console.error("Erro ao conceder criador:", error);
+      toast.error("Erro ao conceder assinatura de criador");
+    } finally {
+      setActionLoading(null);
+      setConfirmDialog({ open: false, type: null, userId: "", userName: "" });
+    }
+  };
+
+  const revokeCreator = async (userId: string) => {
+    setActionLoading(userId);
+    try {
+      // Revoke subscription
+      const { error } = await supabase
+        .from("subscriptions")
+        .update({ status: "cancelled", end_date: new Date().toISOString() })
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
+      // Deactivate coupon
+      await supabase
+        .from("creator_coupons")
+        .update({ is_active: false })
+        .eq("user_id", userId);
+
+      toast.success("Assinatura Criador revogada com sucesso!");
+      fetchUsers();
+    } catch (error) {
+      console.error("Erro ao revogar criador:", error);
+      toast.error("Erro ao revogar assinatura de criador");
     } finally {
       setActionLoading(null);
       setConfirmDialog({ open: false, type: null, userId: "", userName: "" });
@@ -439,6 +560,18 @@ const AdminUsers = () => {
                               <Ban className="h-3 w-3" />
                               Banido
                             </Badge>
+                          ) : user.plan_type === "creator" && user.is_premium ? (
+                            <div className="flex flex-col gap-1">
+                              <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 gap-1">
+                                <Sparkles className="h-3 w-3" />
+                                Criador
+                              </Badge>
+                              {user.coupon_code && (
+                                <span className="text-xs text-muted-foreground">
+                                  Cupom: {user.coupon_code}
+                                </span>
+                              )}
+                            </div>
                           ) : user.is_premium ? (
                             <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 gap-1">
                               <Crown className="h-3 w-3" />
@@ -522,23 +655,58 @@ const AdminUsers = () => {
                               <DropdownMenuSeparator />
                               
                               {!user.is_premium && user.subscription_status !== "banned" && (
+                                <>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      setConfirmDialog({
+                                        open: true,
+                                        type: "premium",
+                                        userId: user.id,
+                                        userName: user.full_name || user.email,
+                                      })
+                                    }
+                                    className="gap-2 cursor-pointer"
+                                  >
+                                    <Crown className="h-4 w-4 text-yellow-500" />
+                                    Conceder Premium
+                                  </DropdownMenuItem>
+
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setCreatorCouponCode("");
+                                      setConfirmDialog({
+                                        open: true,
+                                        type: "creator",
+                                        userId: user.id,
+                                        userName: user.full_name || user.email,
+                                      });
+                                    }}
+                                    className="gap-2 cursor-pointer"
+                                  >
+                                    <Sparkles className="h-4 w-4 text-purple-500" />
+                                    Conceder Criador
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+
+                              {user.is_premium && user.plan_type === "creator" && (
                                 <DropdownMenuItem
                                   onClick={() =>
                                     setConfirmDialog({
                                       open: true,
-                                      type: "premium",
+                                      type: "revoke-creator",
                                       userId: user.id,
                                       userName: user.full_name || user.email,
                                     })
                                   }
                                   className="gap-2 cursor-pointer"
                                 >
-                                  <Crown className="h-4 w-4 text-yellow-500" />
-                                  Conceder Premium
+                                  <UserX className="h-4 w-4 text-purple-500" />
+                                  Revogar Criador
                                 </DropdownMenuItem>
                               )}
 
-                              {user.is_premium && (
+                              {user.is_premium && user.plan_type !== "creator" && (
                                 <DropdownMenuItem
                                   onClick={() =>
                                     setConfirmDialog({
@@ -596,7 +764,7 @@ const AdminUsers = () => {
       </main>
 
       <AlertDialog
-        open={confirmDialog.open}
+        open={confirmDialog.open && confirmDialog.type !== "creator"}
         onOpenChange={(open) =>
           !open && setConfirmDialog({ open: false, type: null, userId: "", userName: "" })
         }
@@ -606,6 +774,7 @@ const AdminUsers = () => {
             <AlertDialogTitle>
               {confirmDialog.type === "premium" && "Conceder Premium"}
               {confirmDialog.type === "revoke" && "Revogar Premium"}
+              {confirmDialog.type === "revoke-creator" && "Revogar Criador"}
               {confirmDialog.type === "ban" && "Banir Usuário"}
               {confirmDialog.type === "reset-essays" && "Resetar Redações"}
               {confirmDialog.type === "reset-questions" && "Resetar Questões"}
@@ -615,6 +784,8 @@ const AdminUsers = () => {
                 `Deseja conceder acesso Premium para ${confirmDialog.userName}?`}
               {confirmDialog.type === "revoke" &&
                 `Deseja revogar o acesso Premium de ${confirmDialog.userName}?`}
+              {confirmDialog.type === "revoke-creator" &&
+                `Deseja revogar a assinatura Criador de ${confirmDialog.userName}? O cupom será desativado.`}
               {confirmDialog.type === "ban" &&
                 `Deseja banir ${confirmDialog.userName}? Esta ação irá revogar todos os acessos do usuário.`}
               {confirmDialog.type === "reset-essays" &&
@@ -631,6 +802,8 @@ const AdminUsers = () => {
                   grantPremium(confirmDialog.userId);
                 } else if (confirmDialog.type === "revoke") {
                   revokePremium(confirmDialog.userId);
+                } else if (confirmDialog.type === "revoke-creator") {
+                  revokeCreator(confirmDialog.userId);
                 } else if (confirmDialog.type === "ban") {
                   banUser(confirmDialog.userId);
                 } else if (confirmDialog.type === "reset-essays") {
@@ -650,6 +823,68 @@ const AdminUsers = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog for Creator with coupon input */}
+      <Dialog
+        open={confirmDialog.open && confirmDialog.type === "creator"}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmDialog({ open: false, type: null, userId: "", userName: "" });
+            setCreatorCouponCode("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              Conceder Assinatura Criador
+            </DialogTitle>
+            <DialogDescription>
+              Conceda acesso Premium vitalício para {confirmDialog.userName} como criador de conteúdo.
+              Defina um código de cupom único para o criador.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="couponCode">Código do Cupom</Label>
+              <Input
+                id="couponCode"
+                placeholder="Ex: JOAO10, MARIA20..."
+                value={creatorCouponCode}
+                onChange={(e) => setCreatorCouponCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                className="uppercase"
+              />
+              <p className="text-xs text-muted-foreground">
+                Apenas letras e números. Este código será usado pelos usuários para obter desconto.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setConfirmDialog({ open: false, type: null, userId: "", userName: "" });
+                setCreatorCouponCode("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => grantCreator(confirmDialog.userId, creatorCouponCode)}
+              disabled={!creatorCouponCode.trim() || actionLoading === confirmDialog.userId}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+            >
+              {actionLoading === confirmDialog.userId ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-2" />
+              )}
+              Conceder Criador
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={editDialog.open}

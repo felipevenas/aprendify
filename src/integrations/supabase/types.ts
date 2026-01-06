@@ -14,6 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
+      coupon_redemptions: {
+        Row: {
+          coupon_id: string
+          created_at: string
+          id: string
+          redeemed_by: string
+          subscription_id: string | null
+        }
+        Insert: {
+          coupon_id: string
+          created_at?: string
+          id?: string
+          redeemed_by: string
+          subscription_id?: string | null
+        }
+        Update: {
+          coupon_id?: string
+          created_at?: string
+          id?: string
+          redeemed_by?: string
+          subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_redemptions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "creator_coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_coupons: {
+        Row: {
+          coupon_code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          coupon_code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          coupon_code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       enem_questions: {
         Row: {
           alternatives: Json
@@ -779,7 +845,7 @@ export type Database = {
       is_user_premium: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      plan_type: "monthly" | "annual" | "god"
+      plan_type: "monthly" | "annual" | "god" | "creator"
       user_role: "admin" | "user"
     }
     CompositeTypes: {
@@ -908,7 +974,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      plan_type: ["monthly", "annual", "god"],
+      plan_type: ["monthly", "annual", "god", "creator"],
       user_role: ["admin", "user"],
     },
   },
