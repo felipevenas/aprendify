@@ -22,6 +22,11 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_ANON_KEY") ?? ""
   );
 
+  const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+  );
+
   try {
     logStep("Function started");
 
@@ -53,6 +58,10 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://lvhfwbpivankwzzwvdjj.lovable.app";
     
+    // Variável para guardar o código do cupom de criador validado
+    let validatedCreatorCouponCode: string | null = null;
+    let creatorCouponId: string | null = null;
+    
     // Configuração base da sessão de checkout
     const sessionConfig: any = {
       customer: customerId,
@@ -81,7 +90,30 @@ serve(async (req) => {
     // Se um código de cupom foi fornecido, valida e aplica
     if (couponCode) {
       try {
-        // Busca o cupom pelo código para obter o promotion_code
+        // Primeiro, verifica se é um cupom de criador no banco de dados
+        const { data: creatorCoupon } = await supabaseAdmin
+          .from("creator_coupons")
+          .select("id, coupon_code, user_id")
+          .eq("coupon_code", couponCode.toUpperCase())
+          .eq("is_active", true)
+          .maybeSingle();
+        
+        if (creatorCoupon) {
+          logStep("Found creator coupon in database", { 
+            couponCode: creatorCoupon.coupon_code,
+            creatorId: creatorCoupon.user_id 
+          });
+          validatedCreatorCouponCode = creatorCoupon.coupon_code;
+          creatorCouponId = creatorCoupon.id;
+          
+          // Adiciona o cupom do criador aos metadados para rastreamento
+          sessionConfig.metadata.creator_coupon_code = creatorCoupon.coupon_code;
+          sessionConfig.metadata.creator_coupon_id = creatorCoupon.id;
+          sessionConfig.subscription_data.metadata.creator_coupon_code = creatorCoupon.coupon_code;
+          sessionConfig.subscription_data.metadata.creator_coupon_id = creatorCoupon.id;
+        }
+        
+        // Busca o cupom no Stripe pelo código para obter o promotion_code
         const promotionCodes = await stripe.promotionCodes.list({
           code: couponCode,
           active: true,
@@ -91,14 +123,19 @@ serve(async (req) => {
         if (promotionCodes.data.length > 0) {
           // Aplica o código promocional à sessão
           sessionConfig.discounts = [{ promotion_code: promotionCodes.data[0].id }];
-          logStep("Coupon applied", { 
+          logStep("Stripe promotion code applied", { 
             couponCode, 
             promotionCodeId: promotionCodes.data[0].id 
           });
-        } else {
-          // Cupom não encontrado - permite que o usuário adicione um na página de checkout
+        } else if (validatedCreatorCouponCode) {
+          // Cupom de criador encontrado mas sem promoção no Stripe
+          // Ainda assim rastreamos, mas permite códigos promocionais manuais
+          logStep("Creator coupon tracked but no Stripe promo found", { couponCode });
           sessionConfig.allow_promotion_codes = true;
-          logStep("Coupon not found, allowing manual entry", { couponCode });
+        } else {
+          // Cupom não encontrado em lugar nenhum
+          sessionConfig.allow_promotion_codes = true;
+          logStep("Coupon not found anywhere, allowing manual entry", { couponCode });
         }
       } catch (couponError) {
         // Em caso de erro ao buscar cupom, permite entrada manual
@@ -111,7 +148,11 @@ serve(async (req) => {
     
     const session = await stripe.checkout.sessions.create(sessionConfig);
 
-    logStep("Checkout session created", { sessionId: session.id, url: session.url });
+    logStep("Checkout session created", { 
+      sessionId: session.id, 
+      url: session.url,
+      creatorCoupon: validatedCreatorCouponCode || "none"
+    });
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
