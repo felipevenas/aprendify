@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Loader2, Sparkles, Users, TrendingUp, Copy, CheckCircle } from "lucide-react";
+import { Loader2, Sparkles, Users, TrendingUp, Copy, CheckCircle, Calendar, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   ChartConfig,
@@ -14,6 +14,9 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer } from "recharts";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import Navbar from "@/components/Navbar";
 
 interface CouponData {
@@ -26,18 +29,27 @@ interface CouponData {
 interface RedemptionData {
   id: string;
   created_at: string;
+  redeemed_by: string;
+  profiles?: {
+    email: string;
+    full_name: string | null;
+  } | null;
 }
 
 const CreatorDashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [isCreator, setIsCreator] = useState(false);
   const [coupon, setCoupon] = useState<CouponData | null>(null);
   const [redemptions, setRedemptions] = useState<RedemptionData[]>([]);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    const checkCreatorStatus = async () => {
+  const fetchData = async (showLoader = true) => {
+    if (showLoader) setLoading(true);
+    else setRefreshing(true);
+    
+    try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         navigate("/auth");
@@ -73,18 +85,47 @@ const CreatorDashboard = () => {
         // Fetch redemptions for this coupon
         const { data: redemptionsData } = await supabase
           .from("coupon_redemptions")
-          .select("id, created_at")
+          .select("id, created_at, redeemed_by")
           .eq("coupon_id", couponData.id)
-          .order("created_at", { ascending: true });
+          .order("created_at", { ascending: false });
 
-        setRedemptions(redemptionsData || []);
+        if (redemptionsData && redemptionsData.length > 0) {
+          // Fetch user profiles for redemptions
+          const userIds = redemptionsData.map(r => r.redeemed_by);
+          const { data: profilesData } = await supabase
+            .from("profiles")
+            .select("id, email, full_name")
+            .in("id", userIds);
+          
+          const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
+          
+          const redemptionsWithProfiles: RedemptionData[] = redemptionsData.map(r => ({
+            ...r,
+            profiles: profilesMap.get(r.redeemed_by) || null
+          }));
+          
+          setRedemptions(redemptionsWithProfiles);
+        } else {
+          setRedemptions([]);
+        }
       }
-
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error("Erro ao carregar dados");
+    } finally {
       setLoading(false);
-    };
+      setRefreshing(false);
+    }
+  };
 
-    checkCreatorStatus();
+  useEffect(() => {
+    fetchData();
   }, [navigate]);
+
+  const handleRefresh = () => {
+    fetchData(false);
+    toast.success("Dados atualizados!");
+  };
 
   const copyToClipboard = () => {
     if (coupon?.coupon_code) {
@@ -166,10 +207,21 @@ const CreatorDashboard = () => {
               </p>
             </div>
 
-            <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2">
-              <Sparkles className="h-4 w-4 mr-2" />
-              Criador de Conteúdo
-            </Badge>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={refreshing}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                Atualizar
+              </Button>
+              <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2">
+                <Sparkles className="h-4 w-4 mr-2" />
+                Criador de Conteúdo
+              </Badge>
+            </div>
           </div>
 
           {/* Coupon Card */}
@@ -279,6 +331,52 @@ const CreatorDashboard = () => {
               </ChartContainer>
             </CardContent>
           </Card>
+
+          {/* Recent Redemptions Table */}
+          {redemptions.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Histórico de Resgates
+                </CardTitle>
+                <CardDescription>
+                  Lista detalhada de todos os resgates do seu cupom
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Usuário</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Data do Resgate</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {redemptions.slice(0, 50).map((redemption) => (
+                      <TableRow key={redemption.id}>
+                        <TableCell className="font-medium">
+                          {redemption.profiles?.full_name || "Usuário"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {redemption.profiles?.email || "—"}
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(redemption.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {redemptions.length > 50 && (
+                  <p className="text-sm text-muted-foreground mt-4 text-center">
+                    Mostrando os 50 resgates mais recentes de {redemptions.length} total
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {!coupon && (
             <Card className="mt-6">
