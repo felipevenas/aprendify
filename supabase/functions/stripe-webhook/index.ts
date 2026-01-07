@@ -12,6 +12,53 @@ const logStep = (step: string, details?: any) => {
   console.log(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
 };
 
+// Função para registrar resgate de cupom de criador
+async function recordCreatorCouponRedemption(
+  supabase: any,
+  creatorCouponId: string,
+  redeemedByUserId: string,
+  subscriptionDbId: string | null
+) {
+  try {
+    // Verifica se já existe um resgate para este usuário e cupom
+    const { data: existingRedemption } = await supabase
+      .from("coupon_redemptions")
+      .select("id")
+      .eq("coupon_id", creatorCouponId)
+      .eq("redeemed_by", redeemedByUserId)
+      .maybeSingle();
+    
+    if (existingRedemption) {
+      logStep("Coupon redemption already exists, skipping", { 
+        couponId: creatorCouponId, 
+        userId: redeemedByUserId 
+      });
+      return;
+    }
+    
+    const { error } = await supabase
+      .from("coupon_redemptions")
+      .insert({
+        coupon_id: creatorCouponId,
+        redeemed_by: redeemedByUserId,
+        subscription_id: subscriptionDbId,
+      });
+    
+    if (error) {
+      logStep("Error recording coupon redemption", { error });
+    } else {
+      logStep("Creator coupon redemption recorded successfully", { 
+        couponId: creatorCouponId, 
+        userId: redeemedByUserId 
+      });
+    }
+  } catch (error) {
+    logStep("Error in recordCreatorCouponRedemption", { 
+      error: error instanceof Error ? error.message : String(error) 
+    });
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -71,12 +118,24 @@ serve(async (req) => {
         logStep("Checkout session completed", { 
           sessionId: session.id, 
           customerId: session.customer,
-          subscriptionId: session.subscription 
+          subscriptionId: session.subscription,
+          metadata: session.metadata
         });
 
         if (session.mode === "subscription" && session.subscription) {
           const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
           const userId = session.metadata?.user_id || subscription.metadata?.user_id;
+          
+          // Captura o cupom de criador dos metadados
+          const creatorCouponId = session.metadata?.creator_coupon_id || subscription.metadata?.creator_coupon_id;
+          const creatorCouponCode = session.metadata?.creator_coupon_code || subscription.metadata?.creator_coupon_code;
+          
+          if (creatorCouponCode) {
+            logStep("Creator coupon found in session", { 
+              couponId: creatorCouponId,
+              couponCode: creatorCouponCode 
+            });
+          }
           
           if (!userId) {
             logStep("No user_id found in metadata, trying to find by email");
@@ -91,13 +150,23 @@ serve(async (req) => {
                 .maybeSingle();
               
               if (profile) {
-                await processSubscription(supabase, stripe, subscription, profile.id);
+                const subscriptionDbId = await processSubscription(supabase, stripe, subscription, profile.id);
+                
+                // Registra o resgate do cupom do criador
+                if (creatorCouponId && profile.id) {
+                  await recordCreatorCouponRedemption(supabase, creatorCouponId, profile.id, subscriptionDbId);
+                }
               } else {
                 logStep("User not found by email", { email: customerEmail });
               }
             }
           } else {
-            await processSubscription(supabase, stripe, subscription, userId);
+            const subscriptionDbId = await processSubscription(supabase, stripe, subscription, userId);
+            
+            // Registra o resgate do cupom do criador
+            if (creatorCouponId && userId) {
+              await recordCreatorCouponRedemption(supabase, creatorCouponId, userId, subscriptionDbId);
+            }
           }
         }
         break;
@@ -225,12 +294,12 @@ async function processSubscription(
   stripe: Stripe,
   subscription: Stripe.Subscription,
   userId: string
-) {
+): Promise<string | null> {
   try {
     const priceId = subscription.items.data[0]?.price?.id;
     if (!priceId) {
       logStep("No price ID found in subscription");
-      return;
+      return null;
     }
     
     const price = await stripe.prices.retrieve(priceId);
@@ -247,7 +316,7 @@ async function processSubscription(
       ? new Date(subscription.current_period_end * 1000).toISOString()
       : null;
 
-    const { error } = await supabase.from("subscriptions").upsert({
+    const { data, error } = await supabase.from("subscriptions").upsert({
       user_id: userId,
       status: status,
       plan_type: planType,
@@ -256,19 +325,23 @@ async function processSubscription(
       start_date: startDate,
       end_date: endDate,
       updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id" });
+    }, { onConflict: "user_id" }).select("id").single();
 
     if (error) {
       logStep("Error upserting subscription", { error });
+      return null;
     } else {
       logStep("Subscription processed successfully", { 
         userId, 
         status, 
         planType,
-        subscriptionId: subscription.id 
+        subscriptionId: subscription.id,
+        dbId: data?.id
       });
+      return data?.id || null;
     }
   } catch (error) {
     logStep("Error in processSubscription", { error: error instanceof Error ? error.message : String(error) });
+    return null;
   }
 }
