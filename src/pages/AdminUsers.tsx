@@ -311,71 +311,20 @@ const AdminUsers = () => {
 
     setActionLoading(userId);
     try {
-      // Check if coupon code already exists
-      const { data: existingCoupon } = await supabase
-        .from("creator_coupons")
-        .select("id")
-        .eq("coupon_code", couponCode.toUpperCase())
-        .maybeSingle();
+      // Call edge function to create Stripe promotion code and database records
+      const { data, error } = await supabase.functions.invoke("create-creator-coupon", {
+        body: { userId, couponCode: couponCode.toUpperCase() },
+      });
 
-      if (existingCoupon) {
-        toast.error("Este código de cupom já está em uso");
-        setActionLoading(null);
-        return;
-      }
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      // Create or update subscription to creator type
-      const { data: existingSubscription } = await supabase
-        .from("subscriptions")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (existingSubscription) {
-        const { error } = await supabase
-          .from("subscriptions")
-          .update({
-            status: "authorized",
-            plan_type: "creator",
-            plan_id: "creator_grant",
-            start_date: new Date().toISOString(),
-            end_date: null,
-          })
-          .eq("user_id", userId);
-
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("subscriptions")
-          .insert({
-            user_id: userId,
-            status: "authorized",
-            plan_type: "creator",
-            plan_id: "creator_grant",
-            start_date: new Date().toISOString(),
-            end_date: null,
-          });
-
-        if (error) throw error;
-      }
-
-      // Create coupon for the creator
-      const { error: couponError } = await supabase
-        .from("creator_coupons")
-        .insert({
-          user_id: userId,
-          coupon_code: couponCode.toUpperCase(),
-          is_active: true,
-        });
-
-      if (couponError) throw couponError;
-
-      toast.success("Assinatura Criador concedida com sucesso!");
+      toast.success(`Assinatura Criador concedida! Cupom ${data.code} criado no Stripe com 10% OFF.`);
       setCreatorCouponCode("");
       fetchUsers();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao conceder criador:", error);
-      toast.error("Erro ao conceder assinatura de criador");
+      toast.error(error.message || "Erro ao conceder assinatura de criador");
     } finally {
       setActionLoading(null);
       setConfirmDialog({ open: false, type: null, userId: "", userName: "" });
