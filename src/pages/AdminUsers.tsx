@@ -510,17 +510,10 @@ const AdminUsers = () => {
                               Banido
                             </Badge>
                           ) : user.plan_type === "creator" && user.is_premium ? (
-                            <div className="flex flex-col gap-1">
-                              <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 gap-1">
-                                <Sparkles className="h-3 w-3" />
-                                Criador
-                              </Badge>
-                              {user.coupon_code && (
-                                <span className="text-xs text-muted-foreground">
-                                  Cupom: {user.coupon_code}
-                                </span>
-                              )}
-                            </div>
+                            <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 gap-1" title={user.coupon_code ? `Cupom: ${user.coupon_code}` : undefined}>
+                              <Sparkles className="h-3 w-3" />
+                              Criador
+                            </Badge>
                           ) : user.is_premium ? (
                             <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 gap-1">
                               <Crown className="h-3 w-3" />
