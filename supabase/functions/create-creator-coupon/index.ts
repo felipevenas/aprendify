@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
   console.log(`[CREATE-CREATOR-COUPON] ${step}${detailsStr}`);
 };
 
@@ -34,7 +34,7 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    
+
     const adminUser = userData.user;
     if (!adminUser) throw new Error("User not authenticated");
 
@@ -56,13 +56,13 @@ serve(async (req) => {
 
     // First, check if there's already a coupon for 10% off creators or create one
     let stripeCouponId: string;
-    const couponName = "Creator Affiliate 10% OFF";
-    
+    const couponName = "Criador Afiliado - 10% OFF";
+
     // Try to find existing coupon
     const existingCoupons = await stripe.coupons.list({ limit: 100 });
     const existingCoupon = existingCoupons.data.find(
-      (c: { name: string | null; percent_off: number | null; duration: string; valid: boolean }) => 
-        c.name === couponName && c.percent_off === 10 && c.duration === "forever" && c.valid
+      (c: { name: string | null; percent_off: number | null; duration: string; valid: boolean }) =>
+        c.name === couponName && c.percent_off === 10 && c.duration === "forever" && c.valid,
     );
 
     if (existingCoupon) {
@@ -89,9 +89,9 @@ serve(async (req) => {
         type: "creator_affiliate",
       },
     });
-    logStep("Created Stripe promotion code", { 
-      promoCodeId: promotionCode.id, 
-      code: promotionCode.code 
+    logStep("Created Stripe promotion code", {
+      promoCodeId: promotionCode.id,
+      code: promotionCode.code,
     });
 
     // Check if coupon code already exists in database
@@ -126,54 +126,47 @@ serve(async (req) => {
 
       if (error) throw error;
     } else {
-      const { error } = await supabaseClient
-        .from("subscriptions")
-        .insert({
-          user_id: userId,
-          status: "authorized",
-          plan_type: "creator",
-          plan_id: "creator_grant",
-          start_date: new Date().toISOString(),
-          end_date: null,
-        });
+      const { error } = await supabaseClient.from("subscriptions").insert({
+        user_id: userId,
+        status: "authorized",
+        plan_type: "creator",
+        plan_id: "creator_grant",
+        start_date: new Date().toISOString(),
+        end_date: null,
+      });
 
       if (error) throw error;
     }
     logStep("Subscription created/updated");
 
     // Create coupon in database with Stripe promotion code reference
-    const { error: couponError } = await supabaseClient
-      .from("creator_coupons")
-      .insert({
-        user_id: userId,
-        coupon_code: couponCode.toUpperCase(),
-        is_active: true,
-      });
+    const { error: couponError } = await supabaseClient.from("creator_coupons").insert({
+      user_id: userId,
+      coupon_code: couponCode.toUpperCase(),
+      is_active: true,
+    });
 
     if (couponError) throw couponError;
     logStep("Database coupon created");
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         promotionCodeId: promotionCode.id,
         code: promotionCode.code,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
-      }
+      },
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
-    
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      }
-    );
+
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    });
   }
 });
