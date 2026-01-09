@@ -59,6 +59,8 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          pix_key: string | null
+          pix_key_type: string | null
           updated_at: string
           user_id: string
         }
@@ -67,6 +69,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          pix_key?: string | null
+          pix_key_type?: string | null
           updated_at?: string
           user_id: string
         }
@@ -75,6 +79,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          pix_key?: string | null
+          pix_key_type?: string | null
           updated_at?: string
           user_id?: string
         }
