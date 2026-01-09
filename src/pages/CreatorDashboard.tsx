@@ -18,12 +18,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Navbar from "@/components/Navbar";
+import PixKeySection from "@/components/creator/PixKeySection";
 
 interface CouponData {
   id: string;
   coupon_code: string;
   is_active: boolean;
   created_at: string;
+  pix_key_type: string | null;
+  pix_key: string | null;
 }
 
 interface RedemptionData {
@@ -253,6 +256,16 @@ const CreatorDashboard = () => {
                 </p>
               </CardContent>
             </Card>
+          )}
+
+          {/* PIX Key Section */}
+          {coupon && (
+            <PixKeySection
+              couponId={coupon.id}
+              initialPixKeyType={coupon.pix_key_type}
+              initialPixKey={coupon.pix_key}
+              onUpdate={() => fetchData(false)}
+            />
           )}
 
           {/* Stats Cards */}
