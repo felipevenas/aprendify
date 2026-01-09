@@ -12,6 +12,32 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-CREATOR-COUPON] ${step}${detailsStr}`);
 };
 
+// Validation functions
+const isValidCouponCode = (code: string): { valid: boolean; error?: string } => {
+  if (!code || code.trim() === "") {
+    return { valid: false, error: "Código de cupom é obrigatório" };
+  }
+  
+  const trimmedCode = code.trim().toUpperCase();
+  
+  // Check length (max 10 characters)
+  if (trimmedCode.length > 10) {
+    return { valid: false, error: "Código de cupom deve ter no máximo 10 caracteres" };
+  }
+  
+  // Check for only alphanumeric characters
+  if (!/^[A-Z0-9]+$/.test(trimmedCode)) {
+    return { valid: false, error: "Código de cupom deve conter apenas letras e números" };
+  }
+  
+  // Check minimum length
+  if (trimmedCode.length < 3) {
+    return { valid: false, error: "Código de cupom deve ter no mínimo 3 caracteres" };
+  }
+  
+  return { valid: true };
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -50,9 +76,45 @@ serve(async (req) => {
     if (!userId || !couponCode) {
       throw new Error("userId and couponCode are required");
     }
-    logStep("Request data", { userId, couponCode });
+    
+    const formattedCouponCode = couponCode.trim().toUpperCase();
+    logStep("Request data", { userId, couponCode: formattedCouponCode });
+
+    // Validate coupon code
+    const validation = isValidCouponCode(formattedCouponCode);
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
+
+    // Check if user already has a coupon
+    const { data: existingUserCoupon } = await supabaseClient
+      .from("creator_coupons")
+      .select("id, coupon_code")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (existingUserCoupon) {
+      throw new Error(`Este usuário já possui um cupom: ${existingUserCoupon.coupon_code}`);
+    }
+
+    // Check if coupon code already exists in database
+    const { data: existingDbCoupon } = await supabaseClient
+      .from("creator_coupons")
+      .select("id")
+      .eq("coupon_code", formattedCouponCode)
+      .maybeSingle();
+
+    if (existingDbCoupon) {
+      throw new Error("Este código de cupom já está em uso por outro criador");
+    }
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+
+    // Check if promotion code already exists in Stripe
+    const existingPromoCodes = await stripe.promotionCodes.list({ code: formattedCouponCode, limit: 1 });
+    if (existingPromoCodes.data.length > 0) {
+      throw new Error("Este código de cupom já existe no Stripe");
+    }
 
     // First, check if there's already a coupon for 10% off creators or create one
     let stripeCouponId: string;
@@ -82,7 +144,7 @@ serve(async (req) => {
     // Create a unique promotion code for this creator
     const promotionCode = await stripe.promotionCodes.create({
       coupon: stripeCouponId,
-      code: couponCode.toUpperCase(),
+      code: formattedCouponCode,
       active: true,
       metadata: {
         creator_user_id: userId,
@@ -93,17 +155,6 @@ serve(async (req) => {
       promoCodeId: promotionCode.id,
       code: promotionCode.code,
     });
-
-    // Check if coupon code already exists in database
-    const { data: existingDbCoupon } = await supabaseClient
-      .from("creator_coupons")
-      .select("id")
-      .eq("coupon_code", couponCode.toUpperCase())
-      .maybeSingle();
-
-    if (existingDbCoupon) {
-      throw new Error("Este código de cupom já está em uso");
-    }
 
     // Create or update subscription to creator type
     const { data: existingSubscription } = await supabaseClient
@@ -142,7 +193,7 @@ serve(async (req) => {
     // Create coupon in database with Stripe promotion code reference
     const { error: couponError } = await supabaseClient.from("creator_coupons").insert({
       user_id: userId,
-      coupon_code: couponCode.toUpperCase(),
+      coupon_code: formattedCouponCode,
       is_active: true,
     });
 

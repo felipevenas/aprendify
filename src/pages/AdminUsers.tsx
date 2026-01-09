@@ -22,7 +22,8 @@ import {
   RotateCcw,
   FileText,
   HelpCircle,
-  Sparkles
+  Sparkles,
+  Eye
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -59,6 +60,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Navbar from "@/components/Navbar";
+import CreatorDetailsModal from "@/components/admin/CreatorDetailsModal";
 
 interface UserData {
   id: string;
@@ -98,6 +100,12 @@ const AdminUsers = () => {
     username: string;
     email: string;
   }>({ open: false, userId: "", fullName: "", username: "", email: "" });
+
+  const [creatorDetailsModal, setCreatorDetailsModal] = useState<{
+    open: boolean;
+    userId: string;
+    userName: string;
+  }>({ open: false, userId: "", userName: "" });
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -510,9 +518,18 @@ const AdminUsers = () => {
                               Banido
                             </Badge>
                           ) : user.plan_type === "creator" && user.is_premium ? (
-                            <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 gap-1" title={user.coupon_code ? `Cupom: ${user.coupon_code}` : undefined}>
+                            <Badge 
+                              className="bg-gradient-to-r from-purple-500 to-pink-500 gap-1 cursor-pointer hover:opacity-80 transition-opacity" 
+                              title="Clique para ver detalhes"
+                              onClick={() => setCreatorDetailsModal({
+                                open: true,
+                                userId: user.id,
+                                userName: user.full_name || user.email,
+                              })}
+                            >
                               <Sparkles className="h-3 w-3" />
                               Criador
+                              <Eye className="h-3 w-3 ml-1" />
                             </Badge>
                           ) : user.is_premium ? (
                             <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 gap-1">
@@ -794,11 +811,12 @@ const AdminUsers = () => {
                 id="couponCode"
                 placeholder="Ex: JOAO10, MARIA20..."
                 value={creatorCouponCode}
-                onChange={(e) => setCreatorCouponCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                onChange={(e) => setCreatorCouponCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10))}
                 className="uppercase"
+                maxLength={10}
               />
               <p className="text-xs text-muted-foreground">
-                Apenas letras e números. Este código será usado pelos usuários para obter desconto.
+                Apenas letras e números. Máximo de 10 caracteres. ({creatorCouponCode.length}/10)
               </p>
             </div>
           </div>
@@ -884,6 +902,14 @@ const AdminUsers = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Creator Details Modal */}
+      <CreatorDetailsModal
+        open={creatorDetailsModal.open}
+        onOpenChange={(open) => setCreatorDetailsModal({ ...creatorDetailsModal, open })}
+        userId={creatorDetailsModal.userId}
+        userName={creatorDetailsModal.userName}
+      />
     </div>
   );
 };
