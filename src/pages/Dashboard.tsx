@@ -21,6 +21,7 @@ import {
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import QuestionStatsChart from "@/components/dashboard/QuestionStatsChart";
+import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
 import { PageLoader } from "@/components/ui/page-loader";
 
 /**
@@ -205,42 +206,11 @@ const Dashboard = () => {
 
         {/* Conteúdo principal */}
         <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-          {/* Header com boas-vindas e animação */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-10 sm:mb-14"
-          >
-            <motion.div
-              className="flex items-center gap-2.5 mb-3"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              <motion.div
-                className="p-1.5 rounded-lg bg-primary/10"
-                animate={{ rotate: [0, 10, -10, 0] }}
-                transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 4 }}
-              >
-                <Sparkles className="h-4 w-4 text-primary" />
-              </motion.div>
-              <motion.span
-                className="text-sm font-semibold text-primary tracking-wide"
-                animate={{ opacity: [1, 0.7, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                Bem-vindo de volta
-              </motion.span>
-            </motion.div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 tracking-tight">
-              Olá, <span className="text-gradient">{user?.user_metadata?.full_name?.split(" ")[0] || "Estudante"}</span>
-              !
-            </h1>
-            <p className="text-muted-foreground text-base sm:text-lg max-w-2xl leading-relaxed">
-              Continue sua jornada de estudos. Gerencie suas atividades e pratique com questões reais do ENEM.
-            </p>
-          </motion.div>
+          {/* Welcome Banner Dinâmico */}
+          <WelcomeBanner 
+            userName={user?.user_metadata?.full_name?.split(" ")[0] || "Estudante"}
+            userId={user?.id}
+          />
 
           {/* Grid de cards - primeira linha com Banco de Questões + Gráfico */}
           <motion.div
