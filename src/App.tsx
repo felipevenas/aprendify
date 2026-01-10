@@ -27,6 +27,7 @@ import Simulados from "./pages/Simulados";
 import SimuladoActive from "./pages/SimuladoActive";
 import SimuladoResults from "./pages/SimuladoResults";
 import CreatorDashboard from "./pages/CreatorDashboard";
+import Achievements from "./pages/Achievements";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -69,6 +70,7 @@ const App = () => (
                 <Route path="/simulados/:id" element={<SimuladoActive />} />
                 <Route path="/simulados/:id/resultado" element={<SimuladoResults />} />
                 <Route path="/creator" element={<CreatorDashboard />} />
+                <Route path="/achievements" element={<Achievements />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

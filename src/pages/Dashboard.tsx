@@ -22,6 +22,7 @@ import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import QuestionStatsChart from "@/components/dashboard/QuestionStatsChart";
 import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
+import AchievementBadges from "@/components/dashboard/AchievementBadges";
 import { PageLoader } from "@/components/ui/page-loader";
 
 /**
@@ -266,6 +267,16 @@ const Dashboard = () => {
                 <QuestionStatsChart />
               </div>
             </motion.div>
+          </motion.div>
+
+          {/* Conquistas */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="mb-5 sm:mb-6"
+          >
+            <AchievementBadges userId={user?.id} compact />
           </motion.div>
 
           {/* Grid de cards - demais cards */}
