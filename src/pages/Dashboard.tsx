@@ -23,6 +23,9 @@ import Navbar from "@/components/Navbar";
 import QuestionStatsChart from "@/components/dashboard/QuestionStatsChart";
 import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
 import AchievementBadges from "@/components/dashboard/AchievementBadges";
+import QuickStats from "@/components/dashboard/QuickStats";
+import ContextualCTA from "@/components/dashboard/ContextualCTA";
+import DailyGoalProgress from "@/components/dashboard/DailyGoalProgress";
 import { PageLoader } from "@/components/ui/page-loader";
 
 /**
@@ -213,6 +216,12 @@ const Dashboard = () => {
             userId={user?.id}
           />
 
+          {/* Quick Stats Row - 4 mini-cards */}
+          <QuickStats userId={user?.id} />
+
+          {/* CTA Contextual */}
+          <ContextualCTA userId={user?.id} />
+
           {/* Grid de cards - primeira linha com Banco de Questões + Gráfico */}
           <motion.div
             variants={containerVariants}
@@ -266,6 +275,11 @@ const Dashboard = () => {
               <div className="h-full">
                 <QuestionStatsChart />
               </div>
+            </motion.div>
+
+            {/* Meta Diária */}
+            <motion.div variants={itemVariants}>
+              <DailyGoalProgress userId={user?.id} />
             </motion.div>
           </motion.div>
 
