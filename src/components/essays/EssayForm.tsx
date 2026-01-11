@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Send, AlertCircle, Crown } from "lucide-react";
+import { Loader2, Send, AlertCircle, Crown, Wand2, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 /**
  * Formulário para escrever e enviar redação para correção
@@ -19,10 +20,19 @@ interface EssayFormProps {
   isPremium: boolean;
 }
 
+interface GeneratedTopic {
+  titulo: string;
+  textos_motivadores: string[];
+  instrucao: string;
+}
+
 const EssayForm = ({ onComplete, canSubmit, isPremium }: EssayFormProps) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
+  const [generatingTopic, setGeneratingTopic] = useState(false);
+  const [generatedTopic, setGeneratedTopic] = useState<GeneratedTopic | null>(null);
+  const [showTopicDetails, setShowTopicDetails] = useState(true);
 
   // Contagem de caracteres e palavras
   const charCount = content.length;
@@ -32,6 +42,58 @@ const EssayForm = ({ onComplete, canSubmit, isPremium }: EssayFormProps) => {
 
   // Verificar se pode enviar
   const isValid = title.trim().length >= 5 && content.length >= minChars;
+
+  // Gerar tema de redação com IA
+  const handleGenerateTopic = async () => {
+    setGeneratingTopic(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Erro",
+          description: "Você precisa estar logado.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-essay-topic`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao gerar tema");
+      }
+
+      setGeneratedTopic(data);
+      setTitle(data.titulo);
+      setShowTopicDetails(true);
+      
+      toast({
+        title: "Tema gerado! 📝",
+        description: "Leia os textos motivadores e comece sua redação.",
+      });
+    } catch (error: any) {
+      console.error("Erro ao gerar tema:", error);
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível gerar o tema.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingTopic(false);
+    }
+  };
 
   // Enviar redação para correção
   const handleSubmit = async () => {
@@ -132,18 +194,90 @@ const EssayForm = ({ onComplete, canSubmit, isPremium }: EssayFormProps) => {
           {/* Campo: Tema/Título */}
           <div className="space-y-2">
             <Label htmlFor="title">Tema da Redação *</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ex: O impacto das redes sociais na saúde mental dos jovens"
-              disabled={loading || !canSubmit}
-              maxLength={200}
-            />
+            <div className="flex gap-2">
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  if (generatedTopic) setGeneratedTopic(null);
+                }}
+                placeholder="Ex: O impacto das redes sociais na saúde mental dos jovens"
+                disabled={loading || !canSubmit}
+                maxLength={200}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGenerateTopic}
+                disabled={loading || generatingTopic || !canSubmit}
+                className="gap-2 shrink-0"
+              >
+                {generatingTopic ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="hidden sm:inline">Gerando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-4 w-4" />
+                    <span className="hidden sm:inline">Gerar Tema ENEM</span>
+                  </>
+                )}
+              </Button>
+            </div>
             <p className="text-xs text-muted-foreground">
-              Digite o tema proposto para sua redação (mínimo 5 caracteres)
+              Digite o tema ou clique em "Gerar Tema ENEM" para criar um tema no padrão oficial
             </p>
           </div>
+
+          {/* Textos Motivadores (quando tema gerado) */}
+          <AnimatePresence>
+            {generatedTopic && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Collapsible open={showTopicDetails} onOpenChange={setShowTopicDetails}>
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
+                    <CollapsibleTrigger asChild>
+                      <button className="w-full flex items-center justify-between p-4 text-left hover:bg-primary/10 transition-colors">
+                        <div className="flex items-center gap-2">
+                          <Wand2 className="h-4 w-4 text-primary" />
+                          <span className="font-medium text-sm text-foreground">
+                            Textos Motivadores
+                          </span>
+                        </div>
+                        {showTopicDetails ? (
+                          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="px-4 pb-4 space-y-4">
+                        {generatedTopic.textos_motivadores.map((texto, index) => (
+                          <div key={index} className="text-sm text-muted-foreground">
+                            <span className="font-medium text-foreground">Texto {index + 1}:</span>
+                            <p className="mt-1 leading-relaxed">{texto}</p>
+                          </div>
+                        ))}
+                        <div className="pt-3 border-t border-primary/10">
+                          <p className="text-sm italic text-muted-foreground">
+                            {generatedTopic.instrucao}
+                          </p>
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Campo: Conteúdo */}
           <div className="space-y-2">
