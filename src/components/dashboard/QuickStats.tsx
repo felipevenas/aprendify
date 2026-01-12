@@ -1,8 +1,18 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Flame, Target, TrendingUp, Trophy, Brain, Zap } from "lucide-react";
+import { Flame, TrendingUp, Trophy, Brain, Zap, Settings2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { toast } from "sonner";
 
 interface QuickStatsProps {
   userId?: string;
@@ -33,6 +43,21 @@ const QuickStats = ({ userId }: QuickStatsProps) => {
     nextAchievement: null,
   });
   const [loading, setLoading] = useState(true);
+  const [dailyGoal, setDailyGoal] = useState(5);
+  const [tempGoal, setTempGoal] = useState(5);
+  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
+
+  // Load daily goal from localStorage on mount
+  useEffect(() => {
+    const savedGoal = localStorage.getItem("dailyQuestionGoal");
+    if (savedGoal) {
+      const parsed = parseInt(savedGoal, 10);
+      if (!isNaN(parsed) && parsed >= 1 && parsed <= 50) {
+        setDailyGoal(parsed);
+        setTempGoal(parsed);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (!userId) return;
@@ -123,6 +148,15 @@ const QuickStats = ({ userId }: QuickStatsProps) => {
     visible: { opacity: 1, y: 0, scale: 1 },
   };
 
+  const dailyProgress = Math.min((stats.questionsToday / dailyGoal) * 100, 100);
+
+  const handleSaveGoal = () => {
+    setDailyGoal(tempGoal);
+    localStorage.setItem("dailyQuestionGoal", tempGoal.toString());
+    setGoalDialogOpen(false);
+    toast.success(`Meta diária atualizada para ${tempGoal} questões!`);
+  };
+
   if (loading) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -133,9 +167,6 @@ const QuickStats = ({ userId }: QuickStatsProps) => {
     );
   }
 
-  const dailyGoal = 5;
-  const dailyProgress = Math.min((stats.questionsToday / dailyGoal) * 100, 100);
-
   return (
     <motion.div
       variants={containerVariants}
@@ -143,7 +174,7 @@ const QuickStats = ({ userId }: QuickStatsProps) => {
       animate="visible"
       className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"
     >
-      {/* Questões Hoje */}
+      {/* Questões Hoje - com dialog para editar meta */}
       <motion.div
         variants={itemVariants}
         whileHover={{ scale: 1.02, y: -2 }}
@@ -154,7 +185,44 @@ const QuickStats = ({ userId }: QuickStatsProps) => {
           <div className="p-1.5 rounded-lg bg-blue-500/10">
             <Brain className="h-4 w-4 text-blue-500" />
           </div>
-          <span className="text-xs text-muted-foreground">Meta: {dailyGoal}</span>
+          <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
+            <DialogTrigger asChild>
+              <button 
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                onClick={() => setTempGoal(dailyGoal)}
+              >
+                Meta: {dailyGoal}
+                <Settings2 className="h-3 w-3" />
+              </button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Definir Meta Diária</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-6 py-4">
+                <div className="text-center">
+                  <p className="text-4xl font-bold text-primary">{tempGoal}</p>
+                  <p className="text-sm text-muted-foreground">questões por dia</p>
+                </div>
+                <Slider
+                  value={[tempGoal]}
+                  onValueChange={(value) => setTempGoal(value[0])}
+                  min={1}
+                  max={50}
+                  step={1}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>1</span>
+                  <span>25</span>
+                  <span>50</span>
+                </div>
+                <Button onClick={handleSaveGoal} className="w-full">
+                  Salvar Meta
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
         <div className="flex items-end justify-between">
           <div>
