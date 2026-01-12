@@ -42,6 +42,7 @@ import {
 } from "recharts";
 import { usePremium } from "@/hooks/usePremium";
 import PremiumLockScreen from "@/components/PremiumLockScreen";
+import WeeklyComparison from "@/components/statistics/WeeklyComparison";
 
 /**
  * Dashboard de estatísticas de desempenho do usuário
@@ -72,6 +73,12 @@ const Statistics = () => {
   // Estado para sugestão de IA
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const [loadingAiSuggestion, setLoadingAiSuggestion] = useState(false);
+  
+  // Estado para comparação semanal
+  const [weeklyComparisonData, setWeeklyComparisonData] = useState<{
+    currentWeek: { questions: number; correct: number; accuracy: number };
+    previousWeek: { questions: number; correct: number; accuracy: number };
+  } | null>(null);
 
   useEffect(() => {
     let userId: string | null = null;
@@ -376,6 +383,47 @@ const Statistics = () => {
 
       setDisciplineChartData(disciplineChart);
 
+      // Calcular comparação semanal
+      const comparisonNow = new Date();
+      const oneWeekAgo = new Date(comparisonNow.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const twoWeeksAgo = new Date(comparisonNow.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+      // Fetch all attempts for comparison (without period filter)
+      const { data: allAttempts } = await supabase
+        .from("question_attempts")
+        .select("*")
+        .eq("user_id", userId)
+        .gte("created_at", twoWeeksAgo.toISOString());
+
+      if (allAttempts && allAttempts.length > 0) {
+        const currentWeekAttempts = allAttempts.filter(
+          (a) => new Date(a.created_at) >= oneWeekAgo
+        );
+        const previousWeekAttempts = allAttempts.filter(
+          (a) => new Date(a.created_at) >= twoWeeksAgo && new Date(a.created_at) < oneWeekAgo
+        );
+
+        const currentWeekCorrect = currentWeekAttempts.filter((a) => a.is_correct).length;
+        const previousWeekCorrect = previousWeekAttempts.filter((a) => a.is_correct).length;
+
+        setWeeklyComparisonData({
+          currentWeek: {
+            questions: currentWeekAttempts.length,
+            correct: currentWeekCorrect,
+            accuracy: currentWeekAttempts.length > 0
+              ? (currentWeekCorrect / currentWeekAttempts.length) * 100
+              : 0,
+          },
+          previousWeek: {
+            questions: previousWeekAttempts.length,
+            correct: previousWeekCorrect,
+            accuracy: previousWeekAttempts.length > 0
+              ? (previousWeekCorrect / previousWeekAttempts.length) * 100
+              : 0,
+          },
+        });
+      }
+
       setLoading(false);
     } catch (error) {
       console.error("Erro ao buscar estatísticas:", error);
@@ -567,6 +615,13 @@ const Statistics = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Comparação Semanal */}
+          {weeklyComparisonData && (
+            <div className="mb-8">
+              <WeeklyComparison data={weeklyComparisonData} />
+            </div>
+          )}
 
           {/* Sugestão de IA */}
           <Card className="mb-8 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
