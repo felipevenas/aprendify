@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, BookOpen, Shuffle, Filter, Lock, StickyNote, Crown, RefreshCw } from "lucide-react";
 import { clearCache as clearIndexedDBCache } from "@/lib/questionCache";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import QuestionPractice from "@/components/questions/QuestionPractice";
 import QuestionFilters from "@/components/questions/QuestionFilters";
 import AddQuestionNoteDialog from "@/components/questions/AddQuestionNoteDialog";
+import SessionIndicator from "@/components/questions/SessionIndicator";
 import Navbar from "@/components/Navbar";
 import { usePremium } from "@/hooks/usePremium";
 import { useQuestionBank } from "@/hooks/useQuestionBank";
@@ -30,7 +31,10 @@ const Questions = () => {
   const navigate = useNavigate();
   const { isPremium, isLoading: premiumLoading, dailyQuestionCount } = usePremium();
   const { currentQuestion, loading: loadingQuestion, fetchQuestion, clearCache } = useQuestionBank();
-  const { recordQuestionAnswered } = useStreakContext();
+  const { recordQuestionAnswered, streakData } = useStreakContext();
+  
+  // Session counter for this study session
+  const [sessionCount, setSessionCount] = useState(0);
   
   const FREE_DAILY_LIMIT = 10;
 
@@ -151,6 +155,7 @@ const Questions = () => {
       }
       
       await recordQuestionAnswered();
+      setSessionCount(prev => prev + 1); // Increment session counter
       toast.success("Resposta registrada!");
 
       const extractedTopic = await topicPromise;
@@ -218,7 +223,7 @@ const Questions = () => {
           className="mb-8"
         >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <div>
+            <div className="flex-1">
               <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2">
                 Banco de Questões ENEM
               </h1>
@@ -227,99 +232,111 @@ const Questions = () => {
               </p>
             </div>
             
-            <TooltipProvider>
-              <div className="flex items-center gap-2">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => navigate("/dashboard")} 
-                    >
-                      <ArrowLeft className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>Voltar ao Dashboard</p>
-                  </TooltipContent>
-                </Tooltip>
-                
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setNoteDialogOpen(true)}
-                      disabled={!currentQuestion}
-                    >
-                      <StickyNote className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs">
-                    <p className="font-medium">Fazer Anotação</p>
-                    <p className="text-xs text-muted-foreground">
-                      Crie uma nota sobre esta questão para revisar depois.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="outline"
-                      size="icon"
-                      onClick={handleClearCache}
-                      disabled={loadingQuestion}
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs">
-                    <p className="font-medium">Limpar Cache</p>
-                    <p className="text-xs text-muted-foreground">
-                      Remove questões salvas localmente e busca as versões mais atualizadas do banco de dados.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      onClick={() => setShowFilters(!showFilters)} 
-                      variant="outline"
-                      size="icon"
-                    >
-                      <Filter className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs">
-                    <p className="font-medium">Filtros</p>
-                    <p className="text-xs text-muted-foreground">
-                      Filtre por ano, disciplina, dificuldade, tópico e muito mais.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-                
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      onClick={() => handleFetchQuestion(true)}
-                      size="icon"
-                      disabled={loadingQuestion}
-                    >
-                      <Shuffle className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs">
-                    <p className="font-medium">Questão Aleatória</p>
-                    <p className="text-xs text-muted-foreground">
-                      Busca uma nova questão aleatória com base nos filtros selecionados.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </TooltipProvider>
+            {/* Session Indicator */}
+            <AnimatePresence>
+              {(sessionCount > 0 || (streakData && streakData.currentStreak > 0)) && (
+                <SessionIndicator
+                  sessionCount={sessionCount}
+                  currentStreak={streakData?.currentStreak || 0}
+                  streakCompletedToday={streakData?.streakCompletedToday || false}
+                />
+              )}
+            </AnimatePresence>
           </div>
+          
+          {/* Actions row */}
+          <TooltipProvider>
+            <div className="flex items-center justify-end gap-2 mb-4">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => navigate("/dashboard")} 
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Voltar ao Dashboard</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setNoteDialogOpen(true)}
+                    disabled={!currentQuestion}
+                  >
+                    <StickyNote className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="font-medium">Fazer Anotação</p>
+                  <p className="text-xs text-muted-foreground">
+                    Crie uma nota sobre esta questão para revisar depois.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline"
+                    size="icon"
+                    onClick={handleClearCache}
+                    disabled={loadingQuestion}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="font-medium">Limpar Cache</p>
+                  <p className="text-xs text-muted-foreground">
+                    Remove questões salvas localmente e busca as versões mais atualizadas do banco de dados.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    onClick={() => setShowFilters(!showFilters)} 
+                    variant="outline"
+                    size="icon"
+                  >
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="font-medium">Filtros</p>
+                  <p className="text-xs text-muted-foreground">
+                    Filtre por ano, disciplina, dificuldade, tópico e muito mais.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    onClick={() => handleFetchQuestion(true)}
+                    size="icon"
+                    disabled={loadingQuestion}
+                  >
+                    <Shuffle className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="font-medium">Questão Aleatória</p>
+                  <p className="text-xs text-muted-foreground">
+                    Busca uma nova questão aleatória com base nos filtros selecionados.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
 
           {/* Alerta de limite para usuários free */}
           {!premiumLoading && !isPremium && (
