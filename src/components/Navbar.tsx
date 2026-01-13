@@ -11,13 +11,14 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Settings, LogOut, Moon, Sun, BookOpen, Crown, CreditCard, Sparkles, Trophy } from "lucide-react";
+import { Settings, LogOut, Moon, Sun, BookOpen, Crown, CreditCard, Sparkles, Trophy, Shield } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
 import { usePremiumContext } from "@/contexts/PremiumContext";
 import { PremiumModal } from "@/components/PremiumModal";
 import { useStreakContext } from "@/contexts/StreakContext";
 import { StreakIndicator } from "@/components/streak/StreakIndicator";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 /**
  * Navbar minimalista com perfil do usuário e tema dark/light
@@ -30,6 +31,7 @@ const Navbar = () => {
   const [user, setUser] = useState<User | null>(null);
   const [userName, setUserName] = useState<string>("");
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { isPremium, isLoading, planType } = usePremiumContext();
   // Usa o contexto global de streak para atualizações em tempo real
   const { streakData, loading: streakLoading } = useStreakContext();
@@ -49,6 +51,15 @@ const Navbar = () => {
         const fullName = profile?.full_name || user.email?.split("@")[0] || "Usuário";
         const firstName = fullName.split(" ")[0];
         setUserName(firstName);
+
+        // Verifica se é admin
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .single();
+        
+        setIsAdmin(roleData?.role === "admin");
       }
     };
 
@@ -139,6 +150,9 @@ const Navbar = () => {
                   <span className="hidden sm:inline font-medium">Free</span>
                 </Badge>
               ))}
+            {/* Sino de Notificações */}
+            <NotificationBell />
+
             {/* Botão de tema */}
             <Button
               variant="ghost"
@@ -186,6 +200,15 @@ const Navbar = () => {
                   <Trophy className="h-4 w-4 mr-3 text-muted-foreground" />
                   Conquistas
                 </DropdownMenuItem>
+                {isAdmin && (
+                  <>
+                    <DropdownMenuSeparator className="my-2" />
+                    <DropdownMenuItem onClick={() => navigate("/admin/notifications")} className="cursor-pointer rounded-lg py-2.5 px-3">
+                      <Shield className="h-4 w-4 mr-3 text-primary" />
+                      <span className="text-primary font-medium">Gerenciar Notificações</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuSeparator className="my-2" />
                 <DropdownMenuItem
                   onClick={handleLogout}
