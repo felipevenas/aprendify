@@ -320,7 +320,7 @@ const AdminUsers = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      toast.success(`Assinatura Criador concedida! Cupom ${data.code} criado no Stripe com 10% OFF.`);
+      toast.success(`Assinatura Criador concedida! Cupom ${data.code} criado no Stripe com 15% OFF.`);
       setCreatorCouponCode("");
       fetchUsers();
     } catch (error: any) {
