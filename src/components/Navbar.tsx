@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Settings, LogOut, Moon, Sun, BookOpen, Crown, CreditCard, Sparkles, Trophy, Shield } from "lucide-react";
+import { Settings, LogOut, Moon, Sun, BookOpen, Crown, CreditCard, Sparkles, Trophy, Shield, Menu, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { usePremiumContext } from "@/contexts/PremiumContext";
 import { PremiumModal } from "@/components/PremiumModal";
@@ -20,6 +20,7 @@ import { StreakIndicator } from "@/components/streak/StreakIndicator";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
+import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 
 /**
  * Navbar minimalista com perfil do usuário e tema dark/light
@@ -33,6 +34,7 @@ const Navbar = () => {
   const [userName, setUserName] = useState<string>("");
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isPremium, isLoading, planType } = usePremiumContext();
   // Usa o contexto global de streak para atualizações em tempo real
   const { streakData, loading: streakLoading } = useStreakContext();
@@ -113,8 +115,8 @@ const Navbar = () => {
             </span>
           </div>
 
-          {/* Menu do usuário */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Menu Desktop */}
+          <div className="hidden xs:flex items-center gap-2 sm:gap-3">
             {/* Indicador de Streak */}
             {!streakLoading && streakData && (
               <StreakIndicator
@@ -226,6 +228,150 @@ const Navbar = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          </div>
+
+          {/* Menu Mobile Hamburger */}
+          <div className="flex xs:hidden items-center gap-2">
+            {/* Sino de Notificações Mobile */}
+            <NotificationBell />
+            
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-80 p-0">
+                <div className="flex flex-col h-full">
+                  {/* Header do Menu Mobile */}
+                  <div className="p-4 border-b border-border/50 bg-muted/30">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-12 w-12 ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
+                        <AvatarImage src={user.user_metadata?.avatar_url} />
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-base font-semibold">
+                          {getInitials(userName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-foreground">Olá, {userName}</p>
+                        <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Streak no Mobile */}
+                    {!streakLoading && streakData && (
+                      <div className="mt-4">
+                        <StreakIndicator
+                          currentStreak={streakData.currentStreak}
+                          questionsToday={streakData.questionsToday}
+                          streakCompletedToday={streakData.streakCompletedToday}
+                          longestStreak={streakData.longestStreak}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Conteúdo do Menu */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                    {/* Ícone do Plano Mobile */}
+                    {!isLoading && (isPremium || isCreator) && (
+                      <SheetClose asChild>
+                        <button
+                          onClick={() => isCreator ? navigate("/creator") : setShowPremiumModal(true)}
+                          className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-accent transition-colors"
+                        >
+                          {isCreator ? (
+                            <Sparkles className="h-5 w-5 text-purple-500" />
+                          ) : (
+                            <Crown className="h-5 w-5 text-amber-500" />
+                          )}
+                          <span className="font-medium">{isCreator ? "Plano Criador" : "Plano Premium"}</span>
+                        </button>
+                      </SheetClose>
+                    )}
+
+                    {/* Toggle de Tema Mobile */}
+                    <div 
+                      className="flex items-center justify-between p-3 rounded-lg hover:bg-accent cursor-pointer"
+                      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                    >
+                      <div className="flex items-center gap-3">
+                        {theme === "dark" ? (
+                          <Moon className="h-5 w-5 text-muted-foreground" />
+                        ) : (
+                          <Sun className="h-5 w-5 text-muted-foreground" />
+                        )}
+                        <span className="font-medium">Tema Escuro</span>
+                      </div>
+                      <Switch 
+                        checked={theme === "dark"} 
+                        onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+                      />
+                    </div>
+
+                    <div className="h-px bg-border/50 my-2" />
+
+                    <SheetClose asChild>
+                      <button
+                        onClick={() => navigate("/settings")}
+                        className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-accent transition-colors"
+                      >
+                        <Settings className="h-5 w-5 text-muted-foreground" />
+                        <span className="font-medium">Configurações</span>
+                      </button>
+                    </SheetClose>
+
+                    <SheetClose asChild>
+                      <button
+                        onClick={() => navigate("/subscription")}
+                        className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-accent transition-colors"
+                      >
+                        <CreditCard className="h-5 w-5 text-muted-foreground" />
+                        <span className="font-medium">Minha Assinatura</span>
+                      </button>
+                    </SheetClose>
+
+                    <SheetClose asChild>
+                      <button
+                        onClick={() => navigate("/achievements")}
+                        className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-accent transition-colors"
+                      >
+                        <Trophy className="h-5 w-5 text-muted-foreground" />
+                        <span className="font-medium">Conquistas</span>
+                      </button>
+                    </SheetClose>
+
+                    {isAdmin && (
+                      <>
+                        <div className="h-px bg-border/50 my-2" />
+                        <SheetClose asChild>
+                          <button
+                            onClick={() => navigate("/admin/notifications")}
+                            className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-accent transition-colors"
+                          >
+                            <Shield className="h-5 w-5 text-primary" />
+                            <span className="font-medium text-primary">Gerenciar Notificações</span>
+                          </button>
+                        </SheetClose>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Footer com Logout */}
+                  <div className="p-4 border-t border-border/50 bg-muted/30">
+                    <SheetClose asChild>
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
+                      >
+                        <LogOut className="h-5 w-5" />
+                        <span className="font-medium">Sair</span>
+                      </button>
+                    </SheetClose>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </div>
