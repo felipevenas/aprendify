@@ -20,9 +20,9 @@ const isValidCouponCode = (code: string): { valid: boolean; error?: string } => 
 
   const trimmedCode = code.trim().toUpperCase();
 
-  // Check length (max 10 characters)
+  // Check length (max 12 characters)
   if (trimmedCode.length > 12) {
-    return { valid: false, error: "Código de cupom deve ter no máximo 12 caracteres" };
+    return { valid: false, error: "Código de cupom deve ter no máximo 10 caracteres" };
   }
 
   // Check for only alphanumeric characters
