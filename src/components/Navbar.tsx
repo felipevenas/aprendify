@@ -13,12 +13,13 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Settings, LogOut, Moon, Sun, BookOpen, Crown, CreditCard, Sparkles, Trophy, Shield } from "lucide-react";
 import { useTheme } from "next-themes";
-import { Badge } from "@/components/ui/badge";
 import { usePremiumContext } from "@/contexts/PremiumContext";
 import { PremiumModal } from "@/components/PremiumModal";
 import { useStreakContext } from "@/contexts/StreakContext";
 import { StreakIndicator } from "@/components/streak/StreakIndicator";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
 
 /**
  * Navbar minimalista com perfil do usuário e tema dark/light
@@ -123,49 +124,33 @@ const Navbar = () => {
                 longestStreak={streakData.longestStreak}
               />
             )}
-            {/* Badge Premium, Criador ou Free baseado no status de assinatura */}
-            {!isLoading &&
-              (isCreator ? (
-                <Badge
-                  onClick={() => navigate("/creator")}
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0 px-3 sm:px-4 py-1.5 shadow-md hover:shadow-lg flex items-center cursor-pointer transition-all duration-300 hover:scale-105 rounded-full"
-                >
-                  <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
-                  <span className="hidden sm:inline font-semibold">Criador</span>
-                </Badge>
-              ) : isPremium ? (
-                <Badge
-                  onClick={() => setShowPremiumModal(true)}
-                  className="bg-gradient-to-r from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-white border-0 px-3 sm:px-4 py-1.5 shadow-md hover:shadow-lg flex items-center cursor-pointer transition-all duration-300 hover:scale-105 rounded-full"
-                >
-                  <Crown className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
-                  <span className="hidden sm:inline font-semibold">Premium</span>
-                </Badge>
-              ) : (
-                <Badge
-                  onClick={() => setShowPremiumModal(true)}
-                  className="bg-gradient-to-r from-muted-foreground/60 to-muted-foreground/80 hover:from-muted-foreground/70 hover:to-muted-foreground/90 text-white border-0 px-3 sm:px-4 py-1.5 cursor-pointer shadow-sm hover:shadow-md flex items-center transition-all duration-300 hover:scale-105 rounded-full"
-                >
-                  <Crown className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
-                  <span className="hidden sm:inline font-medium">Free</span>
-                </Badge>
-              ))}
+            {/* Ícone do Plano - apenas para premium/creator */}
+            {!isLoading && (isPremium || isCreator) && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => isCreator ? navigate("/creator") : setShowPremiumModal(true)}
+                      className="rounded-full h-10 w-10 transition-all duration-300 hover:scale-105"
+                    >
+                      {isCreator ? (
+                        <Sparkles className="h-5 w-5 text-purple-500" />
+                      ) : (
+                        <Crown className="h-5 w-5 text-amber-500" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{isCreator ? "Plano Criador" : "Plano Premium"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+
             {/* Sino de Notificações */}
             <NotificationBell />
-
-            {/* Botão de tema */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="rounded-full hover:bg-primary/10 h-10 w-10 transition-all duration-300"
-            >
-              {theme === "dark" ? (
-                <Sun className="h-5 w-5 text-amber-400" />
-              ) : (
-                <Moon className="h-5 w-5 text-primary" />
-              )}
-            </Button>
 
             {/* Dropdown do perfil */}
             <DropdownMenu>
@@ -185,9 +170,31 @@ const Navbar = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-60 p-2 rounded-xl shadow-xl border-border/50">
                 <div className="px-3 py-3 bg-muted/50 rounded-lg mb-2">
-                  <p className="text-sm font-semibold">{userName}</p>
+                  <p className="text-sm font-semibold">Olá, {userName}</p>
                   <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                 </div>
+
+                {/* Toggle de Tema */}
+                <div 
+                  className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-accent cursor-pointer"
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                >
+                  <div className="flex items-center">
+                    {theme === "dark" ? (
+                      <Moon className="h-4 w-4 mr-3 text-muted-foreground" />
+                    ) : (
+                      <Sun className="h-4 w-4 mr-3 text-muted-foreground" />
+                    )}
+                    <span className="text-sm">Tema Escuro</span>
+                  </div>
+                  <Switch 
+                    checked={theme === "dark"} 
+                    onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+                  />
+                </div>
+
+                <DropdownMenuSeparator className="my-2" />
+
                 <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer rounded-lg py-2.5 px-3">
                   <Settings className="h-4 w-4 mr-3 text-muted-foreground" />
                   Configurações
