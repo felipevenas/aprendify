@@ -114,19 +114,16 @@ const Navbar = () => {
           </div>
 
           {/* Menu do usuário */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Indicador de Streak */}
             {!streakLoading && streakData && (
-              <div className="flex items-center justify-center h-10 w-10">
-                <StreakIndicator
-                  currentStreak={streakData.currentStreak}
-                  questionsToday={streakData.questionsToday}
-                  streakCompletedToday={streakData.streakCompletedToday}
-                  longestStreak={streakData.longestStreak}
-                />
-              </div>
+              <StreakIndicator
+                currentStreak={streakData.currentStreak}
+                questionsToday={streakData.questionsToday}
+                streakCompletedToday={streakData.streakCompletedToday}
+                longestStreak={streakData.longestStreak}
+              />
             )}
-
             {/* Ícone do Plano - apenas para premium/creator */}
             {!isLoading && (isPremium || isCreator) && (
               <TooltipProvider>
@@ -160,14 +157,15 @@ const Navbar = () => {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="flex items-center gap-2 hover:bg-primary/10 rounded-full p-1 h-10 transition-all duration-300"
+                  className="flex items-center gap-2 hover:bg-primary/10 rounded-full pr-3 sm:pr-4 pl-1.5 sm:pl-2 h-10 sm:h-11 transition-all duration-300"
                 >
-                  <Avatar className="h-8 w-8 ring-2 ring-primary/20">
+                  <Avatar className="h-8 w-8 sm:h-9 sm:w-9 ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
                     <AvatarImage src={user.user_metadata?.avatar_url} />
                     <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-sm font-semibold">
                       {getInitials(userName)}
                     </AvatarFallback>
                   </Avatar>
+                  <span className="text-sm font-medium hidden sm:inline">{userName}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-60 p-2 rounded-xl shadow-xl border-border/50">
