@@ -8,13 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { 
-  Search, 
-  Loader2, 
-  Crown, 
-  Shield, 
-  UserX, 
-  Ban, 
+import {
+  Search,
+  Loader2,
+  Crown,
+  Shield,
+  UserX,
+  Ban,
   MoreHorizontal,
   XCircle,
   Users,
@@ -23,7 +23,7 @@ import {
   FileText,
   HelpCircle,
   Sparkles,
-  Eye
+  Eye,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -51,14 +51,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Navbar from "@/components/Navbar";
 import CreatorDetailsModal from "@/components/admin/CreatorDetailsModal";
 
@@ -83,7 +76,7 @@ const AdminUsers = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  
+
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
     type: "premium" | "revoke" | "ban" | "reset-essays" | "reset-questions" | "creator" | "revoke-creator" | null;
@@ -109,14 +102,16 @@ const AdminUsers = () => {
 
   useEffect(() => {
     const checkAdmin = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         navigate("/auth");
         return;
       }
 
       const { data: roleData } = await supabase.rpc("get_user_role", { _user_id: user.id });
-      
+
       if (roleData !== "admin") {
         toast.error("Acesso negado. Você não tem permissão de administrador.");
         navigate("/dashboard");
@@ -175,7 +170,7 @@ const AdminUsers = () => {
             plan_type: subscriptionData?.plan_type || null,
             coupon_code: couponData?.coupon_code || null,
           };
-        })
+        }),
       );
 
       setUsers(usersWithDetails);
@@ -199,7 +194,7 @@ const AdminUsers = () => {
       (user) =>
         user.email.toLowerCase().includes(term) ||
         user.full_name?.toLowerCase().includes(term) ||
-        user.username?.toLowerCase().includes(term)
+        user.username?.toLowerCase().includes(term),
     );
     setFilteredUsers(filtered);
   }, [searchTerm, users]);
@@ -226,15 +221,13 @@ const AdminUsers = () => {
 
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from("subscriptions")
-          .insert({
-            user_id: userId,
-            status: "authorized",
-            plan_id: "admin_grant",
-            start_date: new Date().toISOString(),
-            end_date: null,
-          });
+        const { error } = await supabase.from("subscriptions").insert({
+          user_id: userId,
+          status: "authorized",
+          plan_id: "admin_grant",
+          start_date: new Date().toISOString(),
+          end_date: null,
+        });
 
         if (error) throw error;
       }
@@ -351,10 +344,7 @@ const AdminUsers = () => {
       if (error) throw error;
 
       // Deactivate coupon
-      await supabase
-        .from("creator_coupons")
-        .update({ is_active: false })
-        .eq("user_id", userId);
+      await supabase.from("creator_coupons").update({ is_active: false }).eq("user_id", userId);
 
       toast.success("Assinatura Criador revogada com sucesso!");
       fetchUsers();
@@ -372,7 +362,7 @@ const AdminUsers = () => {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       const { error } = await supabase
         .from("question_attempts")
         .delete()
@@ -440,20 +430,14 @@ const AdminUsers = () => {
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <div>
               <h1 className="text-3xl sm:text-4xl font-bold text-foreground flex items-center gap-3">
                 <Shield className="h-8 w-8 text-primary" />
                 Gerenciar Usuários
               </h1>
-              <p className="text-muted-foreground mt-1">
-                Administre os usuários cadastrados no sistema
-              </p>
+              <p className="text-muted-foreground mt-1">Administre os usuários cadastrados no sistema</p>
             </div>
 
             <Badge variant="secondary" className="text-sm px-4 py-2">
@@ -479,9 +463,7 @@ const AdminUsers = () => {
           <Card>
             <CardHeader>
               <CardTitle>Usuários</CardTitle>
-              <CardDescription>
-                Lista de todos os usuários cadastrados na plataforma
-              </CardDescription>
+              <CardDescription>Lista de todos os usuários cadastrados na plataforma</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -499,9 +481,7 @@ const AdminUsers = () => {
                   <TableBody>
                     {filteredUsers.map((user) => (
                       <TableRow key={user.id}>
-                        <TableCell className="font-medium">
-                          {user.full_name || user.username || "—"}
-                        </TableCell>
+                        <TableCell className="font-medium">{user.full_name || user.username || "—"}</TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>
                           <Badge
@@ -518,14 +498,16 @@ const AdminUsers = () => {
                               Banido
                             </Badge>
                           ) : user.plan_type === "creator" && user.is_premium ? (
-                            <Badge 
-                              className="bg-gradient-to-r from-purple-500 to-pink-500 gap-1 cursor-pointer hover:opacity-80 transition-opacity" 
+                            <Badge
+                              className="bg-gradient-to-r from-purple-500 to-pink-500 gap-1 cursor-pointer hover:opacity-80 transition-opacity"
                               title="Clique para ver detalhes"
-                              onClick={() => setCreatorDetailsModal({
-                                open: true,
-                                userId: user.id,
-                                userName: user.full_name || user.email,
-                              })}
+                              onClick={() =>
+                                setCreatorDetailsModal({
+                                  open: true,
+                                  userId: user.id,
+                                  userName: user.full_name || user.email,
+                                })
+                              }
                             >
                               <Sparkles className="h-3 w-3" />
                               Criador
@@ -547,11 +529,7 @@ const AdminUsers = () => {
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                disabled={actionLoading === user.id}
-                              >
+                              <Button variant="ghost" size="icon" disabled={actionLoading === user.id}>
                                 {actionLoading === user.id ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
@@ -562,7 +540,7 @@ const AdminUsers = () => {
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Ações</DropdownMenuLabel>
                               <DropdownMenuSeparator />
-                              
+
                               <DropdownMenuItem
                                 onClick={() =>
                                   setEditDialog({
@@ -612,7 +590,7 @@ const AdminUsers = () => {
                               </DropdownMenuItem>
 
                               <DropdownMenuSeparator />
-                              
+
                               {!user.is_premium && user.subscription_status !== "banned" && (
                                 <>
                                   <DropdownMenuItem
@@ -724,9 +702,7 @@ const AdminUsers = () => {
 
       <AlertDialog
         open={confirmDialog.open && confirmDialog.type !== "creator"}
-        onOpenChange={(open) =>
-          !open && setConfirmDialog({ open: false, type: null, userId: "", userName: "" })
-        }
+        onOpenChange={(open) => !open && setConfirmDialog({ open: false, type: null, userId: "", userName: "" })}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -739,10 +715,8 @@ const AdminUsers = () => {
               {confirmDialog.type === "reset-questions" && "Resetar Questões"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmDialog.type === "premium" &&
-                `Deseja conceder acesso Premium para ${confirmDialog.userName}?`}
-              {confirmDialog.type === "revoke" &&
-                `Deseja revogar o acesso Premium de ${confirmDialog.userName}?`}
+              {confirmDialog.type === "premium" && `Deseja conceder acesso Premium para ${confirmDialog.userName}?`}
+              {confirmDialog.type === "revoke" && `Deseja revogar o acesso Premium de ${confirmDialog.userName}?`}
               {confirmDialog.type === "revoke-creator" &&
                 `Deseja revogar a assinatura Criador de ${confirmDialog.userName}? O cupom será desativado.`}
               {confirmDialog.type === "ban" &&
@@ -771,11 +745,7 @@ const AdminUsers = () => {
                   resetQuestionCounter(confirmDialog.userId);
                 }
               }}
-              className={
-                confirmDialog.type === "ban"
-                  ? "bg-destructive hover:bg-destructive/90"
-                  : ""
-              }
+              className={confirmDialog.type === "ban" ? "bg-destructive hover:bg-destructive/90" : ""}
             >
               Confirmar
             </AlertDialogAction>
@@ -800,8 +770,8 @@ const AdminUsers = () => {
               Conceder Assinatura Criador
             </DialogTitle>
             <DialogDescription>
-              Conceda acesso Premium vitalício para {confirmDialog.userName} como criador de conteúdo.
-              Defina um código de cupom único para o criador.
+              Conceda acesso Premium vitalício para {confirmDialog.userName} como criador de conteúdo. Defina um código
+              de cupom único para o criador.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -811,12 +781,19 @@ const AdminUsers = () => {
                 id="couponCode"
                 placeholder="Ex: JOAO10, MARIA20..."
                 value={creatorCouponCode}
-                onChange={(e) => setCreatorCouponCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10))}
+                onChange={(e) =>
+                  setCreatorCouponCode(
+                    e.target.value
+                      .toUpperCase()
+                      .replace(/[^A-Z0-9]/g, "")
+                      .slice(0, 12),
+                  )
+                }
                 className="uppercase"
-                maxLength={10}
+                maxLength={12}
               />
               <p className="text-xs text-muted-foreground">
-                Apenas letras e números. Máximo de 10 caracteres. ({creatorCouponCode.length}/10)
+                Apenas letras e números. Máximo de 10 caracteres. ({creatorCouponCode.length}/12)
               </p>
             </div>
           </div>
@@ -855,9 +832,7 @@ const AdminUsers = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar Perfil</DialogTitle>
-            <DialogDescription>
-              Altere as informações do usuário abaixo.
-            </DialogDescription>
+            <DialogDescription>Altere as informações do usuário abaixo.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -894,9 +869,7 @@ const AdminUsers = () => {
               Cancelar
             </Button>
             <Button onClick={updateUserProfile} disabled={actionLoading === editDialog.userId}>
-              {actionLoading === editDialog.userId ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : null}
+              {actionLoading === editDialog.userId ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Salvar
             </Button>
           </DialogFooter>
