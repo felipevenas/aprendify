@@ -116,9 +116,9 @@ serve(async (req) => {
       throw new Error("Este código de cupom já existe no Stripe");
     }
 
-    // First, check if there's already a coupon for 10% off creators or create one
+    // First, check if there's already a coupon for 15% off creators or create one
     let stripeCouponId: string;
-    const couponName = "Criador Afiliado - 10% OFF";
+    const couponName = "Criador Afiliado - 15% OFF";
 
     // Try to find existing coupon
     const existingCoupons = await stripe.coupons.list({ limit: 100 });
