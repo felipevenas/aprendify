@@ -124,7 +124,7 @@ serve(async (req) => {
     const existingCoupons = await stripe.coupons.list({ limit: 100 });
     const existingCoupon = existingCoupons.data.find(
       (c: { name: string | null; percent_off: number | null; duration: string; valid: boolean }) =>
-        c.name === couponName && c.percent_off === 10 && c.duration === "forever" && c.valid,
+        c.name === couponName && c.percent_off === 15 && c.duration === "forever" && c.valid,
     );
 
     if (existingCoupon) {
