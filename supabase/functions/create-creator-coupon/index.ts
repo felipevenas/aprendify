@@ -17,24 +17,24 @@ const isValidCouponCode = (code: string): { valid: boolean; error?: string } => 
   if (!code || code.trim() === "") {
     return { valid: false, error: "Código de cupom é obrigatório" };
   }
-  
+
   const trimmedCode = code.trim().toUpperCase();
-  
+
   // Check length (max 10 characters)
   if (trimmedCode.length > 10) {
     return { valid: false, error: "Código de cupom deve ter no máximo 10 caracteres" };
   }
-  
+
   // Check for only alphanumeric characters
   if (!/^[A-Z0-9]+$/.test(trimmedCode)) {
     return { valid: false, error: "Código de cupom deve conter apenas letras e números" };
   }
-  
+
   // Check minimum length
   if (trimmedCode.length < 3) {
     return { valid: false, error: "Código de cupom deve ter no mínimo 3 caracteres" };
   }
-  
+
   return { valid: true };
 };
 
@@ -76,7 +76,7 @@ serve(async (req) => {
     if (!userId || !couponCode) {
       throw new Error("userId and couponCode are required");
     }
-    
+
     const formattedCouponCode = couponCode.trim().toUpperCase();
     logStep("Request data", { userId, couponCode: formattedCouponCode });
 
@@ -131,10 +131,10 @@ serve(async (req) => {
       stripeCouponId = existingCoupon.id;
       logStep("Using existing Stripe coupon", { couponId: stripeCouponId });
     } else {
-      // Create a new coupon for creators - 10% off forever
+      // Create a new coupon for creators - 15% off forever
       const newCoupon = await stripe.coupons.create({
         name: couponName,
-        percent_off: 10,
+        percent_off: 15,
         duration: "forever",
       });
       stripeCouponId = newCoupon.id;
