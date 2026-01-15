@@ -101,22 +101,22 @@ const Navbar = () => {
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl shadow-sm">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16 sm:h-18">
+        <div className="flex justify-between items-center h-14 sm:h-16">
           {/* Logo */}
           <div
-            className="flex items-center gap-2.5 sm:gap-3 cursor-pointer group"
+            className="flex items-center gap-2 sm:gap-2.5 cursor-pointer group flex-shrink-0"
             onClick={() => navigate("/dashboard")}
           >
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-300">
-              <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-300">
+              <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-primary-foreground" />
             </div>
-            <span className="text-xl sm:text-2xl font-bold text-gradient">
+            <span className="text-lg sm:text-xl md:text-2xl font-bold text-gradient">
               Aprendify
             </span>
           </div>
 
           {/* Menu Desktop */}
-          <div className="hidden xs:flex items-center gap-2 sm:gap-3">
+          <div className="hidden sm:flex items-center gap-1.5 sm:gap-2 md:gap-3">
             {/* Indicador de Streak */}
             {!streakLoading && streakData && (
               <StreakIndicator
@@ -135,12 +135,12 @@ const Navbar = () => {
                       variant="ghost"
                       size="icon"
                       onClick={() => isCreator ? navigate("/creator") : setShowPremiumModal(true)}
-                      className="rounded-full h-10 w-10 transition-all duration-300 hover:scale-105"
+                      className="rounded-full h-9 w-9 sm:h-10 sm:w-10 transition-all duration-300 hover:scale-105"
                     >
                       {isCreator ? (
-                        <Sparkles className="h-5 w-5 text-purple-500" />
+                        <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
                       ) : (
-                        <Crown className="h-5 w-5 text-amber-500" />
+                        <Crown className="h-4 w-4 sm:h-5 sm:w-5 text-amber-500" />
                       )}
                     </Button>
                   </TooltipTrigger>
@@ -159,15 +159,15 @@ const Navbar = () => {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="flex items-center gap-2 hover:bg-primary/10 rounded-full pr-3 sm:pr-4 pl-1.5 sm:pl-2 h-10 sm:h-11 transition-all duration-300"
+                  className="flex items-center gap-1.5 sm:gap-2 hover:bg-primary/10 rounded-full pr-2.5 sm:pr-3 md:pr-4 pl-1 sm:pl-1.5 md:pl-2 h-9 sm:h-10 transition-all duration-300"
                 >
-                  <Avatar className="h-8 w-8 sm:h-9 sm:w-9 ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
+                  <Avatar className="h-7 w-7 sm:h-8 sm:w-8 ring-2 ring-primary/20 ring-offset-1 sm:ring-offset-2 ring-offset-background">
                     <AvatarImage src={user.user_metadata?.avatar_url} />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-sm font-semibold">
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-xs sm:text-sm font-semibold">
                       {getInitials(userName)}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-sm font-medium hidden sm:inline">{userName}</span>
+                  <span className="text-sm font-medium hidden md:inline max-w-[100px] truncate">{userName}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-60 p-2 rounded-xl shadow-xl border-border/50">
@@ -231,44 +231,42 @@ const Navbar = () => {
           </div>
 
           {/* Menu Mobile Hamburger */}
-          <div className="flex xs:hidden items-center gap-2">
+          <div className="flex sm:hidden items-center gap-1.5">
+            {/* Streak Mobile - compacto */}
+            {!streakLoading && streakData && (
+              <StreakIndicator
+                currentStreak={streakData.currentStreak}
+                questionsToday={streakData.questionsToday}
+                streakCompletedToday={streakData.streakCompletedToday}
+                longestStreak={streakData.longestStreak}
+              />
+            )}
+            
             {/* Sino de Notificações Mobile */}
             <NotificationBell />
             
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-80 p-0">
+              <SheetContent side="right" className="w-[280px] sm:w-80 p-0 overflow-hidden">
                 <div className="flex flex-col h-full">
                   {/* Header do Menu Mobile */}
                   <div className="p-4 border-b border-border/50 bg-muted/30">
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-12 w-12 ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
+                      <Avatar className="h-11 w-11 ring-2 ring-primary/20 ring-offset-2 ring-offset-background flex-shrink-0">
                         <AvatarImage src={user.user_metadata?.avatar_url} />
-                        <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-base font-semibold">
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-sm font-semibold">
                           {getInitials(userName)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-foreground">Olá, {userName}</p>
-                        <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                        <p className="font-semibold text-foreground truncate">Olá, {userName}</p>
+                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                       </div>
                     </div>
-                    
-                    {/* Streak no Mobile */}
-                    {!streakLoading && streakData && (
-                      <div className="mt-4">
-                        <StreakIndicator
-                          currentStreak={streakData.currentStreak}
-                          questionsToday={streakData.questionsToday}
-                          streakCompletedToday={streakData.streakCompletedToday}
-                          longestStreak={streakData.longestStreak}
-                        />
-                      </div>
-                    )}
                   </div>
 
                   {/* Conteúdo do Menu */}
