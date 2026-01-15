@@ -86,15 +86,28 @@ serve(async (req) => {
       throw new Error(validation.error);
     }
 
-    // Check if user already has a coupon
+    // Check if user already has an ACTIVE coupon
     const { data: existingUserCoupon } = await supabaseClient
       .from("creator_coupons")
-      .select("id, coupon_code")
+      .select("id, coupon_code, is_active")
       .eq("user_id", userId)
       .maybeSingle();
 
     if (existingUserCoupon) {
-      throw new Error(`Este usuário já possui um cupom: ${existingUserCoupon.coupon_code}`);
+      if (existingUserCoupon.is_active) {
+        throw new Error(`Este usuário já possui um cupom ativo: ${existingUserCoupon.coupon_code}`);
+      }
+      // If coupon exists but is inactive, delete it to allow creating a new one
+      const { error: deleteError } = await supabaseClient
+        .from("creator_coupons")
+        .delete()
+        .eq("id", existingUserCoupon.id);
+      
+      if (deleteError) {
+        logStep("Error deleting inactive coupon", { error: deleteError.message });
+        throw new Error("Erro ao remover cupom antigo inativo");
+      }
+      logStep("Deleted inactive coupon to allow new creation", { oldCoupon: existingUserCoupon.coupon_code });
     }
 
     // Check if coupon code already exists in database
