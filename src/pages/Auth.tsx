@@ -167,11 +167,11 @@ const Auth = () => {
         let loginEmail = loginIdentifier;
 
         if (!isEmail) {
-          // Buscar email pelo username
+          // Buscar email pelo username (case-insensitive)
           const { data: profile, error: profileError } = await supabase
             .from("profiles")
             .select("email")
-            .eq("username", loginIdentifier)
+            .ilike("username", loginIdentifier)
             .maybeSingle();
 
           if (profileError || !profile) {
