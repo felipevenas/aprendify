@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Loader2, Sparkles, Users, TrendingUp, Copy, CheckCircle, Calendar, RefreshCw } from "lucide-react";
+import { Loader2, Sparkles, Users, TrendingUp, Copy, CheckCircle, Calendar, RefreshCw, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   ChartConfig,
@@ -39,6 +39,14 @@ interface RedemptionData {
   } | null;
 }
 
+interface CouponHistoryData {
+  id: string;
+  coupon_code: string;
+  created_at: string;
+  revoked_at: string;
+  reason: string | null;
+}
+
 const CreatorDashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -46,6 +54,7 @@ const CreatorDashboard = () => {
   const [isCreator, setIsCreator] = useState(false);
   const [coupon, setCoupon] = useState<CouponData | null>(null);
   const [redemptions, setRedemptions] = useState<RedemptionData[]>([]);
+  const [couponHistory, setCouponHistory] = useState<CouponHistoryData[]>([]);
   const [copied, setCopied] = useState(false);
 
   const fetchData = async (showLoader = true) => {
@@ -112,6 +121,15 @@ const CreatorDashboard = () => {
           setRedemptions([]);
         }
       }
+
+      // Fetch coupon history
+      const { data: historyData } = await supabase
+        .from("creator_coupon_history")
+        .select("id, coupon_code, created_at, revoked_at, reason")
+        .eq("user_id", user.id)
+        .order("revoked_at", { ascending: false });
+
+      setCouponHistory(historyData || []);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Erro ao carregar dados");
@@ -387,6 +405,55 @@ const CreatorDashboard = () => {
                     Mostrando os 50 resgates mais recentes de {redemptions.length} total
                   </p>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Histórico de Cupons Anteriores */}
+          {couponHistory.length > 0 && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <History className="h-5 w-5" />
+                  Histórico de Cupons Anteriores
+                </CardTitle>
+                <CardDescription>
+                  Cupons que foram revogados ou substituídos
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Código do Cupom</TableHead>
+                      <TableHead>Criado em</TableHead>
+                      <TableHead>Revogado em</TableHead>
+                      <TableHead>Motivo</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {couponHistory.map((history) => (
+                      <TableRow key={history.id} className="opacity-70">
+                        <TableCell className="font-mono font-medium">
+                          {history.coupon_code}
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(history.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(history.revoked_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {history.reason === 'admin_revocation' 
+                            ? 'Revogado pelo admin' 
+                            : history.reason === 'replaced_with_new_coupon'
+                            ? 'Substituído por novo cupom'
+                            : history.reason || 'Revogação manual'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           )}

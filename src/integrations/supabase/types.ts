@@ -77,6 +77,36 @@ export type Database = {
           },
         ]
       }
+      creator_coupon_history: {
+        Row: {
+          coupon_code: string
+          created_at: string
+          id: string
+          reason: string | null
+          revoked_at: string
+          revoked_by: string | null
+          user_id: string
+        }
+        Insert: {
+          coupon_code: string
+          created_at: string
+          id?: string
+          reason?: string | null
+          revoked_at?: string
+          revoked_by?: string | null
+          user_id: string
+        }
+        Update: {
+          coupon_code?: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+          revoked_at?: string
+          revoked_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       creator_coupons: {
         Row: {
           coupon_code: string
