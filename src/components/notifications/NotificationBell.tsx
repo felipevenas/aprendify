@@ -146,16 +146,16 @@ export const NotificationBell = () => {
         <Button
           variant="ghost"
           size="icon"
-          className="relative rounded-full hover:bg-primary/10 h-10 w-10 transition-all duration-300"
+          className="relative rounded-full hover:bg-primary/10 h-9 w-9 sm:h-10 sm:w-10 transition-all duration-300"
         >
-          <Bell className="h-5 w-5" />
+          <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
           <AnimatePresence>
             {unreadCount > 0 && (
               <motion.span
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 exit={{ scale: 0 }}
-                className="absolute -top-0.5 -right-0.5 h-5 w-5 bg-destructive text-destructive-foreground text-xs font-bold rounded-full flex items-center justify-center"
+                className="absolute -top-0.5 -right-0.5 h-4 w-4 sm:h-5 sm:w-5 bg-destructive text-destructive-foreground text-[10px] sm:text-xs font-bold rounded-full flex items-center justify-center"
               >
                 {unreadCount > 9 ? "9+" : unreadCount}
               </motion.span>

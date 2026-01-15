@@ -242,6 +242,19 @@ const Auth = () => {
           }
         }
 
+        // Check if username already exists (case-insensitive)
+        const { data: existingUsername } = await supabase
+          .from("profiles")
+          .select("id")
+          .ilike("username", username)
+          .maybeSingle();
+
+        if (existingUsername) {
+          toast.error("Este nome de usuário já está em uso. Escolha outro.");
+          setLoading(false);
+          return;
+        }
+
         if (phone) {
           try {
             phoneSchema.parse(phone);
