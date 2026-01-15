@@ -97,6 +97,32 @@ serve(async (req) => {
       if (existingUserCoupon.is_active) {
         throw new Error(`Este usuário já possui um cupom ativo: ${existingUserCoupon.coupon_code}`);
       }
+      
+      // Get the original creation date before deleting
+      const { data: fullCouponData } = await supabaseClient
+        .from("creator_coupons")
+        .select("created_at")
+        .eq("id", existingUserCoupon.id)
+        .single();
+      
+      // Save to history before deleting
+      const { error: historyError } = await supabaseClient
+        .from("creator_coupon_history")
+        .insert({
+          user_id: userId,
+          coupon_code: existingUserCoupon.coupon_code,
+          created_at: fullCouponData?.created_at || new Date().toISOString(),
+          revoked_by: adminUser.id,
+          reason: 'replaced_with_new_coupon'
+        });
+      
+      if (historyError) {
+        logStep("Error saving coupon to history", { error: historyError.message });
+        // Continue anyway, history is not critical
+      } else {
+        logStep("Saved old coupon to history", { oldCoupon: existingUserCoupon.coupon_code });
+      }
+      
       // If coupon exists but is inactive, delete it to allow creating a new one
       const { error: deleteError } = await supabaseClient
         .from("creator_coupons")

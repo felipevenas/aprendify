@@ -335,6 +335,27 @@ const AdminUsers = () => {
   const revokeCreator = async (userId: string) => {
     setActionLoading(userId);
     try {
+      // Get current user for revoked_by field
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      // First, get the coupon data to save to history
+      const { data: couponData } = await supabase
+        .from("creator_coupons")
+        .select("coupon_code, created_at")
+        .eq("user_id", userId)
+        .maybeSingle();
+      
+      // Save to history before deactivating
+      if (couponData) {
+        await supabase.from("creator_coupon_history").insert({
+          user_id: userId,
+          coupon_code: couponData.coupon_code,
+          created_at: couponData.created_at,
+          revoked_by: currentUser?.id,
+          reason: 'admin_revocation'
+        });
+      }
+      
       // Revoke subscription
       const { error } = await supabase
         .from("subscriptions")
