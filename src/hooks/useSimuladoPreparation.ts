@@ -19,12 +19,14 @@ interface QuestionData {
 }
 
 /**
- * Configuration for API rate limiting
+ * Configuration for API rate limiting with retry support
  */
 const API_CONFIG = {
-  rateLimitMs: 1100,
+  rateLimitMs: 1500,      // 1.5s entre requisições (mais seguro)
   pageSize: 50,
   maxOffset: 500,
+  maxRetries: 3,          // Tentar até 3 vezes em caso de rate limit
+  retryDelayMs: 5000,     // Esperar 5s antes de retry
 };
 
 /**
@@ -57,13 +59,15 @@ const mapAPIToLocal = (d: string): string => {
 
 /**
  * Get disciplines based on simulado type
+ * Dia 1 ENEM: Linguagens (45) + Humanas (45) = 90 questões
+ * Dia 2 ENEM: Natureza (45) + Matemática (45) = 90 questões
  */
 const getDisciplinesForType = (type: SimuladoType): string[] => {
   switch (type) {
     case "official_day1":
-      return ["humanas"];
+      return ["linguagens", "humanas"]; // Corrigido: Dia 1 = Linguagens + Humanas
     case "official_day2":
-      return ["matematica", "natureza"];
+      return ["natureza", "matematica"]; // Dia 2 = Natureza + Matemática
     case "custom_naturezas":
       return ["natureza"];
     case "custom_humanas":
@@ -72,7 +76,7 @@ const getDisciplinesForType = (type: SimuladoType): string[] => {
       return ["matematica"];
     case "custom_mixed":
     default:
-      return ["humanas", "matematica", "natureza"];
+      return ["linguagens", "humanas", "natureza", "matematica"];
   }
 };
 
@@ -125,12 +129,16 @@ export const useSimuladoPreparation = () => {
   const fetchQuestionsFromAPI = async (
     year: string,
     disciplines: string[],
-    signal: AbortSignal
+    signal: AbortSignal,
+    onProgress?: (loaded: number) => void
   ): Promise<QuestionData[]> => {
     const apiDisciplines = disciplines.map(mapLocalToAPI);
     const allQuestions: any[] = [];
     let offset = 0;
     let hasMore = true;
+    let retryCount = 0;
+
+    console.log(`[API] Fetching year ${year} for disciplines:`, apiDisciplines);
 
     while (hasMore && !signal.aborted) {
       await waitForRateLimit();
@@ -141,12 +149,30 @@ export const useSimuladoPreparation = () => {
         const response = await fetch(url, { signal });
         
         if (response.status === 429) {
+          retryCount++;
+          if (retryCount > API_CONFIG.maxRetries) {
+            console.warn(`[API] Max retries reached for year ${year}, moving on with ${allQuestions.length} questions`);
+            break;
+          }
+          
           const retryAfter = response.headers.get("Retry-After");
-          await new Promise(resolve => setTimeout(resolve, parseInt(retryAfter || "10000")));
-          continue;
+          const waitTime = parseInt(retryAfter || "5") * 1000;
+          console.log(`[API] Rate limited, waiting ${waitTime}ms (retry ${retryCount}/${API_CONFIG.maxRetries})`);
+          
+          setState(prev => ({
+            ...prev,
+            message: `Aguardando API... (${Math.ceil(waitTime/1000)}s)`,
+          }));
+          
+          await new Promise(resolve => setTimeout(resolve, Math.max(waitTime, API_CONFIG.retryDelayMs)));
+          continue; // Retry same offset
         }
         
+        // Reset retry count on success
+        retryCount = 0;
+        
         if (response.status === 404) {
+          console.log(`[API] Year ${year} not found (404)`);
           break;
         }
         
@@ -163,6 +189,13 @@ export const useSimuladoPreparation = () => {
         }
 
         allQuestions.push(...data.questions);
+        console.log(`[API] Year ${year}: fetched ${data.questions.length} questions (total: ${allQuestions.length})`);
+        
+        // Report progress
+        if (onProgress) {
+          onProgress(allQuestions.filter(q => apiDisciplines.includes(q.discipline)).length);
+        }
+        
         hasMore = data.questions.length >= API_CONFIG.pageSize;
         offset += API_CONFIG.pageSize;
 
@@ -170,12 +203,21 @@ export const useSimuladoPreparation = () => {
       } catch (error) {
         if (signal.aborted) throw error;
         console.error(`[API] Error fetching year ${year} offset ${offset}:`, error);
+        
+        // Retry on network errors
+        retryCount++;
+        if (retryCount <= API_CONFIG.maxRetries) {
+          console.log(`[API] Network error, retrying (${retryCount}/${API_CONFIG.maxRetries})...`);
+          await new Promise(resolve => setTimeout(resolve, API_CONFIG.retryDelayMs));
+          continue;
+        }
         break;
       }
     }
 
     // Filtrar por disciplinas solicitadas
     const filtered = allQuestions.filter(q => apiDisciplines.includes(q.discipline));
+    console.log(`[API] Year ${year}: ${filtered.length} questions after filtering for ${apiDisciplines.join(', ')}`);
 
     // Mapear para formato local
     return filtered.map((q, idx) => ({
@@ -274,12 +316,14 @@ export const useSimuladoPreparation = () => {
       // CASO 1: Ano específico selecionado (Simulado Oficial)
       if (year) {
         const yearNum = parseInt(year);
-        updateProgress(`Buscando questões do ENEM ${year}...`);
+        console.log(`[Simulado] Starting for year ${year}, disciplines: ${disciplines.join(', ')}, target: ${totalQuestions}`);
+        updateProgress(`Carregando ${disciplines.join(' + ')} do ENEM ${year}...`);
 
         // Determinar fonte baseado no ano
         if (yearNum >= 2024) {
           // Anos 2024+: buscar do banco local
           const localQuestions = await fetchLocalQuestions(year, disciplines);
+          console.log(`[Simulado] Local DB returned ${localQuestions.length} questions for ${year}`);
           
           // Embaralhar e adicionar
           const shuffled = localQuestions.sort(() => Math.random() - 0.5);
@@ -287,8 +331,17 @@ export const useSimuladoPreparation = () => {
           
           updateProgress(`${collectedQuestions.length}/${totalQuestions} questões do ENEM ${year}`);
         } else {
-          // Anos 2009-2023: buscar da API
-          const apiQuestions = await fetchQuestionsFromAPI(year, disciplines, signal);
+          // Anos 2009-2023: buscar da API com progresso detalhado
+          const apiQuestions = await fetchQuestionsFromAPI(
+            year, 
+            disciplines, 
+            signal,
+            (loaded) => {
+              updateProgress(`Carregando ENEM ${year}... (${loaded} questões encontradas)`);
+            }
+          );
+          
+          console.log(`[Simulado] API returned ${apiQuestions.length} questions for ${year}`);
           
           // Embaralhar e adicionar
           const shuffled = apiQuestions.sort(() => Math.random() - 0.5);
@@ -297,12 +350,45 @@ export const useSimuladoPreparation = () => {
           updateProgress(`${collectedQuestions.length}/${totalQuestions} questões do ENEM ${year}`);
         }
 
-        // Validar se conseguimos questões suficientes do ano selecionado
+        // Se não conseguiu questões suficientes do ano selecionado, buscar de anos adjacentes
+        if (collectedQuestions.length < totalQuestions) {
+          console.log(`[Simulado] Need more questions: ${collectedQuestions.length}/${totalQuestions}`);
+          
+          const adjacentYears = [
+            yearNum - 1, yearNum + 1, 
+            yearNum - 2, yearNum + 2,
+            yearNum - 3, yearNum + 3
+          ]
+            .filter(y => y >= 2009 && y <= 2024 && y !== yearNum)
+            .map(String);
+
+          for (const adjYear of adjacentYears) {
+            if (signal.aborted) throw new Error("Cancelado");
+            if (collectedQuestions.length >= totalQuestions) break;
+
+            updateProgress(`Complementando com ENEM ${adjYear}... (${collectedQuestions.length}/${totalQuestions})`);
+            
+            const adjYearNum = parseInt(adjYear);
+            let moreQuestions: QuestionData[];
+            
+            if (adjYearNum >= 2024) {
+              moreQuestions = await fetchLocalQuestions(adjYear, disciplines);
+            } else {
+              moreQuestions = await fetchQuestionsFromAPI(adjYear, disciplines, signal);
+            }
+            
+            const shuffled = moreQuestions.sort(() => Math.random() - 0.5);
+            addUniqueQuestions(shuffled);
+            
+            console.log(`[Simulado] After ${adjYear}: ${collectedQuestions.length}/${totalQuestions}`);
+          }
+        }
+
+        // Validar se conseguimos questões suficientes
         if (collectedQuestions.length < totalQuestions) {
           throw new Error(
-            `O ENEM ${year} possui apenas ${collectedQuestions.length} questões das disciplinas selecionadas. ` +
-            `São necessárias ${totalQuestions} questões. ` +
-            `Tente escolher outro ano ou um simulado personalizado.`
+            `Foram encontradas apenas ${collectedQuestions.length} de ${totalQuestions} questões necessárias. ` +
+            `Tente novamente ou escolha outro tipo de simulado.`
           );
         }
       } 
@@ -315,6 +401,7 @@ export const useSimuladoPreparation = () => {
         const shuffledLocal = localQuestions.sort(() => Math.random() - 0.5);
         addUniqueQuestions(shuffledLocal);
         
+        console.log(`[Simulado] Local DB: ${collectedQuestions.length}/${totalQuestions}`);
         updateProgress(`${collectedQuestions.length}/${totalQuestions} do banco local`);
 
         // Se ainda precisar de mais questões, buscar da API por ano
@@ -329,11 +416,13 @@ export const useSimuladoPreparation = () => {
             if (signal.aborted) throw new Error("Cancelado");
             if (collectedQuestions.length >= totalQuestions) break;
 
-            updateProgress(`Buscando ENEM ${y}... (${collectedQuestions.length}/${totalQuestions})`);
+            updateProgress(`Carregando ENEM ${y}... (${collectedQuestions.length}/${totalQuestions})`);
             
             const apiQuestions = await fetchQuestionsFromAPI(y, disciplines, signal);
             const shuffled = apiQuestions.sort(() => Math.random() - 0.5);
             addUniqueQuestions(shuffled);
+            
+            console.log(`[Simulado] After ${y}: ${collectedQuestions.length}/${totalQuestions}`);
           }
         }
 
