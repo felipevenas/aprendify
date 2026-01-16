@@ -1,34 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Clock,
-  FileText,
-  BookOpen,
-  Calculator,
-  Beaker,
-  Users,
-  Loader2,
-} from "lucide-react";
+import { Clock, FileText, BookOpen, Calculator, Beaker, Users, Loader2 } from "lucide-react";
 import { useSimulados, SimuladoType } from "@/hooks/useSimulados";
 import { useSimuladoPreparation } from "@/hooks/useSimuladoPreparation";
 import { SimuladoPreparationModal } from "@/components/simulados/SimuladoPreparationModal";
@@ -44,10 +24,7 @@ interface NewSimuladoDialogProps {
  * Allows user to choose between official exams and custom simulados
  * Now includes preparation phase to ensure all questions are loaded
  */
-export const NewSimuladoDialog = ({
-  open,
-  onOpenChange,
-}: NewSimuladoDialogProps) => {
+export const NewSimuladoDialog = ({ open, onOpenChange }: NewSimuladoDialogProps) => {
   const navigate = useNavigate();
   const { createSimulado } = useSimulados();
   const {
@@ -86,11 +63,7 @@ export const NewSimuladoDialog = ({
   /**
    * Start the preparation process
    */
-  const startPreparation = async (
-    type: SimuladoType,
-    year: string | null,
-    qCount: number
-  ) => {
+  const startPreparation = async (type: SimuladoType, year: string | null, qCount: number) => {
     setLoading(true);
     setPendingConfig({ type, year, questionCount: qCount });
 
@@ -158,7 +131,7 @@ export const NewSimuladoDialog = ({
       currentSimuladoId,
       pendingConfig.type,
       pendingConfig.year,
-      pendingConfig.questionCount
+      pendingConfig.questionCount,
     );
 
     if (result.success) {
@@ -241,9 +214,7 @@ export const NewSimuladoDialog = ({
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Novo Simulado</DialogTitle>
-            <DialogDescription>
-              Escolha o tipo de simulado que deseja realizar
-            </DialogDescription>
+            <DialogDescription>Escolha o tipo de simulado que deseja realizar</DialogDescription>
           </DialogHeader>
 
           <Tabs defaultValue="official" className="mt-4">
@@ -282,9 +253,7 @@ export const NewSimuladoDialog = ({
                   >
                     <Card
                       className={`cursor-pointer transition-all ${
-                        selectedDay === "day1"
-                          ? "border-primary ring-2 ring-primary/20"
-                          : ""
+                        selectedDay === "day1" ? "border-primary ring-2 ring-primary/20" : ""
                       }`}
                       onClick={() => setSelectedDay("day1")}
                     >
@@ -295,9 +264,7 @@ export const NewSimuladoDialog = ({
                             1º Dia
                           </Label>
                         </div>
-                        <p className="text-sm text-muted-foreground mt-2">
-                          Ciências Humanas
-                        </p>
+                        <p className="text-sm text-muted-foreground mt-2">Linguagens e Ciências Humanas</p>
                         <Badge variant="secondary" className="mt-2">
                           <Clock className="h-3 w-3 mr-1" />
                           5h30
@@ -307,9 +274,7 @@ export const NewSimuladoDialog = ({
 
                     <Card
                       className={`cursor-pointer transition-all ${
-                        selectedDay === "day2"
-                          ? "border-primary ring-2 ring-primary/20"
-                          : ""
+                        selectedDay === "day2" ? "border-primary ring-2 ring-primary/20" : ""
                       }`}
                       onClick={() => setSelectedDay("day2")}
                     >
@@ -320,9 +285,7 @@ export const NewSimuladoDialog = ({
                             2º Dia
                           </Label>
                         </div>
-                        <p className="text-sm text-muted-foreground mt-2">
-                          Matemática e Naturezas
-                        </p>
+                        <p className="text-sm text-muted-foreground mt-2">Matemática e Naturezas</p>
                         <Badge variant="secondary" className="mt-2">
                           <Clock className="h-3 w-3 mr-1" />
                           5h
@@ -334,17 +297,10 @@ export const NewSimuladoDialog = ({
 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted p-3 rounded-lg">
                   <FileText className="h-4 w-4" />
-                  <span>
-                    90 questões • Prova completa oficial do ENEM{" "}
-                    {selectedYear || "..."}
-                  </span>
+                  <span>90 questões • Prova completa oficial do ENEM {selectedYear || "..."}</span>
                 </div>
 
-                <Button
-                  onClick={handleStartOfficial}
-                  className="w-full"
-                  disabled={!selectedYear || loading}
-                >
+                <Button onClick={handleStartOfficial} className="w-full" disabled={!selectedYear || loading}>
                   {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   Iniciar Simulado Oficial
                 </Button>
@@ -364,9 +320,7 @@ export const NewSimuladoDialog = ({
                         <Card
                           key={option.type}
                           className={`cursor-pointer transition-all ${
-                            customType === option.type
-                              ? "border-primary ring-2 ring-primary/20"
-                              : ""
+                            customType === option.type ? "border-primary ring-2 ring-primary/20" : ""
                           }`}
                           onClick={() => setCustomType(option.type)}
                         >
@@ -374,9 +328,7 @@ export const NewSimuladoDialog = ({
                             <Icon className={`h-5 w-5 mt-0.5 ${option.color}`} />
                             <div>
                               <p className="font-medium text-sm">{option.label}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {option.description}
-                              </p>
+                              <p className="text-xs text-muted-foreground">{option.description}</p>
                             </div>
                           </CardContent>
                         </Card>
@@ -395,9 +347,7 @@ export const NewSimuladoDialog = ({
                   >
                     <Card
                       className={`cursor-pointer transition-all ${
-                        questionCount === "45"
-                          ? "border-primary ring-2 ring-primary/20"
-                          : ""
+                        questionCount === "45" ? "border-primary ring-2 ring-primary/20" : ""
                       }`}
                       onClick={() => setQuestionCount("45")}
                     >
@@ -407,18 +357,14 @@ export const NewSimuladoDialog = ({
                           <Label htmlFor="q45" className="cursor-pointer font-medium">
                             45 Questões
                           </Label>
-                          <p className="text-xs text-muted-foreground">
-                            Simulado rápido
-                          </p>
+                          <p className="text-xs text-muted-foreground">Simulado rápido</p>
                         </div>
                       </CardContent>
                     </Card>
 
                     <Card
                       className={`cursor-pointer transition-all ${
-                        questionCount === "90"
-                          ? "border-primary ring-2 ring-primary/20"
-                          : ""
+                        questionCount === "90" ? "border-primary ring-2 ring-primary/20" : ""
                       }`}
                       onClick={() => setQuestionCount("90")}
                     >
@@ -428,9 +374,7 @@ export const NewSimuladoDialog = ({
                           <Label htmlFor="q90" className="cursor-pointer font-medium">
                             90 Questões
                           </Label>
-                          <p className="text-xs text-muted-foreground">
-                            Simulado completo
-                          </p>
+                          <p className="text-xs text-muted-foreground">Simulado completo</p>
                         </div>
                       </CardContent>
                     </Card>
@@ -439,17 +383,10 @@ export const NewSimuladoDialog = ({
 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted p-3 rounded-lg">
                   <Clock className="h-4 w-4" />
-                  <span>
-                    {questionCount === "90" ? "5h" : "2h30"} • Questões de anos
-                    aleatórios (2009-2024)
-                  </span>
+                  <span>{questionCount === "90" ? "5h" : "2h30"} • Questões de anos aleatórios (2009-2024)</span>
                 </div>
 
-                <Button
-                  onClick={handleStartCustom}
-                  className="w-full"
-                  disabled={loading}
-                >
+                <Button onClick={handleStartCustom} className="w-full" disabled={loading}>
                   {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   Iniciar Simulado Personalizado
                 </Button>
