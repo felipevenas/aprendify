@@ -214,38 +214,61 @@ const SimuladoActive = () => {
       }
     }
 
-    // Buscar questões da API por ano
+    // Buscar questões da API por ano com paginação
     for (const [year, ids] of apiQuestionsByYear) {
       try {
-        // Buscar todas as questões do ano
-        const response = await fetch(
-          `https://api.enem.dev/v1/exams/${year}/questions?limit=200&offset=0`
-        );
-        
-        if (response.ok) {
+        let offset = 0;
+        const pageSize = 50;
+        let hasMore = true;
+        const yearQuestions: any[] = [];
+
+        // Paginar para buscar todas as questões do ano
+        while (hasMore) {
+          const response = await fetch(
+            `https://api.enem.dev/v1/exams/${year}/questions?limit=${pageSize}&offset=${offset}`
+          );
+          
+          if (!response.ok) {
+            console.error(`[SimuladoActive] API error ${response.status} for year ${year}`);
+            break;
+          }
+
           const data = await response.json();
           
-          if (data.questions) {
-            for (const q of data.questions) {
-              const qId = `api-${year}-${q.discipline}-${q.index}`;
-              
-              if (ids.includes(qId)) {
-                questions.push({
-                  id: qId,
-                  title: q.title || "",
-                  context: q.context || null,
-                  alternatives: Array.isArray(q.alternatives)
-                    ? q.alternatives.map((alt: any) => ({ letter: alt.letter || "", text: alt.text || "" }))
-                    : [],
-                  alternatives_introduction: q.alternativesIntroduction || null,
-                  discipline: mapAPIToLocal(q.discipline),
-                  year: String(q.year || year),
-                  index: q.index,
-                  files: Array.isArray(q.files) && q.files.length > 0 ? q.files : null,
-                  correct_alternative: q.correctAlternative || "",
-                });
-              }
-            }
+          if (!data.questions || data.questions.length === 0) {
+            hasMore = false;
+            break;
+          }
+
+          yearQuestions.push(...data.questions);
+          hasMore = data.questions.length >= pageSize;
+          offset += pageSize;
+
+          // Rate limiting - aguardar entre requisições
+          if (hasMore) {
+            await new Promise(resolve => setTimeout(resolve, 1100));
+          }
+        }
+
+        // Mapear questões encontradas
+        for (const q of yearQuestions) {
+          const qId = `api-${year}-${q.discipline}-${q.index}`;
+          
+          if (ids.includes(qId)) {
+            questions.push({
+              id: qId,
+              title: q.title || "",
+              context: q.context || null,
+              alternatives: Array.isArray(q.alternatives)
+                ? q.alternatives.map((alt: any) => ({ letter: alt.letter || "", text: alt.text || "" }))
+                : [],
+              alternatives_introduction: q.alternativesIntroduction || null,
+              discipline: mapAPIToLocal(q.discipline),
+              year: String(q.year || year),
+              index: q.index,
+              files: Array.isArray(q.files) && q.files.length > 0 ? q.files : null,
+              correct_alternative: q.correctAlternative || "",
+            });
           }
         }
       } catch (error) {
