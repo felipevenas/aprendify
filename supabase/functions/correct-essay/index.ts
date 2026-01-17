@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 /**
  * Edge function para corrigir redações no padrão ENEM usando Groq API
  * Free: 1 redação/mês | Premium: 12 redações/mês
+ * Rate limited to prevent API quota exhaustion
  */
 
 const corsHeaders = {
@@ -19,6 +20,10 @@ interface EssayCorrectionRequest {
 // Limites de redações por tipo de usuário
 const FREE_MONTHLY_LIMIT = 1;
 const PREMIUM_MONTHLY_LIMIT = 12;
+
+// Rate limit configuration (in addition to monthly limits)
+const RATE_LIMIT_MAX_CALLS = 3; // 3 corrections per hour max
+const RATE_LIMIT_WINDOW_MINUTES = 60;
 
 // Prompt detalhado com rubrica oficial do ENEM e múltiplos exemplos de calibração
 const ENEM_RUBRIC_PROMPT = `Você é um corretor OFICIAL de redações do ENEM com 15+ anos de experiência na banca. Sua missão é avaliar redações com PRECISÃO e JUSTIÇA, reconhecendo textos de alta qualidade quando apresentados.
@@ -159,6 +164,8 @@ serve(async (req) => {
     // Criar cliente Supabase
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
     const supabase = createClient(supabaseUrl, supabaseKey, {
       global: { headers: { Authorization: authHeader } }
     });
@@ -169,6 +176,33 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Usuário não encontrado" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("[correct-essay] Authenticated user:", user.id);
+
+    // Check rate limit using service role client (in addition to monthly limits)
+    const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
+    
+    const { data: rateLimitAllowed, error: rateLimitError } = await supabaseService
+      .rpc("check_rate_limit", {
+        _user_id: user.id,
+        _function_name: "correct-essay",
+        _max_calls: RATE_LIMIT_MAX_CALLS,
+        _window_minutes: RATE_LIMIT_WINDOW_MINUTES,
+      });
+
+    if (rateLimitError) {
+      console.error("[correct-essay] Rate limit check error:", rateLimitError);
+      // Continue anyway if rate limit check fails
+    } else if (!rateLimitAllowed) {
+      console.log("[correct-essay] Rate limit exceeded for user:", user.id);
+      return new Response(
+        JSON.stringify({ 
+          error: "Limite de correções por hora atingido. Tente novamente em breve.",
+          rateLimited: true 
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -216,7 +250,7 @@ serve(async (req) => {
     // Obter chave da Groq
     const groqApiKey = Deno.env.get("GROQ_API_KEY");
     if (!groqApiKey) {
-      console.error("GROQ_API_KEY não configurada");
+      console.error("[correct-essay] GROQ_API_KEY não configurada");
       return new Response(
         JSON.stringify({ error: "Serviço de IA não configurado" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -232,7 +266,7 @@ ${content}
 Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade quando presente. Analise cada competência cuidadosamente antes de atribuir a nota.`;
 
     // Chamar API da Groq
-    console.log("Chamando Groq API para correção...");
+    console.log("[correct-essay] Chamando Groq API para correção...");
     const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -255,7 +289,7 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
 
     if (!groqResponse.ok) {
       const errorText = await groqResponse.text();
-      console.error("Erro na API Groq:", groqResponse.status, errorText);
+      console.error("[correct-essay] Erro na API Groq:", groqResponse.status, errorText);
       return new Response(
         JSON.stringify({ error: "Erro ao corrigir redação" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -264,7 +298,7 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
 
     const groqData = await groqResponse.json();
     const responseContent = groqData.choices?.[0]?.message?.content || "";
-    console.log("Resposta da IA recebida");
+    console.log("[correct-essay] Resposta da IA recebida");
 
     // Parse do JSON da resposta
     let correction;
@@ -277,7 +311,7 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
         throw new Error("JSON não encontrado na resposta");
       }
     } catch (parseError) {
-      console.error("Erro ao parsear resposta da IA:", parseError, responseContent);
+      console.error("[correct-essay] Erro ao parsear resposta da IA:", parseError, responseContent);
       return new Response(
         JSON.stringify({ error: "Erro ao processar correção" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -332,14 +366,14 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
       .single();
 
     if (insertError) {
-      console.error("Erro ao salvar redação:", insertError);
+      console.error("[correct-essay] Erro ao salvar redação:", insertError);
       return new Response(
         JSON.stringify({ error: "Erro ao salvar redação" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Redação corrigida e salva:", essay.id, "Nota:", totalScore);
+    console.log("[correct-essay] Redação corrigida e salva:", essay.id, "Nota:", totalScore);
 
     return new Response(
       JSON.stringify({ 
@@ -351,7 +385,7 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
     );
 
   } catch (error) {
-    console.error("Erro na função correct-essay:", error);
+    console.error("[correct-essay] Error:", error);
     return new Response(
       JSON.stringify({ error: "Erro interno do servidor" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

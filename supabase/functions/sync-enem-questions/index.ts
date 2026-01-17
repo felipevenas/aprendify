@@ -1,12 +1,22 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+/**
+ * Edge function to sync ENEM questions from external API
+ * ADMIN ONLY - Requires admin role authentication
+ * Rate limited to prevent abuse
+ */
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 const EXTERNAL_API_BASE = "https://api.enem.dev/v1";
+
+// Rate limit configuration (admin-only, but still limited)
+const RATE_LIMIT_MAX_CALLS = 5; // 5 sync operations per hour
+const RATE_LIMIT_WINDOW_MINUTES = 60;
 
 // Mapeia número da questão para disciplina (baseado na estrutura do ENEM)
 function getDisciplineFromNumber(questionNumber: number): string {
@@ -79,9 +89,77 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      console.error("[sync-enem-questions] No authorization header");
+      return new Response(
+        JSON.stringify({ error: "Não autorizado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Create client with user token to verify authentication
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      console.error("[sync-enem-questions] Auth failed:", authError?.message);
+      return new Response(
+        JSON.stringify({ error: "Não autorizado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("[sync-enem-questions] Authenticated user:", user.id);
+
+    // Use service role for admin check and database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify admin role
+    const { data: roleData, error: roleError } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .single();
+
+    if (roleError || roleData?.role !== "admin") {
+      console.error("[sync-enem-questions] Admin check failed:", roleError?.message || "Not admin");
+      return new Response(
+        JSON.stringify({ error: "Acesso restrito a administradores" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("[sync-enem-questions] Admin verified:", user.id);
+
+    // Check rate limit
+    const { data: rateLimitAllowed, error: rateLimitError } = await supabase
+      .rpc("check_rate_limit", {
+        _user_id: user.id,
+        _function_name: "sync-enem-questions",
+        _max_calls: RATE_LIMIT_MAX_CALLS,
+        _window_minutes: RATE_LIMIT_WINDOW_MINUTES,
+      });
+
+    if (rateLimitError) {
+      console.error("[sync-enem-questions] Rate limit check error:", rateLimitError);
+    } else if (!rateLimitAllowed) {
+      console.log("[sync-enem-questions] Rate limit exceeded for admin:", user.id);
+      return new Response(
+        JSON.stringify({ 
+          error: "Limite de sincronizações atingido. Tente novamente em 1 hora.",
+          rateLimited: true 
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Parse request body
     let years: string[] = [];
