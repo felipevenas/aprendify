@@ -7,13 +7,18 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
  * - Formata textos: limpa artefatos, padroniza formatação ENEM
  * - Salva as alterações no banco de dados
  * 
- * Rate limiting recomendado: 5 requisições/minuto (12s entre cada)
+ * ADMIN ONLY - Requires admin role
+ * Rate limited to prevent API quota exhaustion
  */
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Rate limit configuration (admin-only, but still limited)
+const RATE_LIMIT_MAX_CALLS = 100; // 100 calls per hour for admins
+const RATE_LIMIT_WINDOW_MINUTES = 60;
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -22,6 +27,75 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      console.error("[format-question] No authorization header");
+      return new Response(
+        JSON.stringify({ error: "Não autorizado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Create client with user token to verify authentication
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      console.error("[format-question] Auth failed:", authError?.message);
+      return new Response(
+        JSON.stringify({ error: "Não autorizado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("[format-question] Authenticated user:", user.id);
+
+    // Verify admin role using service role client
+    const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
+    
+    const { data: roleData, error: roleError } = await supabaseService
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .single();
+
+    if (roleError || roleData?.role !== "admin") {
+      console.error("[format-question] Admin check failed:", roleError?.message || "Not admin");
+      return new Response(
+        JSON.stringify({ error: "Acesso restrito a administradores" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check rate limit
+    const { data: rateLimitAllowed, error: rateLimitError } = await supabaseService
+      .rpc("check_rate_limit", {
+        _user_id: user.id,
+        _function_name: "format-question",
+        _max_calls: RATE_LIMIT_MAX_CALLS,
+        _window_minutes: RATE_LIMIT_WINDOW_MINUTES,
+      });
+
+    if (rateLimitError) {
+      console.error("[format-question] Rate limit check error:", rateLimitError);
+    } else if (!rateLimitAllowed) {
+      console.log("[format-question] Rate limit exceeded for admin:", user.id);
+      return new Response(
+        JSON.stringify({ 
+          error: "Limite de requisições atingido. Tente novamente em 1 hora.",
+          rateLimited: true 
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { 
       questionId, 
       discipline, 
@@ -165,12 +239,8 @@ Retorne APENAS o JSON, sem explicações adicionais.`;
       updateData.context = parsedResponse.formattedContext;
     }
 
-    // Salva no banco de dados
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const { error: updateError } = await supabase
+    // Salva no banco de dados using service role
+    const { error: updateError } = await supabaseService
       .from("enem_questions")
       .update(updateData)
       .eq("id", questionId);

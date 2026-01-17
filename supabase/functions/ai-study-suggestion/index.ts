@@ -6,6 +6,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limit configuration
+const RATE_LIMIT_MAX_CALLS = 10; // 10 calls per hour
+const RATE_LIMIT_WINDOW_MINUTES = 60;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -15,7 +19,7 @@ serve(async (req) => {
     // Verify user authentication
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      console.error("No authorization header provided");
+      console.error("[ai-study-suggestion] No authorization header provided");
       return new Response(
         JSON.stringify({ error: "Não autorizado" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -24,20 +28,47 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      console.error("Authentication failed:", authError?.message);
+      console.error("[ai-study-suggestion] Authentication failed:", authError?.message);
       return new Response(
         JSON.stringify({ error: "Não autorizado" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Authenticated user:", user.id);
+    console.log("[ai-study-suggestion] Authenticated user:", user.id);
+
+    // Check rate limit using service role client
+    const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
+    
+    const { data: rateLimitAllowed, error: rateLimitError } = await supabaseService
+      .rpc("check_rate_limit", {
+        _user_id: user.id,
+        _function_name: "ai-study-suggestion",
+        _max_calls: RATE_LIMIT_MAX_CALLS,
+        _window_minutes: RATE_LIMIT_WINDOW_MINUTES,
+      });
+
+    if (rateLimitError) {
+      console.error("[ai-study-suggestion] Rate limit check error:", rateLimitError);
+      // Continue anyway if rate limit check fails
+    } else if (!rateLimitAllowed) {
+      console.log("[ai-study-suggestion] Rate limit exceeded for user:", user.id);
+      return new Response(
+        JSON.stringify({ 
+          error: "Limite de requisições atingido. Tente novamente em 1 hora.",
+          rateLimited: true 
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const { stats } = await req.json();
 
@@ -108,7 +139,7 @@ Responda em português brasileiro de forma organizada e concisa.`;
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Erro na API Groq:", response.status, errorText);
+      console.error("[ai-study-suggestion] Erro na API Groq:", response.status, errorText);
       return new Response(
         JSON.stringify({ error: "Erro ao gerar sugestões" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -118,13 +149,15 @@ Responda em português brasileiro de forma organizada e concisa.`;
     const data = await response.json();
     const suggestion = data.choices?.[0]?.message?.content || "Não foi possível gerar sugestões.";
 
+    console.log("[ai-study-suggestion] Suggestion generated successfully for user:", user.id);
+
     return new Response(
       JSON.stringify({ suggestion }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
-    console.error("Erro na função ai-study-suggestion:", error);
+    console.error("[ai-study-suggestion] Error:", error);
     return new Response(
       JSON.stringify({ error: "Erro interno do servidor" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
