@@ -29,6 +29,8 @@ import SimuladoResults from "./pages/SimuladoResults";
 import CreatorDashboard from "./pages/CreatorDashboard";
 import Achievements from "./pages/Achievements";
 import AdminNotifications from "./pages/AdminNotifications";
+import Feedback from "./pages/Feedback";
+import AdminFeedback from "./pages/AdminFeedback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -73,6 +75,8 @@ const App = () => (
                 <Route path="/creator" element={<CreatorDashboard />} />
                 <Route path="/achievements" element={<Achievements />} />
                 <Route path="/admin/notifications" element={<AdminNotifications />} />
+                <Route path="/feedback" element={<Feedback />} />
+                <Route path="/admin/feedback" element={<AdminFeedback />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

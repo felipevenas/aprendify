@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Settings, LogOut, Moon, Sun, BookOpen, Crown, CreditCard, Sparkles, Trophy, Shield, Menu, X } from "lucide-react";
+import { Settings, LogOut, Moon, Sun, BookOpen, Crown, CreditCard, Sparkles, Trophy, Shield, Menu, X, MessageSquarePlus } from "lucide-react";
 import { useTheme } from "next-themes";
 import { usePremiumContext } from "@/contexts/PremiumContext";
 import { PremiumModal } from "@/components/PremiumModal";
@@ -209,12 +209,20 @@ const Navbar = () => {
                   <Trophy className="h-4 w-4 mr-3 text-muted-foreground" />
                   Conquistas
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/feedback")} className="cursor-pointer rounded-lg py-2.5 px-3">
+                  <MessageSquarePlus className="h-4 w-4 mr-3 text-muted-foreground" />
+                  Enviar Feedback
+                </DropdownMenuItem>
                 {isAdmin && (
                   <>
                     <DropdownMenuSeparator className="my-2" />
                     <DropdownMenuItem onClick={() => navigate("/admin/notifications")} className="cursor-pointer rounded-lg py-2.5 px-3">
                       <Shield className="h-4 w-4 mr-3 text-primary" />
                       <span className="text-primary font-medium">Gerenciar Notificações</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/admin/feedback")} className="cursor-pointer rounded-lg py-2.5 px-3">
+                      <MessageSquarePlus className="h-4 w-4 mr-3 text-primary" />
+                      <span className="text-primary font-medium">Gerenciar Feedbacks</span>
                     </DropdownMenuItem>
                   </>
                 )}
@@ -339,6 +347,16 @@ const Navbar = () => {
                       </button>
                     </SheetClose>
 
+                    <SheetClose asChild>
+                      <button
+                        onClick={() => navigate("/feedback")}
+                        className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-accent transition-colors"
+                      >
+                        <MessageSquarePlus className="h-5 w-5 text-muted-foreground" />
+                        <span className="font-medium">Enviar Feedback</span>
+                      </button>
+                    </SheetClose>
+
                     {isAdmin && (
                       <>
                         <div className="h-px bg-border/50 my-2" />
@@ -349,6 +367,15 @@ const Navbar = () => {
                           >
                             <Shield className="h-5 w-5 text-primary" />
                             <span className="font-medium text-primary">Gerenciar Notificações</span>
+                          </button>
+                        </SheetClose>
+                        <SheetClose asChild>
+                          <button
+                            onClick={() => navigate("/admin/feedback")}
+                            className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-accent transition-colors"
+                          >
+                            <MessageSquarePlus className="h-5 w-5 text-primary" />
+                            <span className="font-medium text-primary">Gerenciar Feedbacks</span>
                           </button>
                         </SheetClose>
                       </>
