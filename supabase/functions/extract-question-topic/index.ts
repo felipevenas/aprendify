@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /**
  * Edge function para extrair o tópico específico de uma questão do ENEM usando IA
@@ -10,12 +11,18 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
  * - Identificar assuntos que precisam de atenção
  * - Popular o cronograma de estudos gerado por IA
  * - Exibir estatísticas detalhadas por tópico
+ * 
+ * Rate limited to prevent API quota exhaustion
  */
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Rate limit configuration
+const RATE_LIMIT_MAX_CALLS = 50; // 50 calls per hour (used during question answering)
+const RATE_LIMIT_WINDOW_MINUTES = 60;
 
 // Lista de tópicos válidos por disciplina para padronização
 const TOPIC_EXAMPLES: Record<string, string[]> = {
@@ -31,6 +38,61 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      console.error("[extract-question-topic] No authorization header");
+      return new Response(
+        JSON.stringify({ error: "Não autorizado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Create client with user token to verify authentication
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      console.error("[extract-question-topic] Auth failed:", authError?.message);
+      return new Response(
+        JSON.stringify({ error: "Não autorizado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("[extract-question-topic] Authenticated user:", user.id);
+
+    // Check rate limit using service role client
+    const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
+    
+    const { data: rateLimitAllowed, error: rateLimitError } = await supabaseService
+      .rpc("check_rate_limit", {
+        _user_id: user.id,
+        _function_name: "extract-question-topic",
+        _max_calls: RATE_LIMIT_MAX_CALLS,
+        _window_minutes: RATE_LIMIT_WINDOW_MINUTES,
+      });
+
+    if (rateLimitError) {
+      console.error("[extract-question-topic] Rate limit check error:", rateLimitError);
+      // Continue anyway if rate limit check fails
+    } else if (!rateLimitAllowed) {
+      console.log("[extract-question-topic] Rate limit exceeded for user:", user.id);
+      return new Response(
+        JSON.stringify({ 
+          topic: "Tópico não identificado",
+          rateLimited: true 
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { discipline, context, title, alternatives } = await req.json();
 
     if (!discipline) {

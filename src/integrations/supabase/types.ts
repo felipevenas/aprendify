@@ -38,6 +38,36 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_rate_limits: {
+        Row: {
+          calls_count: number
+          created_at: string
+          function_name: string
+          id: string
+          updated_at: string
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          calls_count?: number
+          created_at?: string
+          function_name: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          window_start?: string
+        }
+        Update: {
+          calls_count?: number
+          created_at?: string
+          function_name?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       coupon_redemptions: {
         Row: {
           coupon_id: string
@@ -983,6 +1013,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_rate_limit: {
+        Args: {
+          _function_name: string
+          _max_calls?: number
+          _user_id: string
+          _window_minutes?: number
+        }
+        Returns: boolean
+      }
       get_daily_question_count: { Args: { _user_id: string }; Returns: number }
       get_monthly_essay_count: { Args: { _user_id: string }; Returns: number }
       get_user_flashcard_count: { Args: { _user_id: string }; Returns: number }
