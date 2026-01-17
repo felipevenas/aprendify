@@ -23,17 +23,83 @@ serve(async (req) => {
   }
 
   try {
+    // Validate authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      console.error("Missing authorization header");
+      return new Response(
+        JSON.stringify({ error: "Não autorizado" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Create client with user token to verify authentication
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader },
+      },
+    });
+
+    // Get the authenticated user
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+
+    if (userError || !user) {
+      console.error("Invalid token:", userError);
+      return new Response(
+        JSON.stringify({ error: "Token inválido" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const { simuladoId } = await req.json();
 
     if (!simuladoId) {
       throw new Error("simuladoId é obrigatório");
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    console.log("Analyzing simulado:", simuladoId, "for user:", user.id);
 
-    console.log("Analyzing simulado:", simuladoId);
+    // Verify ownership of the simulado (using anon key respects RLS)
+    const { data: simulado, error: simError } = await supabaseAuth
+      .from("simulados")
+      .select("user_id")
+      .eq("id", simuladoId)
+      .single();
+
+    if (simError || !simulado) {
+      console.error("Simulado not found or access denied:", simError);
+      return new Response(
+        JSON.stringify({ error: "Simulado não encontrado" }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    if (simulado.user_id !== user.id) {
+      console.error("User", user.id, "attempted to access simulado owned by", simulado.user_id);
+      return new Response(
+        JSON.stringify({ error: "Acesso negado" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Use service role for data operations (after ownership is verified)
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Fetch simulado answers
     const { data: answers, error: answersError } = await supabase
