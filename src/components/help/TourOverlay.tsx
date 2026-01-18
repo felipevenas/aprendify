@@ -1,18 +1,21 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHelpTooltips } from "@/contexts/HelpTooltipsContext";
 
-interface TooltipPosition {
+interface ElementRect {
   top: number;
   left: number;
   width: number;
   height: number;
+  bottom: number;
+  right: number;
 }
 
 /**
  * Overlay do tour com spotlight nos elementos
+ * Usa posicionamento fixed baseado no viewport
  */
 const TourOverlay = () => {
   const {
@@ -25,53 +28,62 @@ const TourOverlay = () => {
     markTourAsSeen,
   } = useHelpTooltips();
 
-  const [position, setPosition] = useState<TooltipPosition | null>(null);
+  const [elementRect, setElementRect] = useState<ElementRect | null>(null);
+  const rafRef = useRef<number | null>(null);
   const currentTooltip = tooltips[currentTooltipIndex];
 
-  // Scroll to and highlight the target element
+  // Atualiza a posição do elemento alvo
   const updatePosition = useCallback(() => {
-    if (!currentTooltip) return;
+    if (!currentTooltip) {
+      setElementRect(null);
+      return;
+    }
 
     const element = document.querySelector(currentTooltip.target);
     if (element) {
       const rect = element.getBoundingClientRect();
-      const scrollTop = window.scrollY || document.documentElement.scrollTop;
-      const scrollLeft = window.scrollX || document.documentElement.scrollLeft;
-
-      setPosition({
-        top: rect.top + scrollTop,
-        left: rect.left + scrollLeft,
+      
+      setElementRect({
+        top: rect.top,
+        left: rect.left,
         width: rect.width,
         height: rect.height,
+        bottom: rect.bottom,
+        right: rect.right,
       });
 
-      // Scroll element into view with offset
-      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Scroll suave para o elemento se não estiver visível
+      const isInView = rect.top >= 0 && rect.bottom <= window.innerHeight;
+      if (!isInView) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
     } else {
-      setPosition(null);
+      setElementRect(null);
     }
   }, [currentTooltip]);
 
+  // Atualiza posição continuamente enquanto o tour está ativo
   useEffect(() => {
-    if (showTooltips && currentTooltip) {
-      // Small delay to allow any animations to complete
-      const timer = setTimeout(updatePosition, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [showTooltips, currentTooltip, currentTooltipIndex, updatePosition]);
+    if (!showTooltips || !currentTooltip) return;
 
-  // Update position on resize
-  useEffect(() => {
-    if (!showTooltips) return;
+    const animate = () => {
+      updatePosition();
+      rafRef.current = requestAnimationFrame(animate);
+    };
 
-    window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition);
+    // Pequeno delay inicial para garantir que elementos estão renderizados
+    const timer = setTimeout(() => {
+      updatePosition();
+      rafRef.current = requestAnimationFrame(animate);
+    }, 150);
 
     return () => {
-      window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition);
+      clearTimeout(timer);
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
     };
-  }, [showTooltips, updatePosition]);
+  }, [showTooltips, currentTooltip, currentTooltipIndex, updatePosition]);
 
   const handleFinish = () => {
     markTourAsSeen();
@@ -88,10 +100,11 @@ const TourOverlay = () => {
   const isLastStep = currentTooltipIndex === tooltips.length - 1;
   const isFirstStep = currentTooltipIndex === 0;
 
-  // Calculate tooltip card position
-  const getTooltipCardStyle = () => {
-    if (!position) {
+  // Calcula posição do card de tooltip
+  const getTooltipCardStyle = (): React.CSSProperties => {
+    if (!elementRect) {
       return {
+        position: "fixed",
         top: "50%",
         left: "50%",
         transform: "translate(-50%, -50%)",
@@ -99,21 +112,34 @@ const TourOverlay = () => {
     }
 
     const cardWidth = 320;
-    const cardHeight = 200;
+    const cardHeight = 260;
     const padding = 16;
+    const highlightPadding = 8;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
-    // Try to position below the element first
-    let top = position.top + position.height + padding;
-    let left = position.left + position.width / 2 - cardWidth / 2;
+    // Tenta posicionar abaixo do elemento
+    let top = elementRect.bottom + highlightPadding + padding;
+    let left = elementRect.left + elementRect.width / 2 - cardWidth / 2;
 
-    // If below goes off screen, try above
-    if (top + cardHeight > viewportHeight + window.scrollY) {
-      top = position.top - cardHeight - padding;
+    // Se não couber abaixo, tenta acima
+    if (top + cardHeight > viewportHeight - padding) {
+      top = elementRect.top - highlightPadding - padding - cardHeight;
     }
 
-    // Keep within horizontal bounds
+    // Se não couber acima, posiciona ao lado
+    if (top < padding) {
+      top = Math.max(padding, elementRect.top);
+      // Tenta à direita
+      if (elementRect.right + padding + cardWidth < viewportWidth) {
+        left = elementRect.right + highlightPadding + padding;
+      } else {
+        // Tenta à esquerda
+        left = elementRect.left - highlightPadding - padding - cardWidth;
+      }
+    }
+
+    // Mantém dentro dos limites horizontais
     if (left < padding) {
       left = padding;
     } else if (left + cardWidth > viewportWidth - padding) {
@@ -121,68 +147,82 @@ const TourOverlay = () => {
     }
 
     return {
-      top: `${top}px`,
+      position: "fixed",
+      top: `${Math.max(padding, top)}px`,
       left: `${left}px`,
     };
   };
 
+  const highlightPadding = 8;
+
   return (
     <AnimatePresence>
       <motion.div
+        key="tour-overlay"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50"
+        className="fixed inset-0 z-[9999]"
+        style={{ pointerEvents: "auto" }}
       >
-        {/* Dark overlay with cutout for highlighted element */}
-        <svg className="absolute inset-0 w-full h-full" style={{ height: document.documentElement.scrollHeight }}>
-          <defs>
-            <mask id="spotlight-mask">
-              <rect x="0" y="0" width="100%" height="100%" fill="white" />
-              {position && (
-                <rect
-                  x={position.left - 8}
-                  y={position.top - 8}
-                  width={position.width + 16}
-                  height={position.height + 16}
-                  rx="8"
-                  fill="black"
-                />
-              )}
-            </mask>
-          </defs>
-          <rect
-            x="0"
-            y="0"
-            width="100%"
-            height="100%"
-            fill="rgba(0, 0, 0, 0.75)"
-            mask="url(#spotlight-mask)"
-          />
-        </svg>
+        {/* Overlay escuro com recorte para o elemento destacado */}
+        <div className="fixed inset-0" style={{ pointerEvents: "none" }}>
+          <svg 
+            className="w-full h-full"
+            style={{ position: "fixed", inset: 0 }}
+          >
+            <defs>
+              <mask id="spotlight-mask">
+                <rect x="0" y="0" width="100%" height="100%" fill="white" />
+                {elementRect && (
+                  <rect
+                    x={elementRect.left - highlightPadding}
+                    y={elementRect.top - highlightPadding}
+                    width={elementRect.width + highlightPadding * 2}
+                    height={elementRect.height + highlightPadding * 2}
+                    rx="12"
+                    fill="black"
+                  />
+                )}
+              </mask>
+            </defs>
+            <rect
+              x="0"
+              y="0"
+              width="100%"
+              height="100%"
+              fill="rgba(0, 0, 0, 0.8)"
+              mask="url(#spotlight-mask)"
+            />
+          </svg>
+        </div>
 
-        {/* Highlight border around element */}
-        {position && (
+        {/* Borda de destaque ao redor do elemento */}
+        {elementRect && (
           <motion.div
+            key={`highlight-${currentTooltipIndex}`}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="absolute border-2 border-primary rounded-lg pointer-events-none"
+            transition={{ duration: 0.3 }}
+            className="fixed border-2 border-primary rounded-xl pointer-events-none"
             style={{
-              top: position.top - 8,
-              left: position.left - 8,
-              width: position.width + 16,
-              height: position.height + 16,
-              boxShadow: "0 0 0 4px rgba(var(--primary), 0.3), 0 0 20px rgba(var(--primary), 0.4)",
+              top: elementRect.top - highlightPadding,
+              left: elementRect.left - highlightPadding,
+              width: elementRect.width + highlightPadding * 2,
+              height: elementRect.height + highlightPadding * 2,
+              boxShadow: "0 0 0 4px hsl(var(--primary) / 0.3), 0 0 30px hsl(var(--primary) / 0.4)",
             }}
           />
         )}
 
-        {/* Tooltip card */}
+        {/* Card do tooltip */}
         <motion.div
+          key={`tooltip-card-${currentTooltipIndex}`}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 10 }}
-          className="absolute bg-card border border-border rounded-xl shadow-2xl p-5 w-80 z-10"
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="bg-card border border-border rounded-xl shadow-2xl p-5 w-80"
           style={getTooltipCardStyle()}
         >
           {/* Header */}
