@@ -25,6 +25,41 @@ import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
 import QuickStats from "@/components/dashboard/QuickStats";
 import ContextualCTA from "@/components/dashboard/ContextualCTA";
 import { PageLoader } from "@/components/ui/page-loader";
+import { useHelpTooltips } from "@/contexts/HelpTooltipsContext";
+
+// Tooltips de ajuda do Dashboard
+const dashboardTooltips = [
+  {
+    id: "welcome-banner",
+    title: "Bem-vindo ao Aprendify!",
+    description: "Aqui você verá suas metas diárias, streak de estudos e sugestões personalizadas de IA para otimizar seus estudos.",
+    target: "[data-tour='welcome-banner']",
+  },
+  {
+    id: "quick-stats",
+    title: "Estatísticas Rápidas",
+    description: "Acompanhe seu progresso diário: questões respondidas, taxa de acertos e tempo de estudo em um só lugar.",
+    target: "[data-tour='quick-stats']",
+  },
+  {
+    id: "question-bank",
+    title: "Banco de Questões",
+    description: "Pratique com milhares de questões reais do ENEM de 2009 até 2024. Filtre por disciplina, ano e dificuldade.",
+    target: "[data-tour='question-bank']",
+  },
+  {
+    id: "stats-chart",
+    title: "Gráfico de Desempenho",
+    description: "Visualize sua evolução ao longo do tempo. Identifique padrões e áreas que precisam de mais atenção.",
+    target: "[data-tour='stats-chart']",
+  },
+  {
+    id: "modules-grid",
+    title: "Módulos de Estudo",
+    description: "Acesse cronogramas, tarefas, anotações, flashcards, correção de redação e simulados. Cada módulo foi projetado para otimizar seu aprendizado.",
+    target: "[data-tour='modules-grid']",
+  },
+];
 
 /**
  * Dashboard principal da aplicação
@@ -35,6 +70,23 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
+  const { setTooltips, hasSeenTour, startTour } = useHelpTooltips();
+
+  // Configurar tooltips do dashboard
+  useEffect(() => {
+    setTooltips(dashboardTooltips);
+  }, [setTooltips]);
+
+  // Mostrar tour automaticamente para novos usuários
+  useEffect(() => {
+    if (!loading && !hasSeenTour) {
+      // Pequeno delay para garantir que os elementos estão renderizados
+      const timer = setTimeout(() => {
+        startTour();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, hasSeenTour, startTour]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -209,13 +261,17 @@ const Dashboard = () => {
         {/* Conteúdo principal */}
         <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           {/* Welcome Banner Dinâmico */}
-          <WelcomeBanner 
-            userName={user?.user_metadata?.full_name?.split(" ")[0] || "Estudante"}
-            userId={user?.id}
-          />
+          <div data-tour="welcome-banner">
+            <WelcomeBanner 
+              userName={user?.user_metadata?.full_name?.split(" ")[0] || "Estudante"}
+              userId={user?.id}
+            />
+          </div>
 
           {/* Quick Stats Row - 4 mini-cards */}
-          <QuickStats userId={user?.id} />
+          <div data-tour="quick-stats">
+            <QuickStats userId={user?.id} />
+          </div>
 
           {/* CTA Contextual */}
           <ContextualCTA userId={user?.id} />
@@ -228,7 +284,7 @@ const Dashboard = () => {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 mb-5 sm:mb-6"
           >
             {/* Banco de Questões - ocupa 2 colunas */}
-            <motion.div variants={itemVariants} className="md:col-span-2">
+            <motion.div variants={itemVariants} className="md:col-span-2" data-tour="question-bank">
               <Card
                 className="group cursor-pointer border-primary/20 overflow-hidden relative h-full bg-card"
                 onClick={() => navigate("/questions")}
@@ -269,7 +325,7 @@ const Dashboard = () => {
             </motion.div>
 
             {/* Gráfico de estatísticas */}
-            <motion.div variants={itemVariants}>
+            <motion.div variants={itemVariants} data-tour="stats-chart">
               <div className="h-full">
                 <QuestionStatsChart />
               </div>
@@ -282,6 +338,7 @@ const Dashboard = () => {
             initial="hidden"
             animate="visible"
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6"
+            data-tour="modules-grid"
           >
             {cards
               .filter((card) => !card.featured)
