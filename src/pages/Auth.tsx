@@ -23,9 +23,54 @@ import { useWindowSize } from "@/hooks/useWindowSize";
 const RECAPTCHA_SITE_KEY = "6LezXEAsAAAAAOo6AkVD45Qo8JXucgmzsjTpcMZB";
 
 // Schema de validação com zod para segurança
-const emailSchema = z.string().trim().email("E-mail inválido").max(255, "E-mail muito longo");
-const usernameSchema = z.string().trim().min(3, "Mínimo 3 caracteres").max(30, "Máximo 30 caracteres").regex(/^[a-zA-Z0-9_]+$/, "Apenas letras, números e _");
-const phoneSchema = z.string().trim().regex(/^(\+?[0-9]{10,15})?$/, "Telefone inválido").optional();
+const emailSchema = z
+  .string()
+  .trim()
+  .min(1, "E-mail é obrigatório")
+  .email("E-mail inválido. Use o formato: exemplo@dominio.com")
+  .max(255, "E-mail muito longo")
+  .refine((email) => {
+    // Validação adicional de formato de email
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
+  }, "E-mail inválido. Verifique o formato");
+
+const usernameSchema = z
+  .string()
+  .trim()
+  .min(3, "Nome de usuário deve ter no mínimo 3 caracteres")
+  .max(30, "Nome de usuário deve ter no máximo 30 caracteres")
+  .regex(/^[a-zA-Z]/, "Nome de usuário deve começar com uma letra")
+  .regex(/^[a-zA-Z0-9_]+$/, "Apenas letras, números e underscore (_) são permitidos")
+  .refine((username) => !username.includes("__"), "Não pode ter underscores consecutivos");
+
+const fullNameSchema = z
+  .string()
+  .trim()
+  .min(3, "Nome completo deve ter no mínimo 3 caracteres")
+  .max(100, "Nome muito longo")
+  .regex(/^[a-zA-ZÀ-ÿ\s]+$/, "Nome deve conter apenas letras")
+  .refine((name) => name.split(" ").length >= 2, "Digite seu nome completo (nome e sobrenome)");
+
+const phoneSchema = z
+  .string()
+  .trim()
+  .min(1, "Telefone é obrigatório")
+  .regex(/^[\d\s()+-]+$/, "Telefone deve conter apenas números")
+  .refine((phone) => {
+    const digitsOnly = phone.replace(/\D/g, "");
+    return digitsOnly.length >= 10 && digitsOnly.length <= 15;
+  }, "Telefone deve ter entre 10 e 15 dígitos");
+
+const birthdateSchema = z
+  .string()
+  .min(1, "Data de nascimento é obrigatória")
+  .refine((date) => {
+    const birthDate = new Date(date);
+    const today = new Date();
+    const age = today.getFullYear() - birthDate.getFullYear();
+    return age >= 10 && age <= 100;
+  }, "Idade deve estar entre 10 e 100 anos");
 
 /**
  * Conteúdos dinâmicos que mudam na tela de login
@@ -221,7 +266,17 @@ const Auth = () => {
           }
         }
 
-        // Validações de cadastro com zod
+        // Validações de cadastro com zod - todos os campos obrigatórios
+        try {
+          fullNameSchema.parse(fullName);
+        } catch (e) {
+          if (e instanceof z.ZodError) {
+            toast.error(e.errors[0].message);
+            setLoading(false);
+            return;
+          }
+        }
+
         try {
           emailSchema.parse(email);
         } catch (e) {
@@ -255,15 +310,23 @@ const Auth = () => {
           return;
         }
 
-        if (phone) {
-          try {
-            phoneSchema.parse(phone);
-          } catch (e) {
-            if (e instanceof z.ZodError) {
-              toast.error(e.errors[0].message);
-              setLoading(false);
-              return;
-            }
+        try {
+          phoneSchema.parse(phone);
+        } catch (e) {
+          if (e instanceof z.ZodError) {
+            toast.error(e.errors[0].message);
+            setLoading(false);
+            return;
+          }
+        }
+
+        try {
+          birthdateSchema.parse(birthdate);
+        } catch (e) {
+          if (e instanceof z.ZodError) {
+            toast.error(e.errors[0].message);
+            setLoading(false);
+            return;
           }
         }
 
@@ -777,6 +840,7 @@ const Auth = () => {
                       onChange={(e) => setBirthdate(e.target.value)}
                       onFocus={() => setFocusedInput("birthdate")}
                       onBlur={() => setFocusedInput(null)}
+                      required
                       disabled={loading}
                       className="h-12 text-base transition-all duration-300"
                     />
@@ -801,7 +865,7 @@ const Auth = () => {
                       onChange={(e) => setPhone(e.target.value)}
                       onFocus={() => setFocusedInput("phone")}
                       onBlur={() => setFocusedInput(null)}
-                      required={!isLogin}
+                      required
                       disabled={loading}
                       className="h-12 text-base transition-all duration-300"
                     />
