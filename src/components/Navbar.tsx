@@ -181,11 +181,11 @@ const Navbar = () => {
                   className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-accent cursor-pointer"
                   onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                 >
-                  <div className="flex items-center">
+                <div className="flex items-center">
                     {theme === "dark" ? (
-                      <Moon className="h-4 w-4 mr-3 text-muted-foreground" />
+                      <Moon className="h-4 w-4 mr-3 text-foreground/70" />
                     ) : (
-                      <Sun className="h-4 w-4 mr-3 text-muted-foreground" />
+                      <Sun className="h-4 w-4 mr-3 text-foreground/70" />
                     )}
                     <span className="text-sm">Tema Escuro</span>
                   </div>
@@ -198,24 +198,25 @@ const Navbar = () => {
                 <DropdownMenuSeparator className="my-2" />
 
                 <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer rounded-lg py-2.5 px-3">
-                  <Settings className="h-4 w-4 mr-3 text-muted-foreground" />
+                  <Settings className="h-4 w-4 mr-3 text-foreground/70" />
                   Configurações
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/subscription")} className="cursor-pointer rounded-lg py-2.5 px-3">
-                  <CreditCard className="h-4 w-4 mr-3 text-muted-foreground" />
+                  <CreditCard className="h-4 w-4 mr-3 text-foreground/70" />
                   Minha Assinatura
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/achievements")} className="cursor-pointer rounded-lg py-2.5 px-3">
-                  <Trophy className="h-4 w-4 mr-3 text-muted-foreground" />
+                  <Trophy className="h-4 w-4 mr-3 text-foreground/70" />
                   Conquistas
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/feedback")} className="cursor-pointer rounded-lg py-2.5 px-3">
-                  <MessageSquarePlus className="h-4 w-4 mr-3 text-muted-foreground" />
+                  <MessageSquarePlus className="h-4 w-4 mr-3 text-foreground/70" />
                   Enviar Feedback
                 </DropdownMenuItem>
                 {isAdmin && (
                   <>
                     <DropdownMenuSeparator className="my-2" />
+                    <p className="px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">Ferramentas de Admin</p>
                     <DropdownMenuItem onClick={() => navigate("/admin/notifications")} className="cursor-pointer rounded-lg py-2.5 px-3">
                       <Shield className="h-4 w-4 mr-3 text-primary" />
                       <span className="text-primary font-medium">Gerenciar Notificações</span>
@@ -303,9 +304,9 @@ const Navbar = () => {
                     >
                       <div className="flex items-center gap-3">
                         {theme === "dark" ? (
-                          <Moon className="h-5 w-5 text-muted-foreground" />
+                          <Moon className="h-5 w-5 text-foreground/70" />
                         ) : (
-                          <Sun className="h-5 w-5 text-muted-foreground" />
+                          <Sun className="h-5 w-5 text-foreground/70" />
                         )}
                         <span className="font-medium">Tema Escuro</span>
                       </div>
@@ -322,7 +323,7 @@ const Navbar = () => {
                         onClick={() => navigate("/settings")}
                         className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-accent transition-colors"
                       >
-                        <Settings className="h-5 w-5 text-muted-foreground" />
+                        <Settings className="h-5 w-5 text-foreground/70" />
                         <span className="font-medium">Configurações</span>
                       </button>
                     </SheetClose>
@@ -332,7 +333,7 @@ const Navbar = () => {
                         onClick={() => navigate("/subscription")}
                         className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-accent transition-colors"
                       >
-                        <CreditCard className="h-5 w-5 text-muted-foreground" />
+                        <CreditCard className="h-5 w-5 text-foreground/70" />
                         <span className="font-medium">Minha Assinatura</span>
                       </button>
                     </SheetClose>
@@ -342,7 +343,7 @@ const Navbar = () => {
                         onClick={() => navigate("/achievements")}
                         className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-accent transition-colors"
                       >
-                        <Trophy className="h-5 w-5 text-muted-foreground" />
+                        <Trophy className="h-5 w-5 text-foreground/70" />
                         <span className="font-medium">Conquistas</span>
                       </button>
                     </SheetClose>
@@ -352,7 +353,7 @@ const Navbar = () => {
                         onClick={() => navigate("/feedback")}
                         className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-accent transition-colors"
                       >
-                        <MessageSquarePlus className="h-5 w-5 text-muted-foreground" />
+                        <MessageSquarePlus className="h-5 w-5 text-foreground/70" />
                         <span className="font-medium">Enviar Feedback</span>
                       </button>
                     </SheetClose>
@@ -360,6 +361,7 @@ const Navbar = () => {
                     {isAdmin && (
                       <>
                         <div className="h-px bg-border/50 my-2" />
+                        <p className="px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">Ferramentas de Admin</p>
                         <SheetClose asChild>
                           <button
                             onClick={() => navigate("/admin/notifications")}
