@@ -862,11 +862,20 @@ const Auth = () => {
                       type="tel"
                       placeholder="(00) 00000-0000"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => {
+                        // Aplica máscara de telefone (00) 00000-0000
+                        let value = e.target.value.replace(/\D/g, '');
+                        if (value.length <= 11) {
+                          value = value.replace(/^(\d{2})(\d)/g, '($1) $2');
+                          value = value.replace(/(\d{5})(\d)/, '$1-$2');
+                        }
+                        setPhone(value);
+                      }}
                       onFocus={() => setFocusedInput("phone")}
                       onBlur={() => setFocusedInput(null)}
                       required
                       disabled={loading}
+                      maxLength={15}
                       className="h-12 text-base transition-all duration-300"
                     />
                   </div>
