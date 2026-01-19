@@ -200,33 +200,33 @@ export const NotificationBell = () => {
                   transition={{ delay: index * 0.05 }}
                   onClick={() => !notification.is_read && markAsRead(notification.id)}
                   className={cn(
-                    "p-3 rounded-lg border cursor-pointer transition-all duration-200",
+                    "p-2.5 sm:p-3 rounded-lg border cursor-pointer transition-all duration-200",
                     notification.is_read
                       ? "bg-muted/30 opacity-70"
                       : notificationColors[notification.notification_type] || "bg-muted",
                     !notification.is_read && "hover:scale-[1.02]"
                   )}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="p-1.5 rounded-lg bg-background/50">
-                      {notificationIcons[notification.notification_type] || <Bell className="h-4 w-4" />}
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <div className="p-1 sm:p-1.5 rounded-lg bg-background/50 shrink-0">
+                      {notificationIcons[notification.notification_type] || <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <div className="flex items-start justify-between gap-1.5 sm:gap-2">
                         <h4 className={cn(
-                          "font-medium text-sm truncate",
+                          "font-medium text-xs sm:text-sm leading-tight break-words",
                           !notification.is_read && "font-semibold"
                         )}>
                           {notification.title}
                         </h4>
                         {!notification.is_read && (
-                          <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
+                          <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-primary shrink-0 mt-1" />
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                      <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 line-clamp-2 break-words">
                         {notification.content}
                       </p>
-                      <p className="text-xs text-muted-foreground/70 mt-2">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground/70 mt-1.5 sm:mt-2">
                         {formatDistanceToNow(new Date(notification.created_at), {
                           addSuffix: true,
                           locale: ptBR,
