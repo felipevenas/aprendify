@@ -14,7 +14,7 @@ interface HelpTooltipsContextType {
   setCurrentTooltipIndex: (index: number) => void;
   tooltips: TooltipInfo[];
   setTooltips: (tooltips: TooltipInfo[]) => void;
-  startTour: () => void;
+  startTour: (markAsSeen?: boolean) => void;
   endTour: () => void;
   nextTooltip: () => void;
   prevTooltip: () => void;
@@ -38,9 +38,14 @@ export const HelpTooltipsProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setHasSeenTour(seen === "true");
   }, []);
 
-  const startTour = useCallback(() => {
+  const startTour = useCallback((markAsSeen: boolean = false) => {
     setCurrentTooltipIndex(0);
     setShowTooltips(true);
+    // Mark as seen immediately when auto-started for new users
+    if (markAsSeen) {
+      localStorage.setItem(TOUR_SEEN_KEY, "true");
+      setHasSeenTour(true);
+    }
   }, []);
 
   const endTour = useCallback(() => {

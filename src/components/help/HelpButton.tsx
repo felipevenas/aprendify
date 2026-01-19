@@ -25,7 +25,7 @@ const HelpButton = () => {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  onClick={startTour}
+                  onClick={() => startTour()}
                   size="icon"
                   className="h-12 w-12 rounded-full shadow-lg bg-primary hover:bg-primary/90 transition-all duration-300 hover:scale-110"
                 >
