@@ -82,7 +82,7 @@ const Dashboard = () => {
     if (!loading && !hasSeenTour) {
       // Pequeno delay para garantir que os elementos estão renderizados
       const timer = setTimeout(() => {
-        startTour();
+        startTour(true); // Mark as seen immediately when auto-started
       }, 1000);
       return () => clearTimeout(timer);
     }
