@@ -163,23 +163,24 @@ export const NotificationBell = () => {
           </AnimatePresence>
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 sm:w-96 p-0 rounded-xl shadow-xl">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="font-semibold">Notificações</h3>
+      <PopoverContent align="end" className="w-[calc(100vw-2rem)] max-w-96 p-0 rounded-xl shadow-xl sm:w-96">
+        <div className="flex items-center justify-between p-3 sm:p-4 border-b gap-2">
+          <h3 className="font-semibold text-sm sm:text-base">Notificações</h3>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
               onClick={markAllAsRead}
-              className="text-xs h-7"
+              className="text-xs h-7 px-2 sm:px-3 shrink-0"
             >
               <Check className="h-3 w-3 mr-1" />
-              Marcar todas como lidas
+              <span className="hidden sm:inline">Marcar todas como lidas</span>
+              <span className="sm:hidden">Marcar lidas</span>
             </Button>
           )}
         </div>
 
-        <ScrollArea className="h-[400px]">
+        <ScrollArea className="h-[60vh] max-h-[400px] sm:h-[400px]">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
