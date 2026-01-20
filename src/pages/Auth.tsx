@@ -90,9 +90,9 @@ const dynamicContent = [
   },
   {
     title: "Pratique com milhares de questões reais",
-    description: "Acesse questões do ENEM de 2009 até 2024 e acompanhe seu desempenho em tempo real.",
+    description: "Acesse questões do ENEM de 2009 até 2025 e acompanhe seu desempenho em tempo real.",
     features: [
-      "Questões do ENEM 2009-2024",
+      "Questões do ENEM 2009-2025",
       "Feedback instantâneo",
       "Estatísticas detalhadas",
       "Filtros por disciplina e ano",

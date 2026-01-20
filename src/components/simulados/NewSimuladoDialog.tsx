@@ -57,8 +57,8 @@ export const NewSimuladoDialog = ({ open, onOpenChange }: NewSimuladoDialogProps
     questionCount: number;
   } | null>(null);
 
-  // Available years (2009-2024)
-  const years = Array.from({ length: 16 }, (_, i) => String(2024 - i));
+  // Available years (2009-2025)
+  const years = Array.from({ length: 17 }, (_, i) => String(2025 - i));
 
   /**
    * Start the preparation process

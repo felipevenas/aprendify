@@ -48,12 +48,12 @@ const QuestionFilters = ({
   const [availableTopics, setAvailableTopics] = useState<string[]>([]);
   const [loadingTopics, setLoadingTopics] = useState(false);
 
-  // Anos disponíveis (2009-2024) + opção "Todos"
+  // Anos disponíveis (2009-2025) + opção "Todos"
   const years = [
     { value: "all", label: "Todos os anos" },
-    ...Array.from({ length: 16 }, (_, i) => ({ 
-      value: (2024 - i).toString(), 
-      label: `ENEM ${2024 - i}` 
+    ...Array.from({ length: 17 }, (_, i) => ({ 
+      value: (2025 - i).toString(), 
+      label: `ENEM ${2025 - i}` 
     }))
   ];
 
