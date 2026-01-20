@@ -269,6 +269,9 @@ export const useSimuladoPreparation = () => {
 
   /**
    * Prepare simulado - GARANTE a quantidade exata de questões
+   * Para simulados oficiais: 45 questões por disciplina, APENAS do ano selecionado
+   * Dia 1: 45 Linguagens + 45 Humanas = 90
+   * Dia 2: 45 Matemática + 45 Natureza = 90
    */
   const prepareSimulado = async (
     simuladoId: string,
@@ -291,16 +294,22 @@ export const useSimuladoPreparation = () => {
 
     try {
       const disciplines = getDisciplinesForType(type);
+      const isOfficialDay = type === "official_day1" || type === "official_day2";
+      const questionsPerDiscipline = isOfficialDay ? 45 : Math.ceil(totalQuestions / disciplines.length);
+      
       const collectedQuestions: QuestionData[] = [];
       const usedIds = new Set<string>();
 
-      const addUniqueQuestions = (questions: QuestionData[]) => {
+      const addUniqueQuestions = (questions: QuestionData[], limit: number): number => {
+        let added = 0;
         for (const q of questions) {
-          if (!usedIds.has(q.id) && collectedQuestions.length < totalQuestions) {
+          if (!usedIds.has(q.id) && added < limit) {
             usedIds.add(q.id);
             collectedQuestions.push(q);
+            added++;
           }
         }
+        return added;
       };
 
       const updateProgress = (message: string) => {
@@ -313,103 +322,94 @@ export const useSimuladoPreparation = () => {
         }));
       };
 
-      // CASO 1: Ano específico selecionado (Simulado Oficial)
-      if (year) {
+      // CASO 1: Simulado Oficial (ano específico selecionado)
+      // Busca APENAS do ano selecionado, garantindo 45 questões por disciplina
+      if (year && isOfficialDay) {
+        const yearNum = parseInt(year);
+        console.log(`[Simulado Oficial] Year ${year}, disciplines: ${disciplines.join(', ')}, ${questionsPerDiscipline} per discipline`);
+
+        // Buscar questões de cada disciplina separadamente
+        for (const discipline of disciplines) {
+          if (signal.aborted) throw new Error("Cancelado");
+          
+          const disciplineLabel = discipline === "linguagens" ? "Linguagens" :
+                                  discipline === "humanas" ? "Ciências Humanas" :
+                                  discipline === "natureza" ? "Ciências da Natureza" :
+                                  discipline === "matematica" ? "Matemática" : discipline;
+          
+          updateProgress(`Carregando ${disciplineLabel} do ENEM ${year}...`);
+          
+          let disciplineQuestions: QuestionData[] = [];
+          
+          if (yearNum >= 2024) {
+            // Anos 2024+: buscar do banco local
+            disciplineQuestions = await fetchLocalQuestions(year, [discipline]);
+          } else {
+            // Anos 2009-2023: buscar da API
+            disciplineQuestions = await fetchQuestionsFromAPI(year, [discipline], signal);
+          }
+          
+          console.log(`[Simulado] ${discipline} returned ${disciplineQuestions.length} questions for ${year}`);
+          
+          // Verificar se temos questões suficientes desta disciplina
+          if (disciplineQuestions.length < questionsPerDiscipline) {
+            throw new Error(
+              `O ENEM ${year} possui apenas ${disciplineQuestions.length} questões de ${disciplineLabel}. ` +
+              `São necessárias ${questionsPerDiscipline} questões. ` +
+              `Por favor, escolha outro ano.`
+            );
+          }
+          
+          // Embaralhar e adicionar exatamente 45 questões
+          const shuffled = disciplineQuestions.sort(() => Math.random() - 0.5);
+          addUniqueQuestions(shuffled, questionsPerDiscipline);
+          
+          updateProgress(`${collectedQuestions.length}/${totalQuestions} questões carregadas`);
+        }
+      }
+      // CASO 2: Ano específico mas não oficial (custom com ano)
+      else if (year) {
         const yearNum = parseInt(year);
         console.log(`[Simulado] Starting for year ${year}, disciplines: ${disciplines.join(', ')}, target: ${totalQuestions}`);
-        updateProgress(`Carregando ${disciplines.join(' + ')} do ENEM ${year}...`);
+        updateProgress(`Carregando questões do ENEM ${year}...`);
 
         // Determinar fonte baseado no ano
         if (yearNum >= 2024) {
-          // Anos 2024+: buscar do banco local
           const localQuestions = await fetchLocalQuestions(year, disciplines);
           console.log(`[Simulado] Local DB returned ${localQuestions.length} questions for ${year}`);
-          
-          // Embaralhar e adicionar
           const shuffled = localQuestions.sort(() => Math.random() - 0.5);
-          addUniqueQuestions(shuffled);
-          
-          updateProgress(`${collectedQuestions.length}/${totalQuestions} questões do ENEM ${year}`);
+          addUniqueQuestions(shuffled, totalQuestions);
         } else {
-          // Anos 2009-2023: buscar da API com progresso detalhado
-          const apiQuestions = await fetchQuestionsFromAPI(
-            year, 
-            disciplines, 
-            signal,
-            (loaded) => {
-              updateProgress(`Carregando ENEM ${year}... (${loaded} questões encontradas)`);
-            }
-          );
-          
+          const apiQuestions = await fetchQuestionsFromAPI(year, disciplines, signal);
           console.log(`[Simulado] API returned ${apiQuestions.length} questions for ${year}`);
-          
-          // Embaralhar e adicionar
           const shuffled = apiQuestions.sort(() => Math.random() - 0.5);
-          addUniqueQuestions(shuffled);
-          
-          updateProgress(`${collectedQuestions.length}/${totalQuestions} questões do ENEM ${year}`);
+          addUniqueQuestions(shuffled, totalQuestions);
         }
 
-        // Se não conseguiu questões suficientes do ano selecionado, buscar de anos adjacentes
-        if (collectedQuestions.length < totalQuestions) {
-          console.log(`[Simulado] Need more questions: ${collectedQuestions.length}/${totalQuestions}`);
-          
-          const adjacentYears = [
-            yearNum - 1, yearNum + 1, 
-            yearNum - 2, yearNum + 2,
-            yearNum - 3, yearNum + 3
-          ]
-            .filter(y => y >= 2009 && y <= 2024 && y !== yearNum)
-            .map(String);
-
-          for (const adjYear of adjacentYears) {
-            if (signal.aborted) throw new Error("Cancelado");
-            if (collectedQuestions.length >= totalQuestions) break;
-
-            updateProgress(`Complementando com ENEM ${adjYear}... (${collectedQuestions.length}/${totalQuestions})`);
-            
-            const adjYearNum = parseInt(adjYear);
-            let moreQuestions: QuestionData[];
-            
-            if (adjYearNum >= 2024) {
-              moreQuestions = await fetchLocalQuestions(adjYear, disciplines);
-            } else {
-              moreQuestions = await fetchQuestionsFromAPI(adjYear, disciplines, signal);
-            }
-            
-            const shuffled = moreQuestions.sort(() => Math.random() - 0.5);
-            addUniqueQuestions(shuffled);
-            
-            console.log(`[Simulado] After ${adjYear}: ${collectedQuestions.length}/${totalQuestions}`);
-          }
-        }
-
-        // Validar se conseguimos questões suficientes
+        // Validar se conseguimos questões suficientes DO ANO SELECIONADO
         if (collectedQuestions.length < totalQuestions) {
           throw new Error(
-            `Foram encontradas apenas ${collectedQuestions.length} de ${totalQuestions} questões necessárias. ` +
-            `Tente novamente ou escolha outro tipo de simulado.`
+            `O ENEM ${year} possui apenas ${collectedQuestions.length} questões das disciplinas selecionadas. ` +
+            `São necessárias ${totalQuestions} questões. ` +
+            `Por favor, escolha outro ano ou reduza a quantidade de questões.`
           );
         }
       } 
-      // CASO 2: Simulado personalizado (sem ano específico)
+      // CASO 3: Simulado personalizado (sem ano específico)
       else {
         updateProgress("Buscando questões de múltiplos anos...");
 
         // Primeiro: banco local (questões mais recentes, 2024+)
         const localQuestions = await fetchLocalQuestions(null, disciplines);
         const shuffledLocal = localQuestions.sort(() => Math.random() - 0.5);
-        addUniqueQuestions(shuffledLocal);
+        addUniqueQuestions(shuffledLocal, totalQuestions);
         
         console.log(`[Simulado] Local DB: ${collectedQuestions.length}/${totalQuestions}`);
         updateProgress(`${collectedQuestions.length}/${totalQuestions} do banco local`);
 
         // Se ainda precisar de mais questões, buscar da API por ano
         if (collectedQuestions.length < totalQuestions) {
-          // Anos disponíveis na API (2009-2023)
           const apiYears = ["2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", "2014", "2013", "2012", "2011", "2010", "2009"];
-          
-          // Embaralhar anos para variedade
           const shuffledYears = apiYears.sort(() => Math.random() - 0.5);
           
           for (const y of shuffledYears) {
@@ -420,7 +420,7 @@ export const useSimuladoPreparation = () => {
             
             const apiQuestions = await fetchQuestionsFromAPI(y, disciplines, signal);
             const shuffled = apiQuestions.sort(() => Math.random() - 0.5);
-            addUniqueQuestions(shuffled);
+            addUniqueQuestions(shuffled, totalQuestions - collectedQuestions.length);
             
             console.log(`[Simulado] After ${y}: ${collectedQuestions.length}/${totalQuestions}`);
           }
@@ -435,10 +435,21 @@ export const useSimuladoPreparation = () => {
         }
       }
 
-      // Embaralhar ordem final das questões
-      const finalQuestions = collectedQuestions
-        .sort(() => Math.random() - 0.5)
-        .slice(0, totalQuestions);
+      // Para simulados oficiais, ordenar por disciplina (primeiro 45 de uma, depois 45 da outra)
+      let finalQuestions: QuestionData[];
+      if (isOfficialDay) {
+        // Ordenar: primeiro todas de uma disciplina, depois todas da outra
+        const disc1 = disciplines[0];
+        const disc2 = disciplines[1];
+        const questionsDisc1 = collectedQuestions.filter(q => q.discipline === disc1).slice(0, 45);
+        const questionsDisc2 = collectedQuestions.filter(q => q.discipline === disc2).slice(0, 45);
+        finalQuestions = [...questionsDisc1, ...questionsDisc2];
+      } else {
+        // Para simulados custom, embaralhar ordem final
+        finalQuestions = collectedQuestions
+          .sort(() => Math.random() - 0.5)
+          .slice(0, totalQuestions);
+      }
 
       // VALIDAÇÃO FINAL RIGOROSA
       if (finalQuestions.length !== totalQuestions) {
