@@ -228,7 +228,7 @@ const Questions = () => {
                 Banco de Questões ENEM
               </h1>
               <p className="text-muted-foreground text-base sm:text-lg">
-                Pratique com questões reais das provas de 2009 a 2024
+                Pratique com questões reais das provas de 2009 a 2025
               </p>
             </div>
             

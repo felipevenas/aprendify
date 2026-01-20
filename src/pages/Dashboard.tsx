@@ -44,7 +44,7 @@ const dashboardTooltips = [
   {
     id: "question-bank",
     title: "Banco de Questões",
-    description: "Pratique com milhares de questões reais do ENEM de 2009 até 2024. Filtre por disciplina, ano e dificuldade.",
+    description: "Pratique com milhares de questões reais do ENEM de 2009 até 2025. Filtre por disciplina, ano e dificuldade.",
     target: "[data-tour='question-bank']",
   },
   {
@@ -77,16 +77,16 @@ const Dashboard = () => {
     setTooltips(dashboardTooltips);
   }, [setTooltips]);
 
-  // Mostrar tour automaticamente para novos usuários
+  // Mostrar tour automaticamente para novos usuários (apenas uma vez por usuário)
   useEffect(() => {
-    if (!loading && !hasSeenTour) {
+    if (!loading && user && !hasSeenTour) {
       // Pequeno delay para garantir que os elementos estão renderizados
       const timer = setTimeout(() => {
         startTour(true); // Mark as seen immediately when auto-started
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [loading, hasSeenTour, startTour]);
+  }, [loading, user, hasSeenTour, startTour]);
 
   useEffect(() => {
     const checkAuth = async () => {
