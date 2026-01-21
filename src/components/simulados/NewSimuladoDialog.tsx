@@ -194,7 +194,7 @@ export const NewSimuladoDialog = ({ open, onOpenChange }: NewSimuladoDialogProps
       const result = await prepareForPDF(type, year, qCount);
 
       if (result.success && result.questions.length > 0) {
-        // Generate PDF
+        // Generate PDF with all question data including answers and files
         const pdfQuestions = result.questions.map((q, index) => ({
           index: index + 1,
           title: q.title,
@@ -202,6 +202,8 @@ export const NewSimuladoDialog = ({ open, onOpenChange }: NewSimuladoDialogProps
           alternatives: q.alternatives,
           discipline: q.discipline,
           year: q.year,
+          correct_alternative: q.correct_alternative,
+          files: q.files,
         }));
 
         await generateSimuladoPDF(pdfQuestions, type, year);
