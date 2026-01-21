@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, FileText, BookOpen, Calculator, Beaker, Users, Loader2 } from "lucide-react";
+import { Clock, FileText, BookOpen, Calculator, Beaker, Users, Loader2, Download } from "lucide-react";
 import { useSimulados, SimuladoType } from "@/hooks/useSimulados";
-import { useSimuladoPreparation } from "@/hooks/useSimuladoPreparation";
+import { useSimuladoPreparation, usePDFOnlyPreparation } from "@/hooks/useSimuladoPreparation";
 import { SimuladoPreparationModal } from "@/components/simulados/SimuladoPreparationModal";
+import { generateSimuladoPDF } from "@/lib/generateSimuladoPDF";
 import { toast } from "sonner";
 
 interface NewSimuladoDialogProps {
@@ -38,8 +39,21 @@ export const NewSimuladoDialog = ({ open, onOpenChange }: NewSimuladoDialogProps
     reset: resetPreparation,
   } = useSimuladoPreparation();
 
+  const {
+    status: pdfStatus,
+    progress: pdfProgress,
+    message: pdfMessage,
+    error: pdfError,
+    loadedCount: pdfLoadedCount,
+    targetCount: pdfTargetCount,
+    prepareForPDF,
+    reset: resetPDFPreparation,
+  } = usePDFOnlyPreparation();
+
   const [loading, setLoading] = useState(false);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
   const [showPreparation, setShowPreparation] = useState(false);
+  const [showPDFPreparation, setShowPDFPreparation] = useState(false);
   const [currentSimuladoId, setCurrentSimuladoId] = useState<string | null>(null);
 
   // Official exam state
@@ -52,6 +66,13 @@ export const NewSimuladoDialog = ({ open, onOpenChange }: NewSimuladoDialogProps
 
   // Pending config for retry
   const [pendingConfig, setPendingConfig] = useState<{
+    type: SimuladoType;
+    year: string | null;
+    questionCount: number;
+  } | null>(null);
+
+  // PDF config for retry
+  const [pdfPendingConfig, setPDFPendingConfig] = useState<{
     type: SimuladoType;
     year: string | null;
     questionCount: number;
@@ -161,6 +182,74 @@ export const NewSimuladoDialog = ({ open, onOpenChange }: NewSimuladoDialogProps
     }
   };
 
+  /**
+   * Generate PDF Only (without starting simulado)
+   */
+  const handleGeneratePDFOnly = async (type: SimuladoType, year: string | null, qCount: number) => {
+    setGeneratingPDF(true);
+    setPDFPendingConfig({ type, year, questionCount: qCount });
+    setShowPDFPreparation(true);
+
+    try {
+      const result = await prepareForPDF(type, year, qCount);
+
+      if (result.success && result.questions.length > 0) {
+        // Generate PDF
+        const pdfQuestions = result.questions.map((q, index) => ({
+          index: index + 1,
+          title: q.title,
+          context: q.context,
+          alternatives: q.alternatives,
+          discipline: q.discipline,
+          year: q.year,
+        }));
+
+        await generateSimuladoPDF(pdfQuestions, type, year);
+        toast.success("PDF gerado com sucesso!");
+        setShowPDFPreparation(false);
+        resetPDFPreparation();
+        onOpenChange(false);
+      }
+    } catch (error) {
+      console.error("[PDF Generation] Error:", error);
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
+
+  const handlePDFRetry = async () => {
+    if (!pdfPendingConfig) return;
+
+    resetPDFPreparation();
+    await handleGeneratePDFOnly(pdfPendingConfig.type, pdfPendingConfig.year, pdfPendingConfig.questionCount);
+  };
+
+  const handlePDFCancel = () => {
+    setShowPDFPreparation(false);
+    resetPDFPreparation();
+    setPDFPendingConfig(null);
+    setGeneratingPDF(false);
+  };
+
+  const handlePDFComplete = () => {
+    setShowPDFPreparation(false);
+    resetPDFPreparation();
+    onOpenChange(false);
+  };
+
+  const handleGenerateOfficialPDF = async () => {
+    if (!selectedYear) {
+      toast.error("Selecione um ano");
+      return;
+    }
+    const type = selectedDay === "day1" ? "official_day1" : "official_day2";
+    await handleGeneratePDFOnly(type as SimuladoType, selectedYear, 90);
+  };
+
+  const handleGenerateCustomPDF = async () => {
+    await handleGeneratePDFOnly(customType, null, parseInt(questionCount));
+  };
+
   // Custom type options with icons and descriptions
   const customOptions = [
     {
@@ -207,6 +296,21 @@ export const NewSimuladoDialog = ({ open, onOpenChange }: NewSimuladoDialogProps
         onRetry={handleRetry}
         onCancel={handleCancel}
         onContinue={handleContinue}
+      />
+
+      {/* PDF Preparation Modal */}
+      <SimuladoPreparationModal
+        open={showPDFPreparation}
+        status={pdfStatus}
+        progress={pdfProgress}
+        message={pdfMessage || "Gerando PDF..."}
+        error={pdfError}
+        loadedCount={pdfLoadedCount}
+        targetCount={pdfTargetCount}
+        onRetry={handlePDFRetry}
+        onCancel={handlePDFCancel}
+        onContinue={handlePDFComplete}
+        continueLabel="Fechar"
       />
 
       {/* Main Dialog */}
@@ -300,10 +404,20 @@ export const NewSimuladoDialog = ({ open, onOpenChange }: NewSimuladoDialogProps
                   <span>90 questões • Prova completa oficial do ENEM {selectedYear || "..."}</span>
                 </div>
 
-                <Button onClick={handleStartOfficial} className="w-full" disabled={!selectedYear || loading}>
-                  {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Iniciar Simulado Oficial
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={handleStartOfficial} className="flex-1" disabled={!selectedYear || loading || generatingPDF}>
+                    {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Iniciar Simulado
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleGenerateOfficialPDF} 
+                    disabled={!selectedYear || loading || generatingPDF}
+                    title="Gerar PDF para imprimir"
+                  >
+                    {generatingPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
             </TabsContent>
 
@@ -383,13 +497,23 @@ export const NewSimuladoDialog = ({ open, onOpenChange }: NewSimuladoDialogProps
 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted p-3 rounded-lg">
                   <Clock className="h-4 w-4" />
-                  <span>{questionCount === "90" ? "5h" : "2h30"} • Questões de anos aleatórios (2009-2024)</span>
+                  <span>{questionCount === "90" ? "5h" : "2h30"} • Questões de anos aleatórios (2009-2025)</span>
                 </div>
 
-                <Button onClick={handleStartCustom} className="w-full" disabled={loading}>
-                  {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Iniciar Simulado Personalizado
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={handleStartCustom} className="flex-1" disabled={loading || generatingPDF}>
+                    {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Iniciar Simulado
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleGenerateCustomPDF} 
+                    disabled={loading || generatingPDF}
+                    title="Gerar PDF para imprimir"
+                  >
+                    {generatingPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
             </TabsContent>
           </Tabs>
