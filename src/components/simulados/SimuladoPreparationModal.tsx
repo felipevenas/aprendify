@@ -21,6 +21,7 @@ interface SimuladoPreparationModalProps {
   onRetry: () => void;
   onCancel: () => void;
   onContinue: () => void;
+  continueLabel?: string;
 }
 
 /**
@@ -39,6 +40,7 @@ export const SimuladoPreparationModal = ({
   onRetry,
   onCancel,
   onContinue,
+  continueLabel = "Iniciar Simulado",
 }: SimuladoPreparationModalProps) => {
   // Ícone baseado no status
   const StatusIcon = () => {
@@ -179,7 +181,7 @@ export const SimuladoPreparationModal = ({
             {status === "ready" && (
               <Button onClick={onContinue} className="flex-1">
                 <CheckCircle2 className="h-4 w-4 mr-2" />
-                Iniciar Simulado
+                {continueLabel}
               </Button>
             )}
 

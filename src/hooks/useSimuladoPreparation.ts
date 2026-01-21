@@ -323,7 +323,7 @@ export const useSimuladoPreparation = () => {
       };
 
       // CASO 1: Simulado Oficial (ano específico selecionado)
-      // Busca APENAS do ano selecionado, garantindo 45 questões por disciplina
+      // Busca do ano selecionado, com FALLBACK para outros anos se necessário
       if (year && isOfficialDay) {
         const yearNum = parseInt(year);
         console.log(`[Simulado Oficial] Year ${year}, disciplines: ${disciplines.join(', ')}, ${questionsPerDiscipline} per discipline`);
@@ -351,13 +351,56 @@ export const useSimuladoPreparation = () => {
           
           console.log(`[Simulado] ${discipline} returned ${disciplineQuestions.length} questions for ${year}`);
           
-          // Verificar se temos questões suficientes desta disciplina
+          // Se não tiver questões suficientes, buscar de outros anos (FALLBACK)
           if (disciplineQuestions.length < questionsPerDiscipline) {
-            throw new Error(
-              `O ENEM ${year} possui apenas ${disciplineQuestions.length} questões de ${disciplineLabel}. ` +
-              `São necessárias ${questionsPerDiscipline} questões. ` +
-              `Por favor, escolha outro ano.`
-            );
+            console.log(`[Simulado] Fallback needed for ${discipline}: have ${disciplineQuestions.length}, need ${questionsPerDiscipline}`);
+            updateProgress(`Completando ${disciplineLabel} com outros anos...`);
+            
+            const usedIdsForDiscipline = new Set(disciplineQuestions.map(q => q.id));
+            
+            // Primeiro tentar do banco local (anos 2024+)
+            const localFallback = await fetchLocalQuestions(null, [discipline]);
+            const filteredLocal = localFallback.filter(q => !usedIdsForDiscipline.has(q.id) && q.year !== year);
+            const shuffledLocal = filteredLocal.sort(() => Math.random() - 0.5);
+            
+            for (const q of shuffledLocal) {
+              if (disciplineQuestions.length >= questionsPerDiscipline) break;
+              disciplineQuestions.push(q);
+              usedIdsForDiscipline.add(q.id);
+            }
+            
+            // Se ainda precisar de mais, buscar da API por ano
+            if (disciplineQuestions.length < questionsPerDiscipline) {
+              const fallbackYears = ["2023", "2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", "2014", "2013", "2012", "2011", "2010", "2009"]
+                .filter(y => y !== year)
+                .sort(() => Math.random() - 0.5);
+              
+              for (const fallbackYear of fallbackYears) {
+                if (signal.aborted) throw new Error("Cancelado");
+                if (disciplineQuestions.length >= questionsPerDiscipline) break;
+                
+                updateProgress(`Buscando ${disciplineLabel} do ENEM ${fallbackYear}...`);
+                
+                const apiFallback = await fetchQuestionsFromAPI(fallbackYear, [discipline], signal);
+                const filteredAPI = apiFallback.filter(q => !usedIdsForDiscipline.has(q.id));
+                const shuffledAPI = filteredAPI.sort(() => Math.random() - 0.5);
+                
+                for (const q of shuffledAPI) {
+                  if (disciplineQuestions.length >= questionsPerDiscipline) break;
+                  disciplineQuestions.push(q);
+                  usedIdsForDiscipline.add(q.id);
+                }
+              }
+            }
+            
+            // Verificar se conseguimos o mínimo necessário após fallback
+            if (disciplineQuestions.length < questionsPerDiscipline) {
+              throw new Error(
+                `Não foi possível encontrar ${questionsPerDiscipline} questões de ${disciplineLabel}. ` +
+                `Encontradas apenas ${disciplineQuestions.length}. ` +
+                `Por favor, tente novamente.`
+              );
+            }
           }
           
           // Embaralhar e adicionar exatamente 45 questões
@@ -517,6 +560,325 @@ export const useSimuladoPreparation = () => {
   return {
     ...state,
     prepareSimulado,
+    reset,
+  };
+};
+
+/**
+ * Hook para gerar PDF sem criar simulado no banco
+ * Retorna apenas as questões para geração de PDF
+ */
+export const usePDFOnlyPreparation = () => {
+  const [state, setState] = useState<PreparationState>({
+    status: "idle",
+    progress: 0,
+    message: "",
+    questions: [],
+    error: null,
+    loadedCount: 0,
+    targetCount: 0,
+  });
+
+  const lastRequestTimeRef = useRef<number>(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const reset = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setState({
+      status: "idle",
+      progress: 0,
+      message: "",
+      questions: [],
+      error: null,
+      loadedCount: 0,
+      targetCount: 0,
+    });
+  }, []);
+
+  const waitForRateLimit = async (): Promise<void> => {
+    const now = Date.now();
+    const timeSince = now - lastRequestTimeRef.current;
+    if (timeSince < API_CONFIG.rateLimitMs) {
+      await new Promise(resolve => setTimeout(resolve, API_CONFIG.rateLimitMs - timeSince));
+    }
+    lastRequestTimeRef.current = Date.now();
+  };
+
+  const fetchQuestionsFromAPI = async (
+    year: string,
+    disciplines: string[],
+    signal: AbortSignal
+  ): Promise<QuestionData[]> => {
+    const apiDisciplines = disciplines.map(mapLocalToAPI);
+    const allQuestions: any[] = [];
+    let offset = 0;
+    let hasMore = true;
+    let retryCount = 0;
+
+    while (hasMore && !signal.aborted) {
+      await waitForRateLimit();
+      
+      const url = `https://api.enem.dev/v1/exams/${year}/questions?limit=${API_CONFIG.pageSize}&offset=${offset}`;
+      
+      try {
+        const response = await fetch(url, { signal });
+        
+        if (response.status === 429) {
+          retryCount++;
+          if (retryCount > API_CONFIG.maxRetries) break;
+          
+          const retryAfter = response.headers.get("Retry-After");
+          const waitTime = parseInt(retryAfter || "5") * 1000;
+          await new Promise(resolve => setTimeout(resolve, Math.max(waitTime, API_CONFIG.retryDelayMs)));
+          continue;
+        }
+        
+        retryCount = 0;
+        if (response.status === 404 || !response.ok) break;
+
+        const data = await response.json();
+        if (!data.questions || data.questions.length === 0) break;
+
+        allQuestions.push(...data.questions);
+        hasMore = data.questions.length >= API_CONFIG.pageSize;
+        offset += API_CONFIG.pageSize;
+        if (offset > API_CONFIG.maxOffset) hasMore = false;
+      } catch (error) {
+        if (signal.aborted) throw error;
+        retryCount++;
+        if (retryCount <= API_CONFIG.maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, API_CONFIG.retryDelayMs));
+          continue;
+        }
+        break;
+      }
+    }
+
+    const filtered = allQuestions.filter(q => apiDisciplines.includes(q.discipline));
+    return filtered.map((q, idx) => ({
+      id: `api-${year}-${q.discipline}-${q.index || idx}`,
+      title: q.title || "",
+      context: q.context || null,
+      alternatives: Array.isArray(q.alternatives)
+        ? q.alternatives.map((alt: any) => ({ letter: alt.letter || "", text: alt.text || "" }))
+        : [],
+      alternatives_introduction: q.alternativesIntroduction || null,
+      discipline: mapAPIToLocal(q.discipline),
+      year: String(q.year || year),
+      index: q.index || idx,
+      files: Array.isArray(q.files) && q.files.length > 0 ? q.files : null,
+      correct_alternative: q.correctAlternative || "",
+    }));
+  };
+
+  const fetchLocalQuestions = async (
+    year: string | null,
+    disciplines: string[]
+  ): Promise<QuestionData[]> => {
+    let query = supabase
+      .from("enem_questions")
+      .select("*")
+      .in("discipline", disciplines)
+      .eq("is_active", true);
+
+    if (year) query = query.eq("year", year);
+
+    const { data, error } = await query;
+    if (error || !data) return [];
+
+    return data.map(q => ({
+      ...q,
+      alternatives: Array.isArray(q.alternatives)
+        ? (q.alternatives as unknown as Array<{ letter: string; text: string }>)
+        : [],
+    })) as unknown as QuestionData[];
+  };
+
+  const prepareForPDF = async (
+    type: SimuladoType,
+    year: string | null,
+    totalQuestions: number
+  ): Promise<{ success: boolean; questions: QuestionData[] }> => {
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
+    setState({
+      status: "preparing",
+      progress: 5,
+      message: "Preparando questões para PDF...",
+      questions: [],
+      error: null,
+      loadedCount: 0,
+      targetCount: totalQuestions,
+    });
+
+    try {
+      const disciplines = getDisciplinesForType(type);
+      const isOfficialDay = type === "official_day1" || type === "official_day2";
+      const questionsPerDiscipline = isOfficialDay ? 45 : Math.ceil(totalQuestions / disciplines.length);
+      
+      const collectedQuestions: QuestionData[] = [];
+      const usedIds = new Set<string>();
+
+      const addUniqueQuestions = (questions: QuestionData[], limit: number): number => {
+        let added = 0;
+        for (const q of questions) {
+          if (!usedIds.has(q.id) && added < limit) {
+            usedIds.add(q.id);
+            collectedQuestions.push(q);
+            added++;
+          }
+        }
+        return added;
+      };
+
+      const updateProgress = (message: string) => {
+        const progressPercent = Math.min(10 + (collectedQuestions.length / totalQuestions) * 80, 90);
+        setState(prev => ({
+          ...prev,
+          progress: progressPercent,
+          message,
+          loadedCount: collectedQuestions.length,
+        }));
+      };
+
+      // Similar logic to main hook but simplified
+      if (year && isOfficialDay) {
+        const yearNum = parseInt(year);
+        
+        for (const discipline of disciplines) {
+          if (signal.aborted) throw new Error("Cancelado");
+          
+          const disciplineLabel = discipline === "linguagens" ? "Linguagens" :
+                                  discipline === "humanas" ? "Ciências Humanas" :
+                                  discipline === "natureza" ? "Ciências da Natureza" :
+                                  discipline === "matematica" ? "Matemática" : discipline;
+          
+          updateProgress(`Carregando ${disciplineLabel}...`);
+          
+          let disciplineQuestions: QuestionData[] = [];
+          
+          if (yearNum >= 2024) {
+            disciplineQuestions = await fetchLocalQuestions(year, [discipline]);
+          } else {
+            disciplineQuestions = await fetchQuestionsFromAPI(year, [discipline], signal);
+          }
+          
+          // Fallback to other years if needed
+          if (disciplineQuestions.length < questionsPerDiscipline) {
+            const usedIdsForDiscipline = new Set(disciplineQuestions.map(q => q.id));
+            
+            const localFallback = await fetchLocalQuestions(null, [discipline]);
+            const filteredLocal = localFallback.filter(q => !usedIdsForDiscipline.has(q.id) && q.year !== year);
+            for (const q of filteredLocal.sort(() => Math.random() - 0.5)) {
+              if (disciplineQuestions.length >= questionsPerDiscipline) break;
+              disciplineQuestions.push(q);
+              usedIdsForDiscipline.add(q.id);
+            }
+            
+            if (disciplineQuestions.length < questionsPerDiscipline) {
+              const fallbackYears = ["2023", "2022", "2021", "2020", "2019", "2018", "2017"].filter(y => y !== year);
+              for (const fy of fallbackYears) {
+                if (disciplineQuestions.length >= questionsPerDiscipline) break;
+                const apiFallback = await fetchQuestionsFromAPI(fy, [discipline], signal);
+                for (const q of apiFallback.filter(q => !usedIdsForDiscipline.has(q.id))) {
+                  if (disciplineQuestions.length >= questionsPerDiscipline) break;
+                  disciplineQuestions.push(q);
+                  usedIdsForDiscipline.add(q.id);
+                }
+              }
+            }
+          }
+          
+          const shuffled = disciplineQuestions.sort(() => Math.random() - 0.5);
+          addUniqueQuestions(shuffled, questionsPerDiscipline);
+          updateProgress(`${collectedQuestions.length}/${totalQuestions} questões`);
+        }
+      } else if (year) {
+        const yearNum = parseInt(year);
+        updateProgress(`Carregando questões do ENEM ${year}...`);
+
+        if (yearNum >= 2024) {
+          const localQuestions = await fetchLocalQuestions(year, disciplines);
+          addUniqueQuestions(localQuestions.sort(() => Math.random() - 0.5), totalQuestions);
+        } else {
+          const apiQuestions = await fetchQuestionsFromAPI(year, disciplines, signal);
+          addUniqueQuestions(apiQuestions.sort(() => Math.random() - 0.5), totalQuestions);
+        }
+
+        // Fallback if needed
+        if (collectedQuestions.length < totalQuestions) {
+          const localFallback = await fetchLocalQuestions(null, disciplines);
+          addUniqueQuestions(localFallback.sort(() => Math.random() - 0.5), totalQuestions - collectedQuestions.length);
+        }
+      } else {
+        updateProgress("Buscando questões...");
+
+        const localQuestions = await fetchLocalQuestions(null, disciplines);
+        addUniqueQuestions(localQuestions.sort(() => Math.random() - 0.5), totalQuestions);
+        
+        if (collectedQuestions.length < totalQuestions) {
+          const apiYears = ["2023", "2022", "2021", "2020", "2019", "2018"];
+          for (const y of apiYears.sort(() => Math.random() - 0.5)) {
+            if (signal.aborted || collectedQuestions.length >= totalQuestions) break;
+            updateProgress(`Carregando ENEM ${y}...`);
+            const apiQuestions = await fetchQuestionsFromAPI(y, disciplines, signal);
+            addUniqueQuestions(apiQuestions.sort(() => Math.random() - 0.5), totalQuestions - collectedQuestions.length);
+          }
+        }
+      }
+
+      // Order by discipline for official simulados
+      let finalQuestions: QuestionData[];
+      if (isOfficialDay) {
+        const disc1 = disciplines[0];
+        const disc2 = disciplines[1];
+        const q1 = collectedQuestions.filter(q => q.discipline === disc1).slice(0, 45);
+        const q2 = collectedQuestions.filter(q => q.discipline === disc2).slice(0, 45);
+        finalQuestions = [...q1, ...q2];
+      } else {
+        finalQuestions = collectedQuestions.sort(() => Math.random() - 0.5).slice(0, totalQuestions);
+      }
+
+      if (finalQuestions.length < totalQuestions) {
+        throw new Error(`Encontradas apenas ${finalQuestions.length} de ${totalQuestions} questões.`);
+      }
+
+      setState({
+        status: "ready",
+        progress: 100,
+        message: `PDF pronto! ${finalQuestions.length} questões.`,
+        questions: finalQuestions,
+        error: null,
+        loadedCount: finalQuestions.length,
+        targetCount: totalQuestions,
+      });
+
+      return { success: true, questions: finalQuestions };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+
+      setState({
+        status: "error",
+        progress: 0,
+        message: "",
+        questions: [],
+        error: errorMessage,
+        loadedCount: 0,
+        targetCount: totalQuestions,
+      });
+
+      return { success: false, questions: [] };
+    }
+  };
+
+  return {
+    ...state,
+    prepareForPDF,
     reset,
   };
 };
