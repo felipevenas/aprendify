@@ -128,11 +128,11 @@ const SimuladoResults = () => {
 
     setGeneratingPDF(true);
     try {
-      // Fetch full question data for all answers
+      // Fetch full question data for all answers including correct_alternative and files
       const questionIds = answers.map(a => a.question_id);
       const { data: questionsData, error } = await supabase
         .from("enem_questions")
-        .select("id, index, title, context, alternatives, discipline, year")
+        .select("id, index, title, context, alternatives, discipline, year, correct_alternative, files")
         .in("id", questionIds);
 
       if (error || !questionsData) {
@@ -156,6 +156,8 @@ const SimuladoResults = () => {
               : [],
             discipline: questionData.discipline,
             year: questionData.year,
+            correct_alternative: questionData.correct_alternative,
+            files: questionData.files,
           };
         })
         .filter(Boolean) as Array<{
@@ -165,6 +167,8 @@ const SimuladoResults = () => {
           alternatives: Array<{ letter: string; text: string }>;
           discipline: string;
           year: string;
+          correct_alternative?: string;
+          files?: string[] | null;
         }>;
 
       await generateSimuladoPDF(orderedQuestions, simulado.type, simulado.year);
