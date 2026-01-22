@@ -1,9 +1,10 @@
 import jsPDF from "jspdf";
-import { formatDisciplineName } from "@/lib/formatters";
+import { formatDisciplineName, cleanMarkdownArtifacts, separateTextAndReference } from "@/lib/formatters";
 
 interface Alternative {
   letter: string;
   text: string;
+  files?: string[] | null;
 }
 
 interface QuestionData {
@@ -11,6 +12,7 @@ interface QuestionData {
   title: string;
   context: string | null;
   alternatives: Alternative[];
+  alternatives_introduction?: string | null;
   discipline: string;
   year: string;
   correct_alternative?: string;
@@ -21,46 +23,48 @@ interface QuestionData {
 const PAGE = {
   WIDTH: 210,
   HEIGHT: 297,
-  MARGIN_TOP: 20,
-  MARGIN_BOTTOM: 20,
-  MARGIN_LEFT: 18,
-  MARGIN_RIGHT: 18,
+  MARGIN_TOP: 22,
+  MARGIN_BOTTOM: 18,
+  MARGIN_LEFT: 16,
+  MARGIN_RIGHT: 16,
 } as const;
 
 const COLORS = {
-  PRIMARY: [37, 99, 235] as [number, number, number],      // Blue
-  TEXT: [17, 24, 39] as [number, number, number],          // Gray-900
-  MUTED: [107, 114, 128] as [number, number, number],      // Gray-500
-  LIGHT: [156, 163, 175] as [number, number, number],      // Gray-400
-  BORDER: [229, 231, 235] as [number, number, number],     // Gray-200
-  BACKGROUND: [249, 250, 251] as [number, number, number], // Gray-50
-  CORRECT: [22, 163, 74] as [number, number, number],      // Green-600
+  PRIMARY: [37, 99, 235] as [number, number, number],
+  TEXT: [17, 24, 39] as [number, number, number],
+  MUTED: [75, 85, 99] as [number, number, number],
+  LIGHT: [156, 163, 175] as [number, number, number],
+  BORDER: [209, 213, 219] as [number, number, number],
+  BACKGROUND: [249, 250, 251] as [number, number, number],
+  CONTEXT_BG: [243, 244, 246] as [number, number, number],
+  CORRECT: [22, 163, 74] as [number, number, number],
   WHITE: [255, 255, 255] as [number, number, number],
 } as const;
 
 const FONTS = {
-  TITLE: 16,
-  SUBTITLE: 11,
-  QUESTION_NUMBER: 11,
-  QUESTION_TEXT: 10,
+  HEADER_TITLE: 14,
+  HEADER_SUBTITLE: 9,
+  QUESTION_NUMBER: 10,
+  QUESTION_TEXT: 9.5,
   CONTEXT: 9,
-  ALTERNATIVE: 9.5,
-  CAPTION: 8,
-  FOOTER: 7.5,
+  ALTERNATIVE_INTRO: 9.5,
+  ALTERNATIVE: 9,
+  CAPTION: 7.5,
+  FOOTER: 7,
 } as const;
 
 const SPACING = {
-  LINE_HEIGHT: 4.5,
-  PARAGRAPH: 6,
-  SECTION: 10,
-  QUESTION_GAP: 12,
-  ALTERNATIVE_GAP: 3,
+  LINE_HEIGHT: 4.2,
+  PARAGRAPH: 5,
+  SECTION: 8,
+  QUESTION_GAP: 10,
+  ALTERNATIVE_GAP: 2.5,
 } as const;
 
-// ============= HELPERS =============
+// ============= TEXT PROCESSING =============
 
 /**
- * Clean and decode HTML entities
+ * Decode HTML entities
  */
 const decodeHtmlEntities = (text: string): string => {
   return text
@@ -71,39 +75,64 @@ const decodeHtmlEntities = (text: string): string => {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
-    .replace(/&ndash;/g, '–')
-    .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '-')
+    .replace(/&mdash;/g, '-')
     .replace(/&hellip;/g, '...')
     .replace(/&ldquo;/g, '"')
     .replace(/&rdquo;/g, '"')
     .replace(/&lsquo;/g, "'")
-    .replace(/&rsquo;/g, "'");
+    .replace(/&rsquo;/g, "'")
+    .replace(/&bull;/g, '•')
+    .replace(/&middot;/g, '·')
+    .replace(/&copy;/g, '©')
+    .replace(/&reg;/g, '®')
+    .replace(/&deg;/g, '°')
+    .replace(/&plusmn;/g, '±')
+    .replace(/&times;/g, '×')
+    .replace(/&divide;/g, '÷')
+    .replace(/&frac12;/g, '½')
+    .replace(/&frac14;/g, '¼')
+    .replace(/&frac34;/g, '¾')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)));
 };
 
 /**
- * Strip HTML tags and normalize whitespace
+ * Clean text for PDF - remove HTML and normalize
  */
-const stripHtml = (html: string): string => {
+const cleanTextForPDF = (html: string): string => {
+  if (!html) return '';
+  
   let text = html
+    // Convert line break tags to newlines
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<\/div>/gi, '\n')
     .replace(/<\/li>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/\n{3,}/g, '\n\n');
+    // Remove HTML tags but preserve content
+    .replace(/<[^>]+>/g, ' ');
   
   text = decodeHtmlEntities(text);
   
-  // Normalize whitespace but preserve intentional line breaks
-  return text
+  // Use cleanMarkdownArtifacts for additional cleaning
+  text = cleanMarkdownArtifacts(text);
+  
+  // Normalize whitespace within lines
+  text = text
     .split('\n')
     .map(line => line.replace(/\s+/g, ' ').trim())
+    .filter((line, idx, arr) => {
+      // Remove multiple consecutive empty lines
+      if (line === '' && idx > 0 && arr[idx - 1] === '') return false;
+      return true;
+    })
     .join('\n')
     .trim();
+  
+  return text;
 };
 
 /**
- * Text segment with formatting info
+ * Text segment with formatting
  */
 interface TextSegment {
   text: string;
@@ -112,32 +141,30 @@ interface TextSegment {
 }
 
 /**
- * Parse text for bold/italic formatting
+ * Parse text for bold/italic formatting markers
  */
 const parseFormattedText = (html: string): TextSegment[] => {
   const segments: TextSegment[] = [];
   
-  // Replace HTML tags with markers
+  // Replace HTML formatting tags with markers
   let text = html
-    .replace(/<strong>/gi, '⟨B⟩')
-    .replace(/<\/strong>/gi, '⟨/B⟩')
-    .replace(/<b>/gi, '⟨B⟩')
-    .replace(/<\/b>/gi, '⟨/B⟩')
-    .replace(/<em>/gi, '⟨I⟩')
-    .replace(/<\/em>/gi, '⟨/I⟩')
-    .replace(/<i>/gi, '⟨I⟩')
-    .replace(/<\/i>/gi, '⟨/I⟩');
+    .replace(/<strong>/gi, '[[B]]')
+    .replace(/<\/strong>/gi, '[[/B]]')
+    .replace(/<b>/gi, '[[B]]')
+    .replace(/<\/b>/gi, '[[/B]]')
+    .replace(/<em>/gi, '[[I]]')
+    .replace(/<\/em>/gi, '[[/I]]')
+    .replace(/<i>/gi, '[[I]]')
+    .replace(/<\/i>/gi, '[[/I]]');
   
-  // Clean HTML but keep markers
-  text = stripHtml(text);
+  // Clean the rest
+  text = cleanTextForPDF(text);
   
   // Handle markdown **bold** and *italic*
-  text = text.replace(/\*\*([^*]+)\*\*/g, '⟨B⟩$1⟨/B⟩');
-  text = text.replace(/__([^_]+)__/g, '⟨B⟩$1⟨/B⟩');
-  text = text.replace(/(?<![⟨\w])\*([^*]+)\*(?![⟩\w])/g, '⟨I⟩$1⟨/I⟩');
-  text = text.replace(/(?<![⟨\w])_([^_]+)_(?![⟩\w])/g, '⟨I⟩$1⟨/I⟩');
+  text = text.replace(/\*\*([^*]+)\*\*/g, '[[B]]$1[[/B]]');
+  text = text.replace(/__([^_]+)__/g, '[[B]]$1[[/B]]');
   
-  // Parse into segments
+  // Parse markers into segments
   let bold = false;
   let italic = false;
   let buffer = '';
@@ -151,22 +178,22 @@ const parseFormattedText = (html: string): TextSegment[] => {
   
   let i = 0;
   while (i < text.length) {
-    if (text.substring(i, i + 3) === '⟨B⟩') {
+    if (text.substring(i, i + 5) === '[[B]]') {
       flush();
       bold = true;
-      i += 3;
-    } else if (text.substring(i, i + 4) === '⟨/B⟩') {
+      i += 5;
+    } else if (text.substring(i, i + 6) === '[[/B]]') {
       flush();
       bold = false;
-      i += 4;
-    } else if (text.substring(i, i + 3) === '⟨I⟩') {
+      i += 6;
+    } else if (text.substring(i, i + 5) === '[[I]]') {
       flush();
       italic = true;
-      i += 3;
-    } else if (text.substring(i, i + 4) === '⟨/I⟩') {
+      i += 5;
+    } else if (text.substring(i, i + 6) === '[[/I]]') {
       flush();
       italic = false;
-      i += 4;
+      i += 6;
     } else {
       buffer += text[i];
       i++;
@@ -174,21 +201,24 @@ const parseFormattedText = (html: string): TextSegment[] => {
   }
   flush();
   
-  return segments.length > 0 ? segments : [{ text: stripHtml(html), bold: false, italic: false }];
+  // If no segments, return plain text
+  if (segments.length === 0) {
+    return [{ text: cleanTextForPDF(html), bold: false, italic: false }];
+  }
+  
+  return segments;
 };
 
 /**
- * Load image as base64 with proper error handling
+ * Load image as base64 with dimensions
  */
 const loadImageAsBase64 = async (url: string): Promise<{ data: string; width: number; height: number } | null> => {
   try {
     let finalUrl = url;
     
-    // Handle relative URLs
     if (!url.startsWith('http')) {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       if (supabaseUrl) {
-        // Remove leading slash if present
         const cleanPath = url.startsWith('/') ? url.slice(1) : url;
         if (cleanPath.includes('enem-images') || cleanPath.includes('storage')) {
           finalUrl = `${supabaseUrl}/storage/v1/object/public/${cleanPath}`;
@@ -200,15 +230,8 @@ const loadImageAsBase64 = async (url: string): Promise<{ data: string; width: nu
       }
     }
     
-    const response = await fetch(finalUrl, { 
-      mode: 'cors',
-      cache: 'force-cache'
-    });
-    
-    if (!response.ok) {
-      console.warn(`[PDF] Image fetch failed: ${response.status} for ${finalUrl}`);
-      return null;
-    }
+    const response = await fetch(finalUrl, { mode: 'cors', cache: 'force-cache' });
+    if (!response.ok) return null;
     
     const blob = await response.blob();
     
@@ -218,23 +241,10 @@ const loadImageAsBase64 = async (url: string): Promise<{ data: string; width: nu
       
       reader.onloadend = () => {
         const dataUrl = reader.result as string;
-        
-        img.onload = () => {
-          resolve({ 
-            data: dataUrl, 
-            width: img.naturalWidth, 
-            height: img.naturalHeight 
-          });
-        };
-        
-        img.onerror = () => {
-          // Still return the data even if we can't get dimensions
-          resolve({ data: dataUrl, width: 200, height: 150 });
-        };
-        
+        img.onload = () => resolve({ data: dataUrl, width: img.naturalWidth, height: img.naturalHeight });
+        img.onerror = () => resolve({ data: dataUrl, width: 200, height: 150 });
         img.src = dataUrl;
       };
-      
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(blob);
     });
@@ -244,13 +254,9 @@ const loadImageAsBase64 = async (url: string): Promise<{ data: string; width: nu
   }
 };
 
-/**
- * Get image format from base64 data URL
- */
 const getImageFormat = (dataUrl: string): string => {
   if (dataUrl.includes('image/png')) return 'PNG';
   if (dataUrl.includes('image/gif')) return 'GIF';
-  if (dataUrl.includes('image/webp')) return 'WEBP';
   return 'JPEG';
 };
 
@@ -274,29 +280,28 @@ export const generateSimuladoPDF = async (
   let currentPage = 1;
   let yPosition = PAGE.MARGIN_TOP;
 
-  // Answer key storage
   const answerKey: { question: number; answer: string; discipline: string }[] = [];
 
-  // ============= HEADER/FOOTER =============
+  // ============= PAGE UTILITIES =============
   
   const addHeader = (isAnswerKey = false) => {
     // Header background
     doc.setFillColor(...COLORS.BACKGROUND);
-    doc.rect(0, 0, PAGE.WIDTH, 18, "F");
+    doc.rect(0, 0, PAGE.WIDTH, 16, "F");
     
     // Title
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(FONTS.TITLE);
+    doc.setFontSize(FONTS.HEADER_TITLE);
     doc.setTextColor(...COLORS.PRIMARY);
     
     let title = isAnswerKey ? "GABARITO" : "SIMULADO ENEM";
     if (simuladoYear) title += ` ${simuladoYear}`;
-    doc.text(title, PAGE.MARGIN_LEFT, 11);
+    doc.text(title, PAGE.MARGIN_LEFT, 10);
     
-    // Subtitle with type
+    // Type subtitle
     const typeLabels: Record<string, string> = {
-      official_day1: "Dia 1 • Linguagens e Ciências Humanas",
-      official_day2: "Dia 2 • Matemática e Ciências da Natureza",
+      official_day1: "Dia 1 - Linguagens e Ciências Humanas",
+      official_day2: "Dia 2 - Matemática e Ciências da Natureza",
       custom_naturezas: "Ciências da Natureza",
       custom_humanas: "Ciências Humanas",
       custom_matematica: "Matemática",
@@ -304,44 +309,27 @@ export const generateSimuladoPDF = async (
     };
     
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(FONTS.CAPTION);
+    doc.setFontSize(FONTS.HEADER_SUBTITLE);
     doc.setTextColor(...COLORS.MUTED);
+    doc.text(typeLabels[simuladoType] || "Simulado", PAGE.MARGIN_LEFT, 14);
     
-    const subtitle = typeLabels[simuladoType] || "Simulado";
-    doc.text(subtitle, PAGE.MARGIN_LEFT, 15.5);
-    
-    // Page number
-    doc.text(`Página ${currentPage}`, PAGE.WIDTH - PAGE.MARGIN_RIGHT, 11, { align: "right" });
-    
-    // Question count
+    // Page number and question count
+    doc.text(`Página ${currentPage}`, PAGE.WIDTH - PAGE.MARGIN_RIGHT, 10, { align: "right" });
     if (!isAnswerKey) {
-      doc.text(`${questions.length} questões`, PAGE.WIDTH - PAGE.MARGIN_RIGHT, 15.5, { align: "right" });
+      doc.text(`${questions.length} questões`, PAGE.WIDTH - PAGE.MARGIN_RIGHT, 14, { align: "right" });
     }
     
-    // Separator line
+    // Separator
     doc.setDrawColor(...COLORS.BORDER);
-    doc.setLineWidth(0.4);
-    doc.line(PAGE.MARGIN_LEFT, 18, PAGE.WIDTH - PAGE.MARGIN_RIGHT, 18);
+    doc.setLineWidth(0.3);
+    doc.line(PAGE.MARGIN_LEFT, 16, PAGE.WIDTH - PAGE.MARGIN_RIGHT, 16);
   };
 
   const addFooter = () => {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(FONTS.FOOTER);
     doc.setTextColor(...COLORS.LIGHT);
-    doc.text(
-      "Aprendify • Seu parceiro de estudos para o ENEM", 
-      PAGE.WIDTH / 2, 
-      PAGE.HEIGHT - 10, 
-      { align: "center" }
-    );
-  };
-
-  // ============= TEXT UTILITIES =============
-
-  const wrapText = (text: string, maxWidth: number, fontSize: number): string[] => {
-    doc.setFontSize(fontSize);
-    const cleanText = stripHtml(text);
-    return doc.splitTextToSize(cleanText, maxWidth);
+    doc.text("Aprendify - Seu parceiro de estudos para o ENEM", PAGE.WIDTH / 2, PAGE.HEIGHT - 8, { align: "center" });
   };
 
   const checkPageBreak = (requiredHeight: number): boolean => {
@@ -349,15 +337,49 @@ export const generateSimuladoPDF = async (
       doc.addPage();
       currentPage++;
       addHeader();
-      yPosition = PAGE.MARGIN_TOP + 8;
+      yPosition = PAGE.MARGIN_TOP + 4;
       return true;
     }
     return false;
   };
 
   /**
+   * Draw text with word wrapping, returns height used
+   */
+  const drawText = (
+    text: string,
+    x: number,
+    startY: number,
+    maxWidth: number,
+    fontSize: number,
+    color: [number, number, number],
+    fontStyle: "normal" | "bold" | "italic" = "normal",
+    lineSpacing: number = SPACING.LINE_HEIGHT
+  ): number => {
+    doc.setFont("helvetica", fontStyle);
+    doc.setFontSize(fontSize);
+    doc.setTextColor(...color);
+    
+    const cleanText = cleanTextForPDF(text);
+    const lines = doc.splitTextToSize(cleanText, maxWidth);
+    
+    let y = startY;
+    for (const line of lines) {
+      if (y + lineSpacing > maxY) {
+        doc.addPage();
+        currentPage++;
+        addHeader();
+        y = PAGE.MARGIN_TOP + 4;
+      }
+      doc.text(line, x, y);
+      y += lineSpacing;
+    }
+    
+    return y - startY;
+  };
+
+  /**
    * Draw formatted text with bold/italic support
-   * Returns the height used
    */
   const drawFormattedText = (
     rawText: string,
@@ -365,51 +387,42 @@ export const generateSimuladoPDF = async (
     startY: number,
     maxWidth: number,
     fontSize: number,
-    color: [number, number, number],
-    checkBreaks = true
+    color: [number, number, number]
   ): number => {
     const segments = parseFormattedText(rawText);
     doc.setFontSize(fontSize);
     
-    // Build lines with word wrapping
-    interface LineWord {
-      text: string;
-      bold: boolean;
-      italic: boolean;
-    }
-    
+    // Build lines with proper word wrapping
+    interface LineWord { text: string; bold: boolean; italic: boolean; }
     const lines: LineWord[][] = [];
     let currentLine: LineWord[] = [];
     let currentLineWidth = 0;
     
     for (const segment of segments) {
-      const words = segment.text.split(/(\s+)/);
+      // Split segment text into words, preserving spaces
+      const parts = segment.text.split(/(\s+)/);
       
-      for (const word of words) {
-        if (!word) continue;
+      for (const part of parts) {
+        if (!part) continue;
         
-        // Check for newlines
-        if (word.includes('\n')) {
-          const parts = word.split('\n');
-          parts.forEach((part, idx) => {
-            if (part) {
-              const style = segment.bold && segment.italic ? 'bolditalic' : 
-                           segment.bold ? 'bold' : 
-                           segment.italic ? 'italic' : 'normal';
+        // Handle newlines
+        if (part.includes('\n')) {
+          const subParts = part.split('\n');
+          subParts.forEach((subPart, idx) => {
+            if (subPart) {
+              const style = segment.bold ? 'bold' : segment.italic ? 'italic' : 'normal';
               doc.setFont("helvetica", style);
-              const partWidth = doc.getTextWidth(part);
+              const partWidth = doc.getTextWidth(subPart);
               
               if (currentLineWidth + partWidth > maxWidth && currentLine.length > 0) {
                 lines.push([...currentLine]);
                 currentLine = [];
                 currentLineWidth = 0;
               }
-              
-              currentLine.push({ text: part, bold: segment.bold, italic: segment.italic });
+              currentLine.push({ text: subPart, bold: segment.bold, italic: segment.italic });
               currentLineWidth += partWidth;
             }
-            
-            if (idx < parts.length - 1) {
+            if (idx < subParts.length - 1) {
               if (currentLine.length > 0) {
                 lines.push([...currentLine]);
                 currentLine = [];
@@ -420,82 +433,125 @@ export const generateSimuladoPDF = async (
           continue;
         }
         
-        const style = segment.bold && segment.italic ? 'bolditalic' : 
-                     segment.bold ? 'bold' : 
-                     segment.italic ? 'italic' : 'normal';
+        const style = segment.bold ? 'bold' : segment.italic ? 'italic' : 'normal';
         doc.setFont("helvetica", style);
-        const wordWidth = doc.getTextWidth(word);
+        const partWidth = doc.getTextWidth(part);
         
-        if (currentLineWidth + wordWidth > maxWidth && currentLine.length > 0) {
+        if (currentLineWidth + partWidth > maxWidth && currentLine.length > 0) {
           lines.push([...currentLine]);
           currentLine = [];
           currentLineWidth = 0;
         }
-        
-        currentLine.push({ text: word, bold: segment.bold, italic: segment.italic });
-        currentLineWidth += wordWidth;
+        currentLine.push({ text: part, bold: segment.bold, italic: segment.italic });
+        currentLineWidth += partWidth;
       }
     }
-    
-    if (currentLine.length > 0) {
-      lines.push(currentLine);
-    }
+    if (currentLine.length > 0) lines.push(currentLine);
     
     // Draw lines
     let y = startY;
-    
     for (const line of lines) {
-      if (checkBreaks && y + SPACING.LINE_HEIGHT > maxY) {
+      if (y + SPACING.LINE_HEIGHT > maxY) {
         doc.addPage();
         currentPage++;
         addHeader();
-        y = PAGE.MARGIN_TOP + 8;
+        y = PAGE.MARGIN_TOP + 4;
       }
       
       let currentX = x;
-      
       for (const word of line) {
-        const style = word.bold && word.italic ? 'bolditalic' : 
-                     word.bold ? 'bold' : 
-                     word.italic ? 'italic' : 'normal';
+        const style = word.bold ? 'bold' : word.italic ? 'italic' : 'normal';
         doc.setFont("helvetica", style);
         doc.setTextColor(...color);
         doc.text(word.text, currentX, y);
         currentX += doc.getTextWidth(word.text);
       }
-      
       y += SPACING.LINE_HEIGHT;
     }
     
     return y - startY;
   };
 
+  /**
+   * Draw an image, returns height used
+   */
+  const drawImage = (
+    imageData: { data: string; width: number; height: number },
+    x: number,
+    startY: number,
+    maxWidth: number,
+    maxHeight: number = 60
+  ): number => {
+    try {
+      const aspectRatio = imageData.height / imageData.width;
+      let imgWidth = Math.min(maxWidth, imageData.width * 0.264583); // px to mm
+      let imgHeight = imgWidth * aspectRatio;
+      
+      // Limit max height
+      if (imgHeight > maxHeight) {
+        imgHeight = maxHeight;
+        imgWidth = imgHeight / aspectRatio;
+      }
+      
+      // Check page break
+      if (startY + imgHeight + 4 > maxY) {
+        doc.addPage();
+        currentPage++;
+        addHeader();
+        startY = PAGE.MARGIN_TOP + 4;
+      }
+      
+      // Center image
+      const imgX = x + (maxWidth - imgWidth) / 2;
+      
+      // Draw border
+      doc.setDrawColor(...COLORS.BORDER);
+      doc.setLineWidth(0.2);
+      doc.roundedRect(imgX - 1, startY - 1, imgWidth + 2, imgHeight + 2, 1, 1, "S");
+      
+      const format = getImageFormat(imageData.data);
+      doc.addImage(imageData.data, format, imgX, startY, imgWidth, imgHeight);
+      
+      return imgHeight + 4;
+    } catch (error) {
+      console.warn('[PDF] Image draw failed:', error);
+      return 0;
+    }
+  };
+
   // ============= PRE-LOAD IMAGES =============
   
+  console.log('[PDF] Pre-loading images...');
   const imageCache: Map<string, { data: string; width: number; height: number }> = new Map();
   
-  console.log('[PDF] Pre-loading images...');
-  
   for (const question of questions) {
+    // Question images
     if (question.files && question.files.length > 0) {
       for (const file of question.files) {
         if (!imageCache.has(file)) {
-          const imageData = await loadImageAsBase64(file);
-          if (imageData) {
-            imageCache.set(file, imageData);
-            console.log(`[PDF] Loaded image: ${file}`);
+          const img = await loadImageAsBase64(file);
+          if (img) imageCache.set(file, img);
+        }
+      }
+    }
+    // Alternative images
+    for (const alt of question.alternatives) {
+      if (alt.files && alt.files.length > 0) {
+        for (const file of alt.files) {
+          if (!imageCache.has(file)) {
+            const img = await loadImageAsBase64(file);
+            if (img) imageCache.set(file, img);
           }
         }
       }
     }
   }
-  
   console.log(`[PDF] Loaded ${imageCache.size} images`);
 
   // ============= GENERATE QUESTIONS =============
   
   addHeader();
-  yPosition = PAGE.MARGIN_TOP + 8;
+  yPosition = PAGE.MARGIN_TOP + 4;
 
   for (let i = 0; i < questions.length; i++) {
     const question = questions[i];
@@ -510,161 +566,122 @@ export const generateSimuladoPDF = async (
       });
     }
 
-    // ===== ESTIMATE HEIGHT =====
-    let estimatedHeight = 20; // Base height for header
-    
-    // Context height
-    if (question.context && question.context.trim()) {
-      const contextText = question.context.length > 600 
-        ? question.context.substring(0, 600) + "..." 
-        : question.context;
-      const contextLines = wrapText(contextText, contentWidth - 12, FONTS.CONTEXT);
-      estimatedHeight += contextLines.length * SPACING.LINE_HEIGHT + SPACING.PARAGRAPH;
-    }
-    
-    // Image height
-    if (question.files && question.files.length > 0) {
-      for (const file of question.files) {
-        const img = imageCache.get(file);
-        if (img) {
-          const maxImgWidth = Math.min(contentWidth - 20, 100);
-          const aspectRatio = img.height / img.width;
-          const imgHeight = Math.min(maxImgWidth * aspectRatio, 70);
-          estimatedHeight += imgHeight + SPACING.PARAGRAPH;
-        }
-      }
-    }
-    
-    // Title height
-    const titleLines = wrapText(question.title, contentWidth - 12, FONTS.QUESTION_TEXT);
-    estimatedHeight += titleLines.length * SPACING.LINE_HEIGHT + SPACING.PARAGRAPH;
-    
-    // Alternatives height
-    for (const alt of question.alternatives) {
-      const altText = `${alt.letter}) ${alt.text}`;
-      const altLines = wrapText(altText, contentWidth - 20, FONTS.ALTERNATIVE);
-      estimatedHeight += altLines.length * SPACING.LINE_HEIGHT + SPACING.ALTERNATIVE_GAP;
-    }
-    
-    estimatedHeight += SPACING.QUESTION_GAP;
-
-    // Check if we need a page break
-    checkPageBreak(Math.min(estimatedHeight, 80)); // At least start the question if it fits minimally
-
-    const startY = yPosition;
+    // Check minimum space for question header
+    checkPageBreak(25);
 
     // ===== QUESTION HEADER =====
     
-    // Question number badge
+    // Number badge
     doc.setFillColor(...COLORS.PRIMARY);
-    doc.roundedRect(PAGE.MARGIN_LEFT, yPosition - 1, 22, 7, 1.5, 1.5, "F");
+    doc.roundedRect(PAGE.MARGIN_LEFT, yPosition, 20, 6, 1.5, 1.5, "F");
     
     doc.setFont("helvetica", "bold");
     doc.setFontSize(FONTS.QUESTION_NUMBER);
     doc.setTextColor(...COLORS.WHITE);
-    doc.text(`Q${String(questionNumber).padStart(2, '0')}`, PAGE.MARGIN_LEFT + 11, yPosition + 4, { align: "center" });
+    doc.text(`Q${String(questionNumber).padStart(2, '0')}`, PAGE.MARGIN_LEFT + 10, yPosition + 4.2, { align: "center" });
     
-    // Discipline label
+    // Discipline and year
     doc.setFont("helvetica", "normal");
     doc.setFontSize(FONTS.CAPTION);
     doc.setTextColor(...COLORS.MUTED);
     
     const disciplineName = formatDisciplineName(question.discipline);
-    doc.text(disciplineName, PAGE.MARGIN_LEFT + 26, yPosition + 4);
+    doc.text(`${disciplineName} • ENEM ${question.year}`, PAGE.MARGIN_LEFT + 24, yPosition + 4);
     
-    // Year
-    if (question.year) {
-      doc.text(`• ${question.year}`, PAGE.WIDTH - PAGE.MARGIN_RIGHT, yPosition + 4, { align: "right" });
-    }
-    
-    yPosition += 12;
+    yPosition += 10;
 
-    // ===== CONTEXT =====
+    // ===== CONTEXT (Texto de Apoio) =====
     
     if (question.context && question.context.trim()) {
-      const contextText = question.context.length > 600 
-        ? question.context.substring(0, 600) + "..." 
-        : question.context;
+      // Process context to separate main text from references
+      const processed = separateTextAndReference(question.context);
       
-      // Context box
-      const contextLines = wrapText(contextText, contentWidth - 16, FONTS.CONTEXT);
-      const contextHeight = contextLines.length * SPACING.LINE_HEIGHT + 8;
+      // Estimate context height
+      doc.setFontSize(FONTS.CONTEXT);
+      const contextLines = doc.splitTextToSize(cleanTextForPDF(processed.mainText), contentWidth - 10);
+      const contextBoxHeight = (contextLines.length * SPACING.LINE_HEIGHT) + 8;
       
-      checkPageBreak(contextHeight);
+      checkPageBreak(Math.min(contextBoxHeight, 50));
       
-      doc.setFillColor(245, 247, 250);
+      // Context box background
+      doc.setFillColor(...COLORS.CONTEXT_BG);
       doc.setDrawColor(...COLORS.BORDER);
-      doc.roundedRect(PAGE.MARGIN_LEFT + 4, yPosition - 2, contentWidth - 8, contextHeight, 2, 2, "FD");
+      doc.roundedRect(PAGE.MARGIN_LEFT, yPosition, contentWidth, contextBoxHeight, 2, 2, "FD");
       
       // Left accent bar
       doc.setFillColor(...COLORS.PRIMARY);
-      doc.rect(PAGE.MARGIN_LEFT + 4, yPosition - 2, 2, contextHeight, "F");
+      doc.rect(PAGE.MARGIN_LEFT, yPosition, 2, contextBoxHeight, "F");
       
-      const textHeight = drawFormattedText(
-        contextText,
-        PAGE.MARGIN_LEFT + 10,
-        yPosition + 3,
-        contentWidth - 20,
+      // Context text
+      const contextHeight = drawFormattedText(
+        processed.mainText,
+        PAGE.MARGIN_LEFT + 6,
+        yPosition + 4,
+        contentWidth - 12,
         FONTS.CONTEXT,
         COLORS.MUTED
       );
       
-      yPosition += Math.max(textHeight + 6, contextHeight) + SPACING.PARAGRAPH;
+      yPosition += Math.max(contextHeight + 6, contextBoxHeight) + SPACING.PARAGRAPH;
+      
+      // Reference (if exists)
+      if (processed.reference) {
+        checkPageBreak(8);
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(FONTS.CAPTION);
+        doc.setTextColor(...COLORS.LIGHT);
+        const refLines = doc.splitTextToSize(processed.reference, contentWidth - 8);
+        refLines.forEach((line: string) => {
+          doc.text(line, PAGE.MARGIN_LEFT + 4, yPosition);
+          yPosition += 3.5;
+        });
+        yPosition += 2;
+      }
     }
 
-    // ===== IMAGES =====
+    // ===== QUESTION IMAGES =====
     
     if (question.files && question.files.length > 0) {
       for (const file of question.files) {
         const img = imageCache.get(file);
         if (img) {
-          try {
-            const maxImgWidth = Math.min(contentWidth - 20, 100);
-            const aspectRatio = img.height / img.width;
-            let imgWidth = maxImgWidth;
-            let imgHeight = imgWidth * aspectRatio;
-            
-            // Limit max height
-            if (imgHeight > 70) {
-              imgHeight = 70;
-              imgWidth = imgHeight / aspectRatio;
-            }
-            
-            checkPageBreak(imgHeight + 8);
-            
-            // Center the image
-            const imgX = PAGE.MARGIN_LEFT + (contentWidth - imgWidth) / 2;
-            
-            // Image border
-            doc.setDrawColor(...COLORS.BORDER);
-            doc.setLineWidth(0.3);
-            doc.roundedRect(imgX - 2, yPosition - 2, imgWidth + 4, imgHeight + 4, 2, 2, "S");
-            
-            const format = getImageFormat(img.data);
-            doc.addImage(img.data, format, imgX, yPosition, imgWidth, imgHeight);
-            
-            yPosition += imgHeight + SPACING.PARAGRAPH + 2;
-          } catch (error) {
-            console.warn('[PDF] Failed to add image:', file, error);
-          }
+          const imgHeight = drawImage(img, PAGE.MARGIN_LEFT, yPosition, contentWidth, 55);
+          yPosition += imgHeight + SPACING.PARAGRAPH;
         }
       }
     }
 
-    // ===== QUESTION TITLE/STATEMENT =====
+    // ===== QUESTION STATEMENT (Enunciado) =====
     
-    checkPageBreak(20);
+    checkPageBreak(15);
     
-    const titleHeight = drawFormattedText(
+    const statementHeight = drawFormattedText(
       question.title,
-      PAGE.MARGIN_LEFT + 4,
+      PAGE.MARGIN_LEFT,
       yPosition,
-      contentWidth - 8,
+      contentWidth,
       FONTS.QUESTION_TEXT,
       COLORS.TEXT
     );
     
-    yPosition += titleHeight + SPACING.PARAGRAPH;
+    yPosition += statementHeight + SPACING.PARAGRAPH;
+
+    // ===== ALTERNATIVES INTRODUCTION =====
+    
+    if (question.alternatives_introduction && question.alternatives_introduction.trim()) {
+      checkPageBreak(10);
+      
+      const introHeight = drawFormattedText(
+        question.alternatives_introduction,
+        PAGE.MARGIN_LEFT,
+        yPosition,
+        contentWidth,
+        FONTS.ALTERNATIVE_INTRO,
+        COLORS.TEXT
+      );
+      
+      yPosition += introHeight + SPACING.PARAGRAPH;
+    }
 
     // ===== ALTERNATIVES =====
     
@@ -673,75 +690,86 @@ export const generateSimuladoPDF = async (
       
       const altX = PAGE.MARGIN_LEFT + 8;
       
-      // Answer bubble
+      // Letter bubble
       doc.setDrawColor(...COLORS.BORDER);
-      doc.setLineWidth(0.5);
       doc.setFillColor(...COLORS.WHITE);
-      doc.circle(altX, yPosition + 1, 3, "FD");
+      doc.setLineWidth(0.4);
+      doc.circle(PAGE.MARGIN_LEFT + 3, yPosition + 1.5, 2.8, "FD");
       
-      // Letter inside bubble
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(FONTS.ALTERNATIVE - 1);
+      doc.setFontSize(FONTS.ALTERNATIVE - 0.5);
       doc.setTextColor(...COLORS.PRIMARY);
-      doc.text(alt.letter.toUpperCase(), altX, yPosition + 2, { align: "center" });
+      doc.text(alt.letter.toUpperCase(), PAGE.MARGIN_LEFT + 3, yPosition + 2.5, { align: "center" });
       
       // Alternative text
-      const altHeight = drawFormattedText(
+      const altTextHeight = drawFormattedText(
         alt.text,
-        altX + 6,
+        altX,
         yPosition,
-        contentWidth - 20,
+        contentWidth - 12,
         FONTS.ALTERNATIVE,
         COLORS.TEXT
       );
       
-      yPosition += Math.max(altHeight, SPACING.LINE_HEIGHT) + SPACING.ALTERNATIVE_GAP;
+      yPosition += Math.max(altTextHeight, SPACING.LINE_HEIGHT);
+      
+      // Alternative images (if any)
+      if (alt.files && alt.files.length > 0) {
+        for (const file of alt.files) {
+          const img = imageCache.get(file);
+          if (img) {
+            const imgHeight = drawImage(img, altX, yPosition, contentWidth - 16, 40);
+            yPosition += imgHeight;
+          }
+        }
+      }
+      
+      yPosition += SPACING.ALTERNATIVE_GAP;
     }
     
-    // Separator line between questions
+    // Question separator
     if (i < questions.length - 1) {
-      yPosition += 4;
+      yPosition += 3;
       doc.setDrawColor(...COLORS.BORDER);
-      doc.setLineWidth(0.2);
-      doc.line(PAGE.MARGIN_LEFT + 20, yPosition, PAGE.WIDTH - PAGE.MARGIN_RIGHT - 20, yPosition);
+      doc.setLineWidth(0.15);
+      doc.setLineDashPattern([2, 2], 0);
+      doc.line(PAGE.MARGIN_LEFT + 30, yPosition, PAGE.WIDTH - PAGE.MARGIN_RIGHT - 30, yPosition);
+      doc.setLineDashPattern([], 0);
       yPosition += SPACING.QUESTION_GAP;
     }
   }
 
-  // ============= ANSWER KEY PAGE =============
+  // ============= ANSWER KEY =============
   
   doc.addPage();
   currentPage++;
   addHeader(true);
-  yPosition = PAGE.MARGIN_TOP + 12;
+  yPosition = PAGE.MARGIN_TOP + 8;
 
   // Title
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
+  doc.setFontSize(12);
   doc.setTextColor(...COLORS.PRIMARY);
   doc.text("Gabarito Oficial", PAGE.WIDTH / 2, yPosition, { align: "center" });
-  yPosition += 10;
+  yPosition += 6;
   
-  // Info text
   doc.setFont("helvetica", "normal");
   doc.setFontSize(FONTS.CAPTION);
   doc.setTextColor(...COLORS.MUTED);
   doc.text(
-    `Total de ${questions.length} questões • Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
-    PAGE.WIDTH / 2,
-    yPosition,
-    { align: "center" }
+    `${questions.length} questões • Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
+    PAGE.WIDTH / 2, yPosition, { align: "center" }
   );
-  yPosition += 12;
+  yPosition += 10;
 
-  // Answer grid - 10 columns for better layout
+  // Answer grid - 10 columns
   const gridCols = 10;
-  const cellWidth = (contentWidth - 4) / gridCols;
-  const cellHeight = 10;
+  const cellWidth = contentWidth / gridCols;
+  const cellHeight = 9;
   
-  // Header row
+  // Grid header
   doc.setFillColor(...COLORS.PRIMARY);
-  doc.rect(PAGE.MARGIN_LEFT, yPosition, contentWidth, 8, "F");
+  doc.rect(PAGE.MARGIN_LEFT, yPosition, contentWidth, 7, "F");
   
   doc.setFont("helvetica", "bold");
   doc.setFontSize(FONTS.CAPTION);
@@ -749,18 +777,18 @@ export const generateSimuladoPDF = async (
   
   for (let col = 0; col < gridCols; col++) {
     const colX = PAGE.MARGIN_LEFT + col * cellWidth + cellWidth / 2;
-    doc.text("Nº", colX - 4, yPosition + 3);
-    doc.text("R", colX + 4, yPosition + 3);
+    doc.text("Nº", colX - 5, yPosition + 2.5);
+    doc.text("R", colX + 4, yPosition + 2.5);
   }
-  yPosition += 8;
+  yPosition += 7;
 
-  // Draw answer grid
+  // Answer rows
   const rows = Math.ceil(answerKey.length / gridCols);
   
   for (let row = 0; row < rows; row++) {
-    checkPageBreak(cellHeight + 2);
+    checkPageBreak(cellHeight);
     
-    // Alternate row background
+    // Alternating background
     if (row % 2 === 0) {
       doc.setFillColor(...COLORS.BACKGROUND);
       doc.rect(PAGE.MARGIN_LEFT, yPosition, contentWidth, cellHeight, "F");
@@ -768,7 +796,7 @@ export const generateSimuladoPDF = async (
     
     // Row border
     doc.setDrawColor(...COLORS.BORDER);
-    doc.setLineWidth(0.2);
+    doc.setLineWidth(0.15);
     doc.rect(PAGE.MARGIN_LEFT, yPosition, contentWidth, cellHeight, "S");
     
     for (let col = 0; col < gridCols; col++) {
@@ -778,7 +806,7 @@ export const generateSimuladoPDF = async (
       const item = answerKey[idx];
       const colX = PAGE.MARGIN_LEFT + col * cellWidth;
       
-      // Column divider
+      // Column separator
       if (col > 0) {
         doc.line(colX, yPosition, colX, yPosition + cellHeight);
       }
@@ -787,87 +815,76 @@ export const generateSimuladoPDF = async (
       doc.setFont("helvetica", "normal");
       doc.setFontSize(FONTS.CAPTION);
       doc.setTextColor(...COLORS.TEXT);
-      doc.text(
-        String(item.question).padStart(2, '0'),
-        colX + cellWidth / 2 - 5,
-        yPosition + 6.5,
-        { align: "center" }
-      );
+      doc.text(String(item.question).padStart(2, '0'), colX + cellWidth / 2 - 5, yPosition + 5.5, { align: "center" });
       
-      // Answer in colored circle
+      // Answer circle
       doc.setFillColor(...COLORS.CORRECT);
-      doc.circle(colX + cellWidth / 2 + 6, yPosition + 5, 3, "F");
+      doc.circle(colX + cellWidth / 2 + 5, yPosition + 4.5, 2.8, "F");
       
       doc.setFont("helvetica", "bold");
       doc.setFontSize(FONTS.CAPTION);
       doc.setTextColor(...COLORS.WHITE);
-      doc.text(item.answer, colX + cellWidth / 2 + 6, yPosition + 6.2, { align: "center" });
+      doc.text(item.answer, colX + cellWidth / 2 + 5, yPosition + 5.5, { align: "center" });
     }
     
     yPosition += cellHeight;
   }
 
-  // ===== SUMMARY BY DISCIPLINE =====
-  
-  yPosition += 15;
-  checkPageBreak(50);
+  // Discipline summary
+  yPosition += 12;
+  checkPageBreak(40);
   
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setTextColor(...COLORS.PRIMARY);
   doc.text("Resumo por Área", PAGE.MARGIN_LEFT, yPosition);
   yPosition += 8;
   
-  // Count by discipline
   const disciplineCounts: Record<string, number> = {};
   answerKey.forEach(item => {
     const disc = formatDisciplineName(item.discipline);
     disciplineCounts[disc] = (disciplineCounts[disc] || 0) + 1;
   });
   
-  // Draw discipline summary boxes
   const disciplines = Object.entries(disciplineCounts);
-  const boxWidth = (contentWidth - 8) / Math.min(disciplines.length, 2);
+  const cols = Math.min(disciplines.length, 2);
+  const boxWidth = (contentWidth - 8) / cols;
   
   let boxX = PAGE.MARGIN_LEFT;
-  let boxY = yPosition;
   
   disciplines.forEach(([disc, count], idx) => {
     if (idx % 2 === 0 && idx > 0) {
       boxX = PAGE.MARGIN_LEFT;
-      boxY += 18;
+      yPosition += 16;
     }
     
     doc.setFillColor(...COLORS.BACKGROUND);
     doc.setDrawColor(...COLORS.BORDER);
-    doc.roundedRect(boxX, boxY, boxWidth - 4, 14, 2, 2, "FD");
+    doc.roundedRect(boxX, yPosition, boxWidth - 4, 12, 2, 2, "FD");
     
     doc.setFont("helvetica", "normal");
     doc.setFontSize(FONTS.CAPTION);
     doc.setTextColor(...COLORS.MUTED);
-    doc.text(disc, boxX + 4, boxY + 6);
+    doc.text(disc, boxX + 4, yPosition + 5);
     
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(FONTS.SUBTITLE);
+    doc.setFontSize(10);
     doc.setTextColor(...COLORS.PRIMARY);
-    doc.text(`${count} questões`, boxX + boxWidth - 8, boxY + 10, { align: "right" });
+    doc.text(`${count}`, boxX + boxWidth - 10, yPosition + 8, { align: "right" });
     
     boxX += boxWidth;
   });
 
-  // ============= ADD FOOTERS TO ALL PAGES =============
-  
+  // Add footers to all pages
   const totalPages = doc.internal.pages.length - 1;
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
     addFooter();
   }
 
-  // ============= SAVE PDF =============
-  
+  // Save
   const timestamp = new Date().toISOString().split("T")[0];
   const filename = `simulado-enem${simuladoYear ? `-${simuladoYear}` : ""}-${timestamp}.pdf`;
-  
   console.log(`[PDF] Saving: ${filename}`);
   doc.save(filename);
 };
