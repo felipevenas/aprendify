@@ -77,16 +77,7 @@ const Dashboard = () => {
     setTooltips(dashboardTooltips);
   }, [setTooltips]);
 
-  // Mostrar tour automaticamente para novos usuários (apenas uma vez por usuário)
-  useEffect(() => {
-    if (!loading && user && !hasSeenTour) {
-      // Pequeno delay para garantir que os elementos estão renderizados
-      const timer = setTimeout(() => {
-        startTour(true); // Mark as seen immediately when auto-started
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [loading, user, hasSeenTour, startTour]);
+  // Tour desabilitado automaticamente - usuário pode iniciar pelo botão de ajuda no canto inferior direito
 
   useEffect(() => {
     const checkAuth = async () => {
