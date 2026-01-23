@@ -181,40 +181,50 @@ const CreatorDetailsModal = ({ open, onOpenChange, userId, userName }: CreatorDe
               </div>
             </div>
 
-            {/* PIX Info */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Wallet className="h-4 w-4" />
-                Informações de Pagamento (PIX)
+            {/* PIX Info - Seção destacada para pagamento */}
+            <div className="space-y-3 border-t pt-4">
+              <label className="text-sm font-semibold flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-green-600" />
+                Dados para Pagamento (PIX)
               </label>
               {creatorData.pix_key && creatorData.pix_key_type ? (
-                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4 space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Tipo:</span>
-                    <Badge variant="outline">{pixKeyTypeLabels[creatorData.pix_key_type] || creatorData.pix_key_type}</Badge>
+                    <span className="text-sm font-medium">Tipo de Chave:</span>
+                    <Badge className="bg-green-600 text-white">
+                      {pixKeyTypeLabels[creatorData.pix_key_type] || creatorData.pix_key_type}
+                    </Badge>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Chave:</span>
-                    <code className="flex-1 bg-background px-2 py-1 rounded text-sm font-mono truncate">
-                      {creatorData.pix_key}
-                    </code>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => copyToClipboard(creatorData.pix_key!, "pix")}
-                    >
-                      {copied === "pix" ? (
-                        <CheckCircle className="h-3 w-3 text-green-500" />
-                      ) : (
-                        <Copy className="h-3 w-3" />
-                      )}
-                    </Button>
+                  <div className="space-y-1">
+                    <span className="text-sm font-medium">Chave PIX:</span>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 bg-background px-3 py-2 rounded-lg text-sm font-mono font-bold border">
+                        {creatorData.pix_key}
+                      </code>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="shrink-0"
+                        onClick={() => copyToClipboard(creatorData.pix_key!, "pix")}
+                      >
+                        {copied === "pix" ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="bg-muted/50 rounded-lg p-4 text-center text-sm text-muted-foreground">
-                  O criador ainda não cadastrou uma chave PIX
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-center">
+                  <Wallet className="h-8 w-8 mx-auto mb-2 text-amber-500" />
+                  <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                    Chave PIX não cadastrada
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    O criador ainda não configurou uma chave PIX para recebimento
+                  </p>
                 </div>
               )}
             </div>
