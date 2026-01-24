@@ -12,9 +12,7 @@ import {
   Target,
   Lightbulb,
   ChevronDown,
-  ChevronUp,
-  FileDown,
-  Loader2
+  ChevronUp
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,12 +22,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useSimulados, Simulado, SimuladoResult, SimuladoAnswer } from "@/hooks/useSimulados";
 import { formatDisciplineName } from "@/lib/formatters";
-import { generateSimuladoPDF } from "@/lib/generateSimuladoPDF";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
 interface QuestionWithAnswer {
   question_index: number;
@@ -58,7 +54,6 @@ const SimuladoResults = () => {
   const [results, setResults] = useState<SimuladoResult | null>(null);
   const [answers, setAnswers] = useState<QuestionWithAnswer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [generatingPDF, setGeneratingPDF] = useState(false);
   const [expandedQuestions, setExpandedQuestions] = useState<Set<number>>(new Set());
   const [showAllQuestions, setShowAllQuestions] = useState(false);
 
@@ -120,65 +115,6 @@ const SimuladoResults = () => {
       newExpanded.add(index);
     }
     setExpandedQuestions(newExpanded);
-  };
-
-  // Generate PDF with all questions
-  const handleGeneratePDF = async () => {
-    if (!simulado || answers.length === 0) return;
-
-    setGeneratingPDF(true);
-    try {
-      // Fetch full question data for all answers including correct_alternative and files
-      const questionIds = answers.map(a => a.question_id);
-      const { data: questionsData, error } = await supabase
-        .from("enem_questions")
-        .select("id, index, title, context, alternatives, discipline, year, correct_alternative, files")
-        .in("id", questionIds);
-
-      if (error || !questionsData) {
-        toast.error("Erro ao carregar questões para o PDF");
-        return;
-      }
-
-      // Map questions in order
-      const orderedQuestions = answers
-        .sort((a, b) => a.question_index - b.question_index)
-        .map(answer => {
-          const questionData = questionsData.find(q => q.id === answer.question_id);
-          if (!questionData) return null;
-          
-          return {
-            index: answer.question_index,
-            title: questionData.title,
-            context: questionData.context,
-            alternatives: Array.isArray(questionData.alternatives) 
-              ? questionData.alternatives as Array<{ letter: string; text: string }>
-              : [],
-            discipline: questionData.discipline,
-            year: questionData.year,
-            correct_alternative: questionData.correct_alternative,
-            files: questionData.files,
-          };
-        })
-        .filter(Boolean) as Array<{
-          index: number;
-          title: string;
-          context: string | null;
-          alternatives: Array<{ letter: string; text: string }>;
-          discipline: string;
-          year: string;
-          correct_alternative?: string;
-          files?: string[] | null;
-        }>;
-
-      await generateSimuladoPDF(orderedQuestions, simulado.type, simulado.year);
-      toast.success("PDF gerado com sucesso!");
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      toast.error("Erro ao gerar PDF");
-    } finally {
-      setGeneratingPDF(false);
-    }
   };
 
   if (loading) {
@@ -490,24 +426,6 @@ const SimuladoResults = () => {
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button 
-            variant="outline" 
-            onClick={handleGeneratePDF}
-            disabled={generatingPDF || answers.length === 0}
-            className="gap-2"
-          >
-            {generatingPDF ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Gerando PDF...
-              </>
-            ) : (
-              <>
-                <FileDown className="h-4 w-4" />
-                Exportar PDF
-              </>
-            )}
-          </Button>
           <Button variant="outline" onClick={() => navigate("/simulados")}>
             Voltar aos Simulados
           </Button>
