@@ -23,39 +23,43 @@ interface QuestionData {
 const PAGE = {
   WIDTH: 210,
   HEIGHT: 297,
-  MARGIN_TOP: 20,
-  MARGIN_BOTTOM: 15,
-  MARGIN_LEFT: 18,
-  MARGIN_RIGHT: 18,
+  MARGIN_TOP: 22,
+  MARGIN_BOTTOM: 18,
+  MARGIN_LEFT: 20,
+  MARGIN_RIGHT: 20,
 } as const;
 
-// Paleta monocromática - preto, cinza escuro, cinza claro
+// Paleta monocromática elegante
 const COLORS = {
-  BLACK: [17, 24, 39] as [number, number, number],
-  DARK_GRAY: [75, 85, 99] as [number, number, number],
-  GRAY: [107, 114, 128] as [number, number, number],
-  LIGHT_GRAY: [156, 163, 175] as [number, number, number],
-  BORDER: [209, 213, 219] as [number, number, number],
+  BLACK: [30, 30, 30] as [number, number, number],
+  DARK_GRAY: [60, 60, 60] as [number, number, number],
+  GRAY: [100, 100, 100] as [number, number, number],
+  LIGHT_GRAY: [140, 140, 140] as [number, number, number],
+  CONTEXT_BG: [248, 248, 248] as [number, number, number],
+  BORDER: [200, 200, 200] as [number, number, number],
   WHITE: [255, 255, 255] as [number, number, number],
 } as const;
 
 const FONTS = {
-  HEADER_TITLE: 13,
+  HEADER_TITLE: 14,
   HEADER_SUBTITLE: 9,
-  QUESTION_NUMBER: 10,
-  QUESTION_TEXT: 9.5,
-  CONTEXT: 9,
-  ALTERNATIVE: 9,
-  CAPTION: 7.5,
-  FOOTER: 7,
+  QUESTION_NUMBER: 11,
+  QUESTION_META: 8,
+  QUESTION_TEXT: 10,
+  CONTEXT: 9.5,
+  REFERENCE: 8,
+  ALTERNATIVE: 10,
+  CAPTION: 8,
+  FOOTER: 7.5,
 } as const;
 
 const SPACING = {
-  LINE_HEIGHT: 4.5,
-  PARAGRAPH: 6,
-  SECTION: 8,
-  QUESTION_GAP: 12,
-  ALTERNATIVE_GAP: 3,
+  LINE_HEIGHT: 5,
+  PARAGRAPH: 7,
+  SECTION: 10,
+  QUESTION_GAP: 14,
+  ALTERNATIVE_GAP: 4,
+  CONTEXT_PADDING: 4,
 } as const;
 
 // ============= TEXT PROCESSING =============
@@ -69,8 +73,8 @@ const decodeHtmlEntities = (text: string): string => {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
-    .replace(/&ndash;/g, '-')
-    .replace(/&mdash;/g, '-')
+    .replace(/&ndash;/g, '–')
+    .replace(/&mdash;/g, '—')
     .replace(/&hellip;/g, '...')
     .replace(/&ldquo;/g, '"')
     .replace(/&rdquo;/g, '"')
@@ -87,6 +91,8 @@ const decodeHtmlEntities = (text: string): string => {
     .replace(/&frac12;/g, '½')
     .replace(/&frac14;/g, '¼')
     .replace(/&frac34;/g, '¾')
+    .replace(/&sup2;/g, '²')
+    .replace(/&sup3;/g, '³')
     .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)));
 };
 
@@ -96,9 +102,16 @@ const cleanTextForPDF = (html: string): string => {
   let text = html
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
+    .replace(/<p>/gi, '')
     .replace(/<\/div>/gi, '\n')
+    .replace(/<div>/gi, '')
     .replace(/<\/li>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ');
+    .replace(/<li>/gi, '• ')
+    .replace(/<\/ul>/gi, '\n')
+    .replace(/<ul>/gi, '')
+    .replace(/<\/ol>/gi, '\n')
+    .replace(/<ol>/gi, '')
+    .replace(/<[^>]+>/g, '');
   
   text = decodeHtmlEntities(text);
   text = cleanMarkdownArtifacts(text);
@@ -256,19 +269,19 @@ export const generateSimuladoPDF = async (
   // ============= PAGE UTILITIES =============
   
   const addHeader = (isAnswerKey = false) => {
-    // Título simples em preto
+    // Título principal
     doc.setFont("helvetica", "bold");
     doc.setFontSize(FONTS.HEADER_TITLE);
     doc.setTextColor(...COLORS.BLACK);
     
     let title = isAnswerKey ? "GABARITO" : "SIMULADO ENEM";
     if (simuladoYear) title += ` ${simuladoYear}`;
-    doc.text(title, PAGE.MARGIN_LEFT, 12);
+    doc.text(title, PAGE.MARGIN_LEFT, 14);
     
-    // Subtipo em cinza
+    // Subtipo do simulado
     const typeLabels: Record<string, string> = {
-      official_day1: "Dia 1 - Linguagens e Ciências Humanas",
-      official_day2: "Dia 2 - Matemática e Ciências da Natureza",
+      official_day1: "Dia 1 – Linguagens e Ciências Humanas",
+      official_day2: "Dia 2 – Matemática e Ciências da Natureza",
       custom_naturezas: "Ciências da Natureza",
       custom_humanas: "Ciências Humanas",
       custom_matematica: "Matemática",
@@ -278,25 +291,28 @@ export const generateSimuladoPDF = async (
     doc.setFont("helvetica", "normal");
     doc.setFontSize(FONTS.HEADER_SUBTITLE);
     doc.setTextColor(...COLORS.GRAY);
-    doc.text(typeLabels[simuladoType] || "Simulado", PAGE.MARGIN_LEFT, 16);
+    doc.text(typeLabels[simuladoType] || "Simulado", PAGE.MARGIN_LEFT, 18);
     
-    // Página à direita
-    doc.text(`Página ${currentPage}`, PAGE.WIDTH - PAGE.MARGIN_RIGHT, 12, { align: "right" });
+    // Informações à direita
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(FONTS.CAPTION);
+    doc.setTextColor(...COLORS.GRAY);
+    doc.text(`Página ${currentPage}`, PAGE.WIDTH - PAGE.MARGIN_RIGHT, 14, { align: "right" });
     if (!isAnswerKey) {
-      doc.text(`${questions.length} questões`, PAGE.WIDTH - PAGE.MARGIN_RIGHT, 16, { align: "right" });
+      doc.text(`${questions.length} questões`, PAGE.WIDTH - PAGE.MARGIN_RIGHT, 18, { align: "right" });
     }
     
-    // Linha separadora simples
+    // Linha separadora
     doc.setDrawColor(...COLORS.BORDER);
-    doc.setLineWidth(0.3);
-    doc.line(PAGE.MARGIN_LEFT, 18, PAGE.WIDTH - PAGE.MARGIN_RIGHT, 18);
+    doc.setLineWidth(0.4);
+    doc.line(PAGE.MARGIN_LEFT, 21, PAGE.WIDTH - PAGE.MARGIN_RIGHT, 21);
   };
 
   const addFooter = () => {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(FONTS.FOOTER);
     doc.setTextColor(...COLORS.LIGHT_GRAY);
-    doc.text("Aprendify - Simulado ENEM", PAGE.WIDTH / 2, PAGE.HEIGHT - 8, { align: "center" });
+    doc.text("Aprendify – Simulado ENEM", PAGE.WIDTH / 2, PAGE.HEIGHT - 10, { align: "center" });
   };
 
   const checkPageBreak = (requiredHeight: number): boolean => {
@@ -304,13 +320,14 @@ export const generateSimuladoPDF = async (
       doc.addPage();
       currentPage++;
       addHeader();
-      yPosition = PAGE.MARGIN_TOP + 4;
+      yPosition = PAGE.MARGIN_TOP + 6;
       return true;
     }
     return false;
   };
 
-  const drawText = (
+  // Desenha texto simples com quebra de linha automática
+  const drawSimpleText = (
     text: string,
     x: number,
     startY: number,
@@ -333,7 +350,7 @@ export const generateSimuladoPDF = async (
         doc.addPage();
         currentPage++;
         addHeader();
-        y = PAGE.MARGIN_TOP + 4;
+        y = PAGE.MARGIN_TOP + 6;
       }
       doc.text(line, x, y);
       y += lineSpacing;
@@ -342,13 +359,15 @@ export const generateSimuladoPDF = async (
     return y - startY;
   };
 
+  // Desenha texto formatado (negrito/itálico) com quebra de linha
   const drawFormattedText = (
     rawText: string,
     x: number,
     startY: number,
     maxWidth: number,
     fontSize: number,
-    color: [number, number, number]
+    color: [number, number, number],
+    lineSpacing: number = SPACING.LINE_HEIGHT
   ): number => {
     const segments = parseFormattedText(rawText);
     doc.setFontSize(fontSize);
@@ -359,13 +378,14 @@ export const generateSimuladoPDF = async (
     let currentLineWidth = 0;
     
     for (const segment of segments) {
-      const parts = segment.text.split(/(\s+)/);
+      const words = segment.text.split(/(\s+)/);
       
-      for (const part of parts) {
-        if (!part) continue;
+      for (const word of words) {
+        if (!word) continue;
         
-        if (part.includes('\n')) {
-          const subParts = part.split('\n');
+        // Quebra de linha explícita
+        if (word.includes('\n')) {
+          const subParts = word.split('\n');
           subParts.forEach((subPart, idx) => {
             if (subPart) {
               const style = segment.bold ? 'bold' : segment.italic ? 'italic' : 'normal';
@@ -393,14 +413,14 @@ export const generateSimuladoPDF = async (
         
         const style = segment.bold ? 'bold' : segment.italic ? 'italic' : 'normal';
         doc.setFont("helvetica", style);
-        const partWidth = doc.getTextWidth(part);
+        const partWidth = doc.getTextWidth(word);
         
         if (currentLineWidth + partWidth > maxWidth && currentLine.length > 0) {
           lines.push([...currentLine]);
           currentLine = [];
           currentLineWidth = 0;
         }
-        currentLine.push({ text: part, bold: segment.bold, italic: segment.italic });
+        currentLine.push({ text: word, bold: segment.bold, italic: segment.italic });
         currentLineWidth += partWidth;
       }
     }
@@ -408,11 +428,11 @@ export const generateSimuladoPDF = async (
     
     let y = startY;
     for (const line of lines) {
-      if (y + SPACING.LINE_HEIGHT > maxY) {
+      if (y + lineSpacing > maxY) {
         doc.addPage();
         currentPage++;
         addHeader();
-        y = PAGE.MARGIN_TOP + 4;
+        y = PAGE.MARGIN_TOP + 6;
       }
       
       let currentX = x;
@@ -423,22 +443,23 @@ export const generateSimuladoPDF = async (
         doc.text(word.text, currentX, y);
         currentX += doc.getTextWidth(word.text);
       }
-      y += SPACING.LINE_HEIGHT;
+      y += lineSpacing;
     }
     
     return y - startY;
   };
 
+  // Desenha imagem centralizada
   const drawImage = (
     imageData: { data: string; width: number; height: number },
     x: number,
     startY: number,
     maxWidth: number,
-    maxHeight: number = 60
+    maxHeight: number = 55
   ): number => {
     try {
       const aspectRatio = imageData.height / imageData.width;
-      let imgWidth = Math.min(maxWidth, imageData.width * 0.264583);
+      let imgWidth = Math.min(maxWidth * 0.9, imageData.width * 0.264583);
       let imgHeight = imgWidth * aspectRatio;
       
       if (imgHeight > maxHeight) {
@@ -446,20 +467,22 @@ export const generateSimuladoPDF = async (
         imgWidth = imgHeight / aspectRatio;
       }
       
-      if (startY + imgHeight + 4 > maxY) {
+      const totalHeight = imgHeight + 6;
+      
+      if (startY + totalHeight > maxY) {
         doc.addPage();
         currentPage++;
         addHeader();
-        startY = PAGE.MARGIN_TOP + 4;
+        startY = PAGE.MARGIN_TOP + 6;
       }
       
-      // Centralizar imagem sem bordas
+      // Centralizar imagem
       const imgX = x + (maxWidth - imgWidth) / 2;
       
       const format = getImageFormat(imageData.data);
       doc.addImage(imageData.data, format, imgX, startY, imgWidth, imgHeight);
       
-      return imgHeight + 4;
+      return totalHeight;
     } catch (error) {
       console.warn('[PDF] Image draw failed:', error);
       return 0;
@@ -496,7 +519,7 @@ export const generateSimuladoPDF = async (
   // ============= GENERATE QUESTIONS =============
   
   addHeader();
-  yPosition = PAGE.MARGIN_TOP + 4;
+  yPosition = PAGE.MARGIN_TOP + 6;
 
   for (let i = 0; i < questions.length; i++) {
     const question = questions[i];
@@ -510,82 +533,100 @@ export const generateSimuladoPDF = async (
       });
     }
 
-    checkPageBreak(25);
+    // Verificar espaço mínimo para iniciar questão
+    checkPageBreak(30);
 
-    // ===== QUESTION HEADER - Simples =====
+    // ===== QUESTION HEADER =====
     
+    // Número da questão - destaque
     doc.setFont("helvetica", "bold");
     doc.setFontSize(FONTS.QUESTION_NUMBER);
     doc.setTextColor(...COLORS.BLACK);
-    doc.text(`Questão ${String(questionNumber).padStart(2, '0')}`, PAGE.MARGIN_LEFT, yPosition);
+    doc.text(`QUESTÃO ${String(questionNumber).padStart(2, '0')}`, PAGE.MARGIN_LEFT, yPosition);
     
-    // Disciplina e ano em cinza
+    // Metadados - disciplina e ano
     const disciplineName = formatDisciplineName(question.discipline);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(FONTS.CAPTION);
+    doc.setFontSize(FONTS.QUESTION_META);
     doc.setTextColor(...COLORS.GRAY);
-    doc.text(`${disciplineName} • ENEM ${question.year}`, PAGE.MARGIN_LEFT + 28, yPosition);
+    const metaText = `${disciplineName} • ENEM ${question.year}`;
+    doc.text(metaText, PAGE.WIDTH - PAGE.MARGIN_RIGHT, yPosition, { align: "right" });
     
     yPosition += 8;
 
-    // ===== CONTEXT (Texto de Apoio) - Indentado com linha vertical =====
+    // ===== TEXTO DE APOIO / CONTEXTO =====
     
     if (question.context && question.context.trim()) {
       const processed = separateTextAndReference(question.context);
+      const contextText = cleanTextForPDF(processed.mainText);
       
-      doc.setFontSize(FONTS.CONTEXT);
-      const contextLines = doc.splitTextToSize(cleanTextForPDF(processed.mainText), contentWidth - 8);
-      const contextHeight = contextLines.length * SPACING.LINE_HEIGHT + 4;
-      
-      checkPageBreak(Math.min(contextHeight, 50));
-      
-      // Linha vertical cinza claro como indicador
-      doc.setDrawColor(...COLORS.LIGHT_GRAY);
-      doc.setLineWidth(0.5);
-      doc.line(PAGE.MARGIN_LEFT, yPosition, PAGE.MARGIN_LEFT, yPosition + contextHeight);
-      
-      // Texto do contexto com indentação
-      const contextTextHeight = drawFormattedText(
-        processed.mainText,
-        PAGE.MARGIN_LEFT + 5,
-        yPosition + 2,
-        contentWidth - 8,
-        FONTS.CONTEXT,
-        COLORS.DARK_GRAY
-      );
-      
-      yPosition += Math.max(contextTextHeight + 4, contextHeight) + SPACING.PARAGRAPH;
-      
-      // Referência (se existir)
-      if (processed.reference) {
-        checkPageBreak(8);
-        doc.setFont("helvetica", "italic");
-        doc.setFontSize(FONTS.CAPTION);
-        doc.setTextColor(...COLORS.GRAY);
-        const refLines = doc.splitTextToSize(processed.reference, contentWidth - 6);
-        refLines.forEach((line: string) => {
-          doc.text(line, PAGE.MARGIN_LEFT + 5, yPosition);
-          yPosition += 3.5;
-        });
-        yPosition += 2;
+      if (contextText) {
+        // Calcular altura do contexto
+        doc.setFontSize(FONTS.CONTEXT);
+        const contextLines = doc.splitTextToSize(contextText, contentWidth - 10);
+        const estimatedHeight = contextLines.length * SPACING.LINE_HEIGHT + SPACING.CONTEXT_PADDING * 2;
+        
+        checkPageBreak(Math.min(estimatedHeight, 60));
+        
+        // Fundo sutil para o contexto (opcional - caixa de texto de apoio)
+        doc.setFillColor(...COLORS.CONTEXT_BG);
+        doc.setDrawColor(...COLORS.BORDER);
+        doc.setLineWidth(0.2);
+        
+        // Desenhar caixa de contexto
+        const boxStartY = yPosition;
+        
+        // Barra lateral indicadora
+        doc.setFillColor(...COLORS.GRAY);
+        doc.rect(PAGE.MARGIN_LEFT, boxStartY, 1.5, estimatedHeight, 'F');
+        
+        // Conteúdo do contexto
+        const contextHeight = drawFormattedText(
+          processed.mainText,
+          PAGE.MARGIN_LEFT + 6,
+          yPosition + SPACING.CONTEXT_PADDING,
+          contentWidth - 10,
+          FONTS.CONTEXT,
+          COLORS.DARK_GRAY,
+          SPACING.LINE_HEIGHT
+        );
+        
+        yPosition += contextHeight + SPACING.CONTEXT_PADDING + SPACING.PARAGRAPH;
+        
+        // Referência bibliográfica (se existir)
+        if (processed.reference) {
+          checkPageBreak(12);
+          
+          // Referência em itálico, menor e alinhada à direita
+          doc.setFont("helvetica", "italic");
+          doc.setFontSize(FONTS.REFERENCE);
+          doc.setTextColor(...COLORS.GRAY);
+          
+          const refLines = doc.splitTextToSize(processed.reference, contentWidth - 10);
+          refLines.forEach((line: string) => {
+            doc.text(line, PAGE.WIDTH - PAGE.MARGIN_RIGHT - 4, yPosition, { align: "right" });
+            yPosition += 4;
+          });
+          yPosition += 3;
+        }
       }
     }
 
-    // ===== QUESTION IMAGES =====
+    // ===== IMAGENS DA QUESTÃO =====
     
     if (question.files && question.files.length > 0) {
       for (const file of question.files) {
         const img = imageCache.get(file);
         if (img) {
-          const imgHeight = drawImage(img, PAGE.MARGIN_LEFT, yPosition, contentWidth, 55);
+          const imgHeight = drawImage(img, PAGE.MARGIN_LEFT, yPosition, contentWidth, 60);
           yPosition += imgHeight + SPACING.PARAGRAPH;
         }
       }
     }
 
-    // ===== QUESTION STATEMENT (Enunciado) =====
+    // ===== ENUNCIADO DA QUESTÃO (TÍTULO) =====
     
-    checkPageBreak(15);
+    checkPageBreak(20);
     
     const statementHeight = drawFormattedText(
       question.title,
@@ -593,15 +634,16 @@ export const generateSimuladoPDF = async (
       yPosition,
       contentWidth,
       FONTS.QUESTION_TEXT,
-      COLORS.BLACK
+      COLORS.BLACK,
+      SPACING.LINE_HEIGHT
     );
     
     yPosition += statementHeight + SPACING.PARAGRAPH;
 
-    // ===== ALTERNATIVES INTRODUCTION =====
+    // ===== INTRODUÇÃO DAS ALTERNATIVAS =====
     
     if (question.alternatives_introduction && question.alternatives_introduction.trim()) {
-      checkPageBreak(10);
+      checkPageBreak(12);
       
       const introHeight = drawFormattedText(
         question.alternatives_introduction,
@@ -609,41 +651,48 @@ export const generateSimuladoPDF = async (
         yPosition,
         contentWidth,
         FONTS.QUESTION_TEXT,
-        COLORS.BLACK
+        COLORS.BLACK,
+        SPACING.LINE_HEIGHT
       );
       
       yPosition += introHeight + SPACING.PARAGRAPH;
     }
 
-    // ===== ALTERNATIVES - Formato (A) simples =====
+    // ===== ALTERNATIVAS =====
     
     for (const alt of question.alternatives) {
-      checkPageBreak(12);
+      checkPageBreak(15);
       
-      // Letra entre parênteses
+      // Letra da alternativa - em negrito
       doc.setFont("helvetica", "bold");
       doc.setFontSize(FONTS.ALTERNATIVE);
       doc.setTextColor(...COLORS.BLACK);
-      doc.text(`(${alt.letter.toUpperCase()})`, PAGE.MARGIN_LEFT, yPosition);
+      const letterLabel = `(${alt.letter.toUpperCase()})`;
+      doc.text(letterLabel, PAGE.MARGIN_LEFT, yPosition);
       
       // Texto da alternativa
+      const altTextX = PAGE.MARGIN_LEFT + 12;
+      const altTextWidth = contentWidth - 14;
+      
       const altTextHeight = drawFormattedText(
         alt.text,
-        PAGE.MARGIN_LEFT + 10,
+        altTextX,
         yPosition,
-        contentWidth - 12,
+        altTextWidth,
         FONTS.ALTERNATIVE,
-        COLORS.BLACK
+        COLORS.BLACK,
+        SPACING.LINE_HEIGHT
       );
       
       yPosition += Math.max(altTextHeight, SPACING.LINE_HEIGHT);
       
-      // Imagens das alternativas
+      // Imagens da alternativa (se houver)
       if (alt.files && alt.files.length > 0) {
         for (const file of alt.files) {
           const img = imageCache.get(file);
           if (img) {
-            const imgHeight = drawImage(img, PAGE.MARGIN_LEFT + 10, yPosition, contentWidth - 16, 40);
+            yPosition += 2;
+            const imgHeight = drawImage(img, altTextX, yPosition, altTextWidth, 45);
             yPosition += imgHeight;
           }
         }
@@ -652,63 +701,68 @@ export const generateSimuladoPDF = async (
       yPosition += SPACING.ALTERNATIVE_GAP;
     }
     
-    // Separador de questão - linha sólida simples
+    // ===== SEPARADOR ENTRE QUESTÕES =====
+    
     if (i < questions.length - 1) {
-      yPosition += 4;
+      yPosition += 6;
+      
+      // Linha separadora sutil
       doc.setDrawColor(...COLORS.BORDER);
-      doc.setLineWidth(0.2);
-      doc.line(PAGE.MARGIN_LEFT, yPosition, PAGE.WIDTH - PAGE.MARGIN_RIGHT, yPosition);
+      doc.setLineWidth(0.3);
+      doc.line(PAGE.MARGIN_LEFT + 20, yPosition, PAGE.WIDTH - PAGE.MARGIN_RIGHT - 20, yPosition);
+      
       yPosition += SPACING.QUESTION_GAP;
     }
   }
 
-  // ============= ANSWER KEY - Tabela simples =============
+  // ============= PÁGINA DO GABARITO =============
   
   doc.addPage();
   currentPage++;
   addHeader(true);
-  yPosition = PAGE.MARGIN_TOP + 8;
+  yPosition = PAGE.MARGIN_TOP + 10;
 
-  // Título simples
+  // Título do gabarito
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
+  doc.setFontSize(13);
   doc.setTextColor(...COLORS.BLACK);
-  doc.text("GABARITO", PAGE.WIDTH / 2, yPosition, { align: "center" });
-  yPosition += 6;
+  doc.text("GABARITO OFICIAL", PAGE.WIDTH / 2, yPosition, { align: "center" });
+  yPosition += 7;
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(FONTS.CAPTION);
   doc.setTextColor(...COLORS.GRAY);
   doc.text(
-    `${questions.length} questões • ${new Date().toLocaleDateString('pt-BR')}`,
+    `${questions.length} questões • Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
     PAGE.WIDTH / 2, yPosition, { align: "center" }
   );
-  yPosition += 10;
+  yPosition += 12;
 
   // Tabela de gabarito - 5 colunas
   const gridCols = 5;
   const cellWidth = contentWidth / gridCols;
-  const cellHeight = 8;
+  const cellHeight = 9;
   
-  // Header da tabela
+  // Cabeçalho da tabela
+  doc.setFillColor(...COLORS.CONTEXT_BG);
   doc.setDrawColor(...COLORS.BORDER);
   doc.setLineWidth(0.3);
-  doc.rect(PAGE.MARGIN_LEFT, yPosition, contentWidth, 6, "S");
+  doc.rect(PAGE.MARGIN_LEFT, yPosition, contentWidth, 7, "FD");
   
   doc.setFont("helvetica", "bold");
   doc.setFontSize(FONTS.CAPTION);
-  doc.setTextColor(...COLORS.BLACK);
+  doc.setTextColor(...COLORS.DARK_GRAY);
   
   for (let col = 0; col < gridCols; col++) {
     const colX = PAGE.MARGIN_LEFT + col * cellWidth + cellWidth / 2;
-    doc.text("Nº - R", colX, yPosition + 4, { align: "center" });
+    doc.text("Nº – Resp.", colX, yPosition + 5, { align: "center" });
     if (col > 0) {
-      doc.line(PAGE.MARGIN_LEFT + col * cellWidth, yPosition, PAGE.MARGIN_LEFT + col * cellWidth, yPosition + 6);
+      doc.line(PAGE.MARGIN_LEFT + col * cellWidth, yPosition, PAGE.MARGIN_LEFT + col * cellWidth, yPosition + 7);
     }
   }
-  yPosition += 6;
+  yPosition += 7;
 
-  // Linhas de respostas
+  // Linhas do gabarito
   const rows = Math.ceil(answerKey.length / gridCols);
   
   for (let row = 0; row < rows; row++) {
@@ -731,14 +785,14 @@ export const generateSimuladoPDF = async (
         doc.line(colX, yPosition, colX, yPosition + cellHeight);
       }
       
-      // Formato: "01 - A"
+      // Formato: "01 – A"
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
+      doc.setFontSize(9.5);
       doc.setTextColor(...COLORS.BLACK);
       doc.text(
-        `${String(item.question).padStart(2, '0')} - ${item.answer}`,
+        `${String(item.question).padStart(2, '0')} – ${item.answer}`,
         colX + cellWidth / 2,
-        yPosition + 5.5,
+        yPosition + 6,
         { align: "center" }
       );
     }
@@ -746,15 +800,15 @@ export const generateSimuladoPDF = async (
     yPosition += cellHeight;
   }
 
-  // Resumo por área - lista simples
-  yPosition += 12;
-  checkPageBreak(30);
+  // Resumo por área
+  yPosition += 14;
+  checkPageBreak(35);
   
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
+  doc.setFontSize(11);
   doc.setTextColor(...COLORS.BLACK);
-  doc.text("Resumo por Área", PAGE.MARGIN_LEFT, yPosition);
-  yPosition += 7;
+  doc.text("Resumo por Área de Conhecimento", PAGE.MARGIN_LEFT, yPosition);
+  yPosition += 8;
   
   const disciplineCounts: Record<string, number> = {};
   answerKey.forEach(item => {
@@ -763,22 +817,22 @@ export const generateSimuladoPDF = async (
   });
   
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
+  doc.setFontSize(9.5);
   doc.setTextColor(...COLORS.DARK_GRAY);
   
   Object.entries(disciplineCounts).forEach(([disc, count]) => {
-    doc.text(`• ${disc}: ${count} questões`, PAGE.MARGIN_LEFT + 4, yPosition);
-    yPosition += 5;
+    doc.text(`• ${disc}: ${count} ${count === 1 ? 'questão' : 'questões'}`, PAGE.MARGIN_LEFT + 6, yPosition);
+    yPosition += 6;
   });
 
-  // Rodapés em todas as páginas
+  // Adicionar rodapé em todas as páginas
   const totalPages = doc.internal.pages.length - 1;
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
     addFooter();
   }
 
-  // Salvar
+  // Salvar arquivo
   const timestamp = new Date().toISOString().split("T")[0];
   const filename = `simulado-enem${simuladoYear ? `-${simuladoYear}` : ""}-${timestamp}.pdf`;
   console.log(`[PDF] Saving: ${filename}`);
