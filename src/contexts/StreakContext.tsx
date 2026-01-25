@@ -9,11 +9,13 @@
  * - Estado global compartilhado
  * - Realtime updates via Supabase
  * - Auto-refresh quando dados mudam
+ * - Confetti celebrations
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import confetti from 'canvas-confetti';
 
 // Constantes do sistema de streak
 const REQUIRED_DAILY_QUESTIONS = 5;
@@ -271,6 +273,17 @@ export const StreakProvider: React.FC<StreakProviderProps> = ({ children }) => {
           // Streak foi quebrado, começa novo
           newStreak = 1;
         }
+
+        // Dispara confetti de celebração de streak
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#f97316', '#fb923c', '#fdba74', '#fed7aa', '#ffedd5'],
+          shapes: ['circle'],
+          scalar: 1.2,
+          zIndex: 9999,
+        });
 
         toast.success('🔥 Streak do dia completo!', {
           description: `Você está em uma sequência de ${newStreak} dia(s)! Continue assim!`,
