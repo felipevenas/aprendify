@@ -34,6 +34,7 @@ import Achievements from "./pages/Achievements";
 import AdminNotifications from "./pages/AdminNotifications";
 import Feedback from "./pages/Feedback";
 import AdminFeedback from "./pages/AdminFeedback";
+import ReviewErrors from "./pages/ReviewErrors";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -81,6 +82,7 @@ const App = () => (
                   <Route path="/admin/notifications" element={<AdminNotifications />} />
                   <Route path="/feedback" element={<Feedback />} />
                   <Route path="/admin/feedback" element={<AdminFeedback />} />
+                  <Route path="/review-errors" element={<ReviewErrors />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
