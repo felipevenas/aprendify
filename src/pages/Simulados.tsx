@@ -1,18 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
   FileText, 
   Clock, 
-  Trophy, 
-  AlertCircle, 
   Plus, 
-  Calendar,
   ChevronRight,
-  Lock,
   History,
-  Target,
-  ArrowLeft
+  ArrowLeft,
+  Trash2
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,11 +18,21 @@ import { useSimulados, Simulado } from "@/hooks/useSimulados";
 import { usePremium } from "@/hooks/usePremium";
 import { NewSimuladoDialog } from "@/components/simulados/NewSimuladoDialog";
 import { SimuladoHistoryCard } from "@/components/simulados/SimuladoHistoryCard";
-import { formatDisciplineName } from "@/lib/formatters";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Navbar from "@/components/Navbar";
 import PremiumLockScreen from "@/components/PremiumLockScreen";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 /**
  * Main Simulados page
@@ -36,8 +42,30 @@ import PremiumLockScreen from "@/components/PremiumLockScreen";
 const Simulados = () => {
   const navigate = useNavigate();
   const { isPremium, isLoading: premiumLoading } = usePremium();
-  const { simulados, loading } = useSimulados();
+  const { simulados, loading, abandonSimulado } = useSimulados();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [simuladoToDelete, setSimuladoToDelete] = useState<Simulado | null>(null);
+
+  const handleDeleteClick = (e: React.MouseEvent, simulado: Simulado) => {
+    e.stopPropagation();
+    setSimuladoToDelete(simulado);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!simuladoToDelete) return;
+    
+    const success = await abandonSimulado(simuladoToDelete.id);
+    if (success) {
+      toast.success("Simulado removido com sucesso");
+    } else {
+      toast.error("Erro ao remover simulado");
+    }
+    
+    setDeleteDialogOpen(false);
+    setSimuladoToDelete(null);
+  };
 
   // Aguarda carregar o status premium antes de verificar acesso
   if (premiumLoading || loading) {
@@ -148,7 +176,14 @@ const Simulados = () => {
                       <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600">
                         Em andamento
                       </Badge>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => handleDeleteClick(e, simulado)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                     <CardTitle className="text-lg mt-2">
                       {getSimuladoTitle(simulado)}
@@ -245,6 +280,28 @@ const Simulados = () => {
           open={dialogOpen} 
           onOpenChange={setDialogOpen}
         />
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remover Simulado?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja remover este simulado em andamento? 
+                Esta ação não pode ser desfeita e todo o progresso será perdido.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleConfirmDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Remover
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </motion.div>
     </div>
     </>
