@@ -26,6 +26,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { ShareResultsButton } from "@/components/simulados/ShareResultsButton";
 
 interface QuestionWithAnswer {
   question_index: number;
@@ -429,6 +430,13 @@ const SimuladoResults = () => {
           <Button variant="outline" onClick={() => navigate("/simulados")}>
             Voltar aos Simulados
           </Button>
+          <ShareResultsButton
+            percentage={percentage}
+            totalCorrect={results.total_correct}
+            totalQuestions={total}
+            disciplineStats={disciplineStats}
+            simuladoType={simulado.type.includes("official") ? "Simulado ENEM Oficial" : "Simulado ENEM"}
+          />
           <Button onClick={() => navigate("/simulados")}>
             Fazer Novo Simulado
           </Button>
