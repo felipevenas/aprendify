@@ -17,6 +17,7 @@ import {
   Settings2,
   ClipboardList,
   Crown,
+  ArrowRight,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
@@ -24,8 +25,10 @@ import QuestionStatsChart from "@/components/dashboard/QuestionStatsChart";
 import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
 import QuickStats from "@/components/dashboard/QuickStats";
 import ContextualCTA from "@/components/dashboard/ContextualCTA";
+import QuickSessionButton from "@/components/dashboard/QuickSessionButton";
 import { PageLoader } from "@/components/ui/page-loader";
 import { useHelpTooltips } from "@/contexts/HelpTooltipsContext";
+import { Button } from "@/components/ui/button";
 
 // Tooltips de ajuda do Dashboard
 const dashboardTooltips = [
@@ -274,43 +277,58 @@ const Dashboard = () => {
             animate="visible"
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 mb-5 sm:mb-6"
           >
-            {/* Banco de Questões - ocupa 2 colunas */}
+            {/* Banco de Questões - Card destacado com CTA animado */}
             <motion.div variants={itemVariants} className="md:col-span-2" data-tour="question-bank">
               <Card
-                className="group cursor-pointer border-primary/20 overflow-hidden relative h-full bg-card"
+                className="group cursor-pointer border-primary/30 overflow-hidden relative h-full bg-gradient-to-br from-primary/5 to-primary/10 hover:border-primary/50 hover:shadow-xl transition-all duration-300"
                 onClick={() => navigate("/questions")}
               >
-                {/* Efeito de brilho no hover */}
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/10 transition-colors duration-500" />
+                {/* Efeito de brilho animado */}
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="absolute top-0 right-0 w-72 h-72 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/20 transition-colors duration-500" />
+                
+                {/* Badge pulsante */}
+                <motion.div
+                  className="absolute top-4 right-4"
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <span className="px-3 py-1.5 bg-gradient-to-r from-primary to-primary-dark text-primary-foreground text-xs font-bold rounded-full tracking-wide uppercase shadow-lg">
+                    ⚡ Comece Aqui
+                  </span>
+                </motion.div>
 
                 <CardHeader className="relative pb-2">
                   <div className="flex items-start justify-between">
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300">
-                      <Brain className="h-7 w-7 sm:h-8 sm:w-8 text-primary-foreground" />
-                    </div>
-                    <span className="px-3 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-full tracking-wide uppercase">
-                      Destaque
-                    </span>
+                    <motion.div 
+                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center mb-4 shadow-lg"
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                      transition={{ type: "spring", stiffness: 300 }}
+                    >
+                      <Brain className="h-8 w-8 sm:h-10 sm:w-10 text-primary-foreground" />
+                    </motion.div>
                   </div>
-                  <CardTitle className="text-xl sm:text-2xl group-hover:text-primary transition-colors duration-300">
+                  <CardTitle className="text-2xl sm:text-3xl group-hover:text-primary transition-colors duration-300">
                     Banco de Questões
                   </CardTitle>
                   <CardDescription className="text-base sm:text-lg">
-                    Pratique com questões reais do ENEM
+                    +15.000 questões reais do ENEM de 2009 a 2024
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="relative pt-4">
-                  <div className="flex items-center text-primary font-semibold group-hover:gap-3 gap-2 transition-all duration-300">
+                  <Button 
+                    variant="default" 
+                    size="lg" 
+                    className="gap-2 group-hover:gap-3 transition-all duration-300"
+                  >
                     <span>Começar a praticar</span>
                     <motion.div
-                      className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center"
                       animate={{ x: [0, 4, 0] }}
                       transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                     >
-                      →
+                      <ArrowRight className="h-5 w-5" />
                     </motion.div>
-                  </div>
+                  </Button>
                 </CardContent>
               </Card>
             </motion.div>
@@ -422,6 +440,9 @@ const Dashboard = () => {
             </motion.div>
           )}
         </main>
+        
+        {/* Botão de Sessão Rápida flutuante */}
+        <QuickSessionButton userId={user?.id} />
       </div>
     </PageLoader>
   );
