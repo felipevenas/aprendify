@@ -35,41 +35,44 @@ const ErrorReviewCard = ({ userId }: ErrorReviewCardProps) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        // Intervalos de repetição espaçada: 1, 3, 7, 14 dias
-        const intervals = [1, 3, 7, 14];
-        const reviewDates = intervals.map(days => {
-          const date = new Date();
-          date.setDate(date.getDate() - days);
-          date.setHours(0, 0, 0, 0);
-          return date.toISOString().split('T')[0];
-        });
+        // Buscar erros dos últimos 30 dias
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        // Buscar erros que devem ser revisados hoje
         const { data: errors, error } = await supabase
           .from("question_attempts")
           .select("id, created_at, question_id")
           .eq("user_id", userId)
-          .eq("is_correct", false);
+          .eq("is_correct", false)
+          .gte("created_at", thirtyDaysAgo.toISOString());
 
         if (error) throw error;
 
-        // Filtrar erros que se encaixam nos intervalos de revisão
-        const todayErrors = (errors || []).filter(err => {
-          const errorDate = new Date(err.created_at).toISOString().split('T')[0];
-          return reviewDates.includes(errorDate);
-        });
-
-        // Contar questões únicas para revisão hoje
-        const uniqueQuestionIds = new Set(todayErrors.map(e => e.question_id));
-        const todayCount = uniqueQuestionIds.size;
-
-        // Total de erros pendentes (últimos 14 dias)
-        const fourteenDaysAgo = new Date();
-        fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-        const recentErrors = (errors || []).filter(err => 
-          new Date(err.created_at) >= fourteenDaysAgo
-        );
-        const totalPending = new Set(recentErrors.map(e => e.question_id)).size;
+        // Intervalos de repetição espaçada: 1, 3, 7, 14 dias
+        const intervals = [1, 3, 7, 14];
+        const now = new Date();
+        
+        // Questões únicas para evitar duplicatas
+        const seenQuestions = new Set<string>();
+        let todayCount = 0;
+        let totalPending = 0;
+        
+        for (const err of (errors || [])) {
+          if (seenQuestions.has(err.question_id)) continue;
+          seenQuestions.add(err.question_id);
+          
+          const errorDate = new Date(err.created_at);
+          const daysSince = Math.floor((now.getTime() - errorDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          // Total de questões pendentes
+          totalPending++;
+          
+          // Conta como "para revisar hoje" se está em um intervalo de repetição espaçada
+          // ou se errou há 1-2 dias (janela de revisão imediata)
+          if (intervals.includes(daysSince) || (daysSince >= 1 && daysSince <= 2)) {
+            todayCount++;
+          }
+        }
 
         // Questões já revisadas hoje (acertos de hoje em questões previamente erradas)
         const { data: todayCorrect } = await supabase
@@ -80,7 +83,7 @@ const ErrorReviewCard = ({ userId }: ErrorReviewCardProps) => {
           .gte("created_at", today.toISOString());
 
         const reviewedIds = new Set(todayCorrect?.map(c => c.question_id) || []);
-        const reviewedToday = [...uniqueQuestionIds].filter(id => reviewedIds.has(id)).length;
+        const reviewedToday = [...seenQuestions].filter(id => reviewedIds.has(id)).length;
 
         setStats({
           todayCount,
