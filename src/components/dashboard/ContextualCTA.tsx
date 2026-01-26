@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, Flame, BookOpen, AlertTriangle, Trophy, PenLine } from "lucide-react";
+import { ArrowRight, Flame, BookOpen, AlertTriangle, Trophy, PenLine, Target, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDisciplineName } from "@/lib/formatters";
 
 interface ContextualCTAProps {
   userId?: string;
 }
 
-type CTAType = "streak_incomplete" | "not_studied" | "review_errors" | "essay_pending" | "keep_going";
+type CTAType = "streak_incomplete" | "not_studied" | "review_errors" | "essay_pending" | "keep_going" | "weak_discipline" | "first_time";
 
 interface CTAConfig {
   type: CTAType;
@@ -20,6 +21,7 @@ interface CTAConfig {
   gradient: string;
   iconColor: string;
   path: string;
+  queryParams?: string;
 }
 
 /**
@@ -46,6 +48,39 @@ const ContextualCTA = ({ userId }: ContextualCTAProps) => {
         const streakCompletedToday = streakData?.streak_completed_today || false;
         const currentStreak = streakData?.current_streak || 0;
 
+        // Check for weak disciplines (last 7 days)
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        
+        const { data: recentAttempts } = await supabase
+          .from("question_attempts")
+          .select("discipline, is_correct")
+          .eq("user_id", userId)
+          .gte("created_at", weekAgo.toISOString());
+
+        // Calculate discipline performance
+        const disciplineStats: Record<string, { correct: number; total: number }> = {};
+        (recentAttempts || []).forEach(attempt => {
+          if (!disciplineStats[attempt.discipline]) {
+            disciplineStats[attempt.discipline] = { correct: 0, total: 0 };
+          }
+          disciplineStats[attempt.discipline].total++;
+          if (attempt.is_correct) {
+            disciplineStats[attempt.discipline].correct++;
+          }
+        });
+
+        // Find weakest discipline with at least 5 attempts
+        let weakestDiscipline: { name: string; accuracy: number } | null = null;
+        Object.entries(disciplineStats).forEach(([discipline, stats]) => {
+          if (stats.total >= 5) {
+            const accuracy = (stats.correct / stats.total) * 100;
+            if (!weakestDiscipline || accuracy < weakestDiscipline.accuracy) {
+              weakestDiscipline = { name: discipline, accuracy };
+            }
+          }
+        });
+
         // Check for recent errors (yesterday)
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
@@ -53,7 +88,7 @@ const ContextualCTA = ({ userId }: ContextualCTAProps) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const { data: recentErrors, count: errorCount } = await supabase
+        const { count: errorCount } = await supabase
           .from("question_attempts")
           .select("*", { count: "exact", head: true })
           .eq("user_id", userId)
@@ -64,7 +99,19 @@ const ContextualCTA = ({ userId }: ContextualCTAProps) => {
         // Determine the best CTA
         let config: CTAConfig;
 
-        if (!streakCompletedToday && questionsToday > 0) {
+        // First time user (no attempts ever)
+        if (!recentAttempts || recentAttempts.length === 0) {
+          config = {
+            type: "first_time",
+            title: "Bem-vindo ao Aprendify! 🎉",
+            description: "Comece sua jornada respondendo algumas questões do ENEM. Vamos identificar suas forças e fraquezas!",
+            buttonText: "Fazer primeira sessão",
+            icon: Target,
+            gradient: "from-primary/10 to-accent/10",
+            iconColor: "text-primary",
+            path: "/questions",
+          };
+        } else if (!streakCompletedToday && questionsToday > 0) {
           // Streak incompleto mas já começou
           const remaining = 5 - questionsToday;
           config = {
@@ -93,10 +140,23 @@ const ContextualCTA = ({ userId }: ContextualCTAProps) => {
             title: "Hora de praticar! 📚",
             description: timeMessage,
             buttonText: "Começar sessão",
-            icon: BookOpen,
+            icon: Clock,
             gradient: "from-blue-500/10 to-indigo-500/10",
             iconColor: "text-blue-500",
             path: "/questions",
+          };
+        } else if (weakestDiscipline && weakestDiscipline.accuracy < 60) {
+          // Has a weak discipline
+          config = {
+            type: "weak_discipline",
+            title: `Foco em ${formatDisciplineName(weakestDiscipline.name)} 🎯`,
+            description: `Sua taxa de acerto está em ${Math.round(weakestDiscipline.accuracy)}%. Vamos melhorar essa área!`,
+            buttonText: "Praticar agora",
+            icon: Target,
+            gradient: "from-purple-500/10 to-pink-500/10",
+            iconColor: "text-purple-500",
+            path: "/questions",
+            queryParams: `?discipline=${encodeURIComponent(weakestDiscipline.name)}`,
           };
         } else if ((errorCount || 0) > 2) {
           // Teve erros recentes
@@ -108,7 +168,7 @@ const ContextualCTA = ({ userId }: ContextualCTAProps) => {
             icon: AlertTriangle,
             gradient: "from-yellow-500/10 to-amber-500/10",
             iconColor: "text-yellow-500",
-            path: "/statistics",
+            path: "/review-errors",
           };
         } else if (streakCompletedToday) {
           // Já completou streak, sugerir redação ou mais questões
@@ -183,7 +243,7 @@ const ContextualCTA = ({ userId }: ContextualCTAProps) => {
             </div>
           </div>
           <Button
-            onClick={() => navigate(ctaConfig.path)}
+            onClick={() => navigate(ctaConfig.path + (ctaConfig.queryParams || ""))}
             className="gap-2 shrink-0"
           >
             {ctaConfig.buttonText}

@@ -27,6 +27,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { ShareResultsButton } from "@/components/simulados/ShareResultsButton";
+import TRIScoreDisplay from "@/components/simulados/TRIScoreDisplay";
 
 interface QuestionWithAnswer {
   question_index: number;
@@ -35,10 +36,12 @@ interface QuestionWithAnswer {
   selected_answer: string | null;
   correct_answer: string;
   is_correct: boolean | null;
+  difficulty?: string;
   question_data?: {
     title: string;
     context: string | null;
     alternatives: Array<{ letter: string; text: string }>;
+    difficulty?: string;
   };
 }
 
@@ -81,7 +84,7 @@ const SimuladoResults = () => {
         const questionIds = ans.map(a => a.question_id);
         const { data: questionsData } = await supabase
           .from("enem_questions")
-          .select("id, title, context, alternatives")
+          .select("id, title, context, alternatives, difficulty")
           .in("id", questionIds);
 
         const questionsMap = new Map(questionsData?.map(q => [q.id, {
@@ -89,13 +92,18 @@ const SimuladoResults = () => {
           context: q.context,
           alternatives: Array.isArray(q.alternatives) 
             ? q.alternatives as unknown as Array<{ letter: string; text: string }>
-            : []
+            : [],
+          difficulty: q.difficulty
         }]) || []);
 
-        const answersWithData: QuestionWithAnswer[] = ans.map(a => ({
-          ...a,
-          question_data: questionsMap.get(a.question_id)
-        }));
+        const answersWithData: QuestionWithAnswer[] = ans.map(a => {
+          const qData = questionsMap.get(a.question_id);
+          return {
+            ...a,
+            difficulty: qData?.difficulty,
+            question_data: qData
+          };
+        });
 
         setAnswers(answersWithData);
       } catch (error) {
@@ -234,6 +242,9 @@ const SimuladoResults = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* TRI Score Card */}
+        <TRIScoreDisplay answers={answers} showDetails={true} />
 
         {/* Discipline Performance */}
         <Card>

@@ -25,6 +25,7 @@ import QuestionStatsChart from "@/components/dashboard/QuestionStatsChart";
 import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
 import QuickStats from "@/components/dashboard/QuickStats";
 import ContextualCTA from "@/components/dashboard/ContextualCTA";
+import ErrorReviewCard from "@/components/dashboard/ErrorReviewCard";
 import QuickSessionButton from "@/components/dashboard/QuickSessionButton";
 import { PageLoader } from "@/components/ui/page-loader";
 import { useHelpTooltips } from "@/contexts/HelpTooltipsContext";
@@ -269,6 +270,9 @@ const Dashboard = () => {
 
           {/* CTA Contextual */}
           <ContextualCTA userId={user?.id} />
+
+          {/* Card de Revisão de Erros (Spaced Repetition) */}
+          <ErrorReviewCard userId={user?.id} />
 
           {/* Grid de cards - primeira linha com Banco de Questões + Gráfico */}
           <motion.div
