@@ -158,14 +158,50 @@ const ReviewErrors = () => {
 
   const handleStartReview = async (error: ErrorQuestion) => {
     try {
-      // Busca a questão completa
-      const { data: question, error: fetchError } = await supabase
-        .from("enem_questions")
-        .select("*")
-        .eq("id", error.question_id)
-        .single();
+      // question_id pode ser UUID ou identificador legado (ex: "2019-linguagens-26")
+      // Tenta buscar por id primeiro, se falhar tenta por índice
+      let question = null;
+      
+      // Verifica se é um UUID válido
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(error.question_id);
+      
+      if (isUUID) {
+        const { data, error: fetchError } = await supabase
+          .from("enem_questions")
+          .select("*")
+          .eq("id", error.question_id)
+          .single();
+        
+        if (!fetchError) question = data;
+      }
+      
+      // Se não encontrou por UUID, tenta parsear o identificador legado
+      if (!question) {
+        // Formato: "ano-disciplina-index" ex: "2019-linguagens-26"
+        const parts = error.question_id.split("-");
+        if (parts.length >= 2) {
+          const year = parts[0];
+          const index = parseInt(parts[parts.length - 1], 10);
+          
+          if (!isNaN(index)) {
+            const { data, error: fetchError } = await supabase
+              .from("enem_questions")
+              .select("*")
+              .eq("year", year)
+              .eq("index", index)
+              .maybeSingle();
+            
+            if (!fetchError && data) question = data;
+          }
+        }
+      }
 
-      if (fetchError) throw fetchError;
+      if (!question) {
+        toast.error("Questão não encontrada no banco de dados");
+        // Remove da lista local já que a questão não existe mais
+        setErrors(prev => prev.filter(e => e.id !== error.id));
+        return;
+      }
 
       setSelectedError({
         ...error,
