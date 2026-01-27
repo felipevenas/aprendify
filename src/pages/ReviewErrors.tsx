@@ -72,41 +72,68 @@ const ReviewErrors = () => {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      const { data: attempts, error } = await supabase
+      // Busca TODAS as tentativas do usuário nos últimos 30 dias (certas e erradas)
+      const { data: allAttempts, error } = await supabase
         .from("question_attempts")
         .select(`
           id,
           question_id,
           discipline,
           created_at,
-          had_doubt
+          had_doubt,
+          is_correct
         `)
         .eq("user_id", uid)
-        .eq("is_correct", false)
         .gte("created_at", thirtyDaysAgo.toISOString())
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      if (!attempts || attempts.length === 0) {
+      if (!allAttempts || allAttempts.length === 0) {
         setErrors([]);
         setLoading(false);
         return;
       }
 
+      // Agrupa tentativas por question_id para análise
+      const attemptsByQuestion = new Map<string, typeof allAttempts>();
+      for (const attempt of allAttempts) {
+        const existing = attemptsByQuestion.get(attempt.question_id) || [];
+        existing.push(attempt);
+        attemptsByQuestion.set(attempt.question_id, existing);
+      }
+
       // Processa erros e calcula prioridade baseado em repetição espaçada
       const now = new Date();
       const processedErrors: ErrorQuestion[] = [];
-      const seenQuestions = new Set<string>();
       const uniqueDisciplines = new Set<string>();
 
-      for (const attempt of attempts) {
-        // Pula questões duplicadas (mantém apenas o erro mais recente)
-        if (seenQuestions.has(attempt.question_id)) continue;
-        seenQuestions.add(attempt.question_id);
+      for (const [questionId, attempts] of attemptsByQuestion) {
+        // Ordena por data (mais recente primeiro)
+        const sortedAttempts = attempts.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
 
-        const errorDate = new Date(attempt.created_at);
-        const daysSinceError = Math.floor((now.getTime() - errorDate.getTime()) / (1000 * 60 * 60 * 24));
+        // Encontra o erro mais recente
+        const lastError = sortedAttempts.find(a => !a.is_correct);
+        if (!lastError) continue; // Não tem erro, pula
+
+        const lastErrorDate = new Date(lastError.created_at);
+
+        // Verifica se o usuário ACERTOU essa questão DEPOIS do último erro
+        const hasCorrectAfterError = sortedAttempts.some(a => {
+          if (!a.is_correct) return false;
+          const correctDate = new Date(a.created_at);
+          return correctDate > lastErrorDate;
+        });
+
+        // Se acertou depois do erro, não precisa revisar mais (por agora)
+        if (hasCorrectAfterError) {
+          console.log(`[ReviewErrors] Questão ${questionId} já foi acertada após erro, removendo da lista`);
+          continue;
+        }
+
+        const daysSinceError = Math.floor((now.getTime() - lastErrorDate.getTime()) / (1000 * 60 * 60 * 24));
 
         // Determina prioridade baseado nos intervalos de repetição espaçada
         let priority: 'high' | 'medium' | 'low' = 'low';
@@ -120,21 +147,21 @@ const ReviewErrors = () => {
         }
 
         // Questões marcadas com dúvida têm prioridade aumentada
-        if (attempt.had_doubt && priority !== 'high') {
+        if (lastError.had_doubt && priority !== 'high') {
           priority = priority === 'low' ? 'medium' : 'high';
         }
 
         processedErrors.push({
-          id: attempt.id,
-          question_id: attempt.question_id,
-          discipline: attempt.discipline || 'Geral',
-          created_at: attempt.created_at,
+          id: lastError.id,
+          question_id: questionId,
+          discipline: lastError.discipline || 'Geral',
+          created_at: lastError.created_at,
           days_since_error: daysSinceError,
           review_priority: priority,
         });
 
-        if (attempt.discipline) {
-          uniqueDisciplines.add(attempt.discipline);
+        if (lastError.discipline) {
+          uniqueDisciplines.add(lastError.discipline);
         }
       }
 
@@ -222,7 +249,7 @@ const ReviewErrors = () => {
   };
 
   const handleAnswerSubmit = async (
-    _questionId: string, 
+    questionId: string, 
     _selectedAnswer: string, 
     _correctAnswer: string, 
     isCorrect: boolean, 
@@ -230,17 +257,21 @@ const ReviewErrors = () => {
   ) => {
     if (!selectedError || !userId) return;
 
-    if (isCorrect) {
-      toast.success("Parabéns! Você acertou na revisão! 🎉");
-    } else {
-      toast.info("Continue praticando! A questão será revisada novamente.");
-    }
-
     // Volta para a lista
     setSelectedError(null);
-    
-    // Atualiza a lista se acertou (remove da lista de erros para revisão)
-    if (isCorrect && userId) {
+
+    if (isCorrect) {
+      toast.success("Parabéns! Questão revisada com sucesso! 🎉", {
+        description: "Esta questão foi removida da sua lista de revisão."
+      });
+      
+      // Remove imediatamente da lista visual para feedback instantâneo
+      setErrors(prev => prev.filter(e => e.question_id !== selectedError.question_id));
+    } else {
+      toast.info("Continue praticando!", {
+        description: "Esta questão voltará para revisão nos próximos dias."
+      });
+      // Recarrega a lista para recalcular prioridades
       fetchErrors(userId);
     }
   };
