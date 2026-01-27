@@ -204,9 +204,16 @@ const ReviewErrors = () => {
         return;
       }
 
+      // Normaliza os campos do banco (snake_case) para o formato esperado pelo QuestionPractice (camelCase)
+      const normalizedQuestion = {
+        ...question,
+        correctAlternative: question.correct_alternative,
+        alternativesIntroduction: question.alternatives_introduction,
+      };
+
       setSelectedError({
         ...error,
-        question_data: question,
+        question_data: normalizedQuestion,
       });
     } catch (err) {
       console.error("Error fetching question:", err);
