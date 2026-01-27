@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import QuestionPractice from "@/components/questions/QuestionPractice";
 import { usePremium } from "@/hooks/usePremium";
 import PremiumLockScreen from "@/components/PremiumLockScreen";
+import { getSubjectByDiscipline, getSubjectColor, FIXED_SUBJECTS } from "@/lib/subjects";
 
 interface ErrorQuestion {
   id: string;
@@ -426,9 +427,20 @@ const ReviewErrors = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas as Disciplinas</SelectItem>
-              {disciplines.map((disc) => (
-                <SelectItem key={disc} value={disc}>{disc}</SelectItem>
-              ))}
+              {disciplines.map((disc) => {
+                const subject = getSubjectByDiscipline(disc);
+                return (
+                  <SelectItem key={disc} value={disc}>
+                    <span className="flex items-center gap-2">
+                      <span 
+                        className="w-2 h-2 rounded-full" 
+                        style={{ backgroundColor: subject?.color || '#6B7280' }} 
+                      />
+                      {subject?.name || disc}
+                    </span>
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
@@ -461,43 +473,46 @@ const ReviewErrors = () => {
                   transition={{ delay: index * 0.05 }}
                 >
                   <Card 
-                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    className="cursor-pointer hover:shadow-md transition-shadow group"
                     onClick={() => handleStartReview(error)}
                   >
                     <CardContent className="py-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className={`p-2 rounded-lg ${
-                            error.review_priority === 'high' 
-                              ? 'bg-red-100 dark:bg-red-900/30' 
-                              : error.review_priority === 'medium'
-                              ? 'bg-amber-100 dark:bg-amber-900/30'
-                              : 'bg-gray-100 dark:bg-gray-800'
-                          }`}>
-                            <RotateCcw className={`h-5 w-5 ${
-                              error.review_priority === 'high'
-                                ? 'text-red-500'
-                                : error.review_priority === 'medium'
-                                ? 'text-amber-500'
-                                : 'text-gray-500'
-                            }`} />
+                          {/* Ícone de disciplina com cor */}
+                          <div 
+                            className="p-2.5 rounded-xl transition-transform group-hover:scale-105"
+                            style={{ 
+                              backgroundColor: `${getSubjectColor(error.discipline)}20`,
+                            }}
+                          >
+                            <div 
+                              className="w-5 h-5 rounded-full"
+                              style={{ backgroundColor: getSubjectColor(error.discipline) }}
+                            />
                           </div>
                           <div>
-                            <p className="font-medium text-foreground">{error.discipline}</p>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-foreground">
+                                {getSubjectByDiscipline(error.discipline)?.name || error.discipline}
+                              </p>
+                              <Badge 
+                                variant="outline" 
+                                className={getPriorityColor(error.review_priority)}
+                              >
+                                {getPriorityLabel(error.review_priority)}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                               <Calendar className="h-3 w-3" />
                               <span>Errou há {error.days_since_error} dia(s)</span>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <Badge className={getPriorityColor(error.review_priority)}>
-                            {getPriorityLabel(error.review_priority)}
-                          </Badge>
-                          <Button size="sm" variant="ghost">
-                            Revisar
-                          </Button>
-                        </div>
+                        <Button size="sm" className="gap-2">
+                          <RotateCcw className="h-4 w-4" />
+                          Revisar
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
