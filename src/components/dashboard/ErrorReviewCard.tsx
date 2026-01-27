@@ -35,37 +35,67 @@ const ErrorReviewCard = ({ userId }: ErrorReviewCardProps) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        // Buscar erros dos últimos 30 dias
+        // Buscar TODAS as tentativas dos últimos 30 dias
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        const { data: errors, error } = await supabase
+        const { data: allAttempts, error } = await supabase
           .from("question_attempts")
-          .select("id, created_at, question_id")
+          .select("id, created_at, question_id, is_correct")
           .eq("user_id", userId)
-          .eq("is_correct", false)
-          .gte("created_at", thirtyDaysAgo.toISOString());
+          .gte("created_at", thirtyDaysAgo.toISOString())
+          .order("created_at", { ascending: false });
 
         if (error) throw error;
+
+        // Agrupa tentativas por question_id
+        const attemptsByQuestion = new Map<string, typeof allAttempts>();
+        for (const attempt of (allAttempts || [])) {
+          const existing = attemptsByQuestion.get(attempt.question_id) || [];
+          existing.push(attempt);
+          attemptsByQuestion.set(attempt.question_id, existing);
+        }
 
         // Intervalos de repetição espaçada: 1, 3, 7, 14 dias
         const intervals = [1, 3, 7, 14];
         const now = new Date();
         
-        // Questões únicas para evitar duplicatas
-        const seenQuestions = new Set<string>();
         let todayCount = 0;
         let totalPending = 0;
+        let reviewedToday = 0;
         
-        for (const err of (errors || [])) {
-          if (seenQuestions.has(err.question_id)) continue;
-          seenQuestions.add(err.question_id);
-          
-          const errorDate = new Date(err.created_at);
-          const daysSince = Math.floor((now.getTime() - errorDate.getTime()) / (1000 * 60 * 60 * 24));
-          
+        for (const [_questionId, attempts] of attemptsByQuestion) {
+          // Ordena por data (mais recente primeiro)
+          const sortedAttempts = attempts.sort((a, b) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+
+          // Encontra o erro mais recente
+          const lastError = sortedAttempts.find(a => !a.is_correct);
+          if (!lastError) continue; // Não tem erro, pula
+
+          const lastErrorDate = new Date(lastError.created_at);
+
+          // Verifica se o usuário ACERTOU essa questão DEPOIS do último erro
+          const correctAfterError = sortedAttempts.find(a => {
+            if (!a.is_correct) return false;
+            const correctDate = new Date(a.created_at);
+            return correctDate > lastErrorDate;
+          });
+
+          // Se acertou depois do erro, verifica se foi hoje (conta como revisada)
+          if (correctAfterError) {
+            const correctDate = new Date(correctAfterError.created_at);
+            if (correctDate >= today) {
+              reviewedToday++;
+            }
+            continue; // Não precisa mais revisar
+          }
+
           // Total de questões pendentes
           totalPending++;
+          
+          const daysSince = Math.floor((now.getTime() - lastErrorDate.getTime()) / (1000 * 60 * 60 * 24));
           
           // Conta como "para revisar hoje" se está em um intervalo de repetição espaçada
           // ou se errou há 1-2 dias (janela de revisão imediata)
@@ -73,17 +103,6 @@ const ErrorReviewCard = ({ userId }: ErrorReviewCardProps) => {
             todayCount++;
           }
         }
-
-        // Questões já revisadas hoje (acertos de hoje em questões previamente erradas)
-        const { data: todayCorrect } = await supabase
-          .from("question_attempts")
-          .select("question_id")
-          .eq("user_id", userId)
-          .eq("is_correct", true)
-          .gte("created_at", today.toISOString());
-
-        const reviewedIds = new Set(todayCorrect?.map(c => c.question_id) || []);
-        const reviewedToday = [...seenQuestions].filter(id => reviewedIds.has(id)).length;
 
         setStats({
           todayCount,
