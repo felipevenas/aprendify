@@ -10,7 +10,8 @@ import {
   ArrowLeft,
   RefreshCw,
   Filter,
-  Calendar
+  Calendar,
+  BarChart3
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
@@ -24,6 +25,8 @@ import QuestionPractice from "@/components/questions/QuestionPractice";
 import { usePremium } from "@/hooks/usePremium";
 import PremiumLockScreen from "@/components/PremiumLockScreen";
 import { getSubjectByDiscipline, getSubjectColor, FIXED_SUBJECTS } from "@/lib/subjects";
+import ReviewStatistics from "@/components/review/ReviewStatistics";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ErrorQuestion {
   id: string;
@@ -408,50 +411,64 @@ const ReviewErrors = () => {
           </div>
         </motion.div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30">
-                  <XCircle className="h-6 w-6 text-red-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{highPriorityCount}</p>
-                  <p className="text-sm text-muted-foreground">Revisar Hoje</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Tabs: Revisão e Estatísticas */}
+        <Tabs defaultValue="review" className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="review" className="gap-2">
+              <RotateCcw className="h-4 w-4" />
+              Revisão
+            </TabsTrigger>
+            <TabsTrigger value="stats" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Estatísticas
+            </TabsTrigger>
+          </TabsList>
 
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-amber-100 dark:bg-amber-900/30">
-                  <Clock className="h-6 w-6 text-amber-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{mediumPriorityCount}</p>
-                  <p className="text-sm text-muted-foreground">Esta Semana</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <TabsContent value="review" className="space-y-6">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30">
+                      <XCircle className="h-6 w-6 text-red-500" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-foreground">{highPriorityCount}</p>
+                      <p className="text-sm text-muted-foreground">Revisar Hoje</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-primary/10">
-                  <Brain className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{errors.length}</p>
-                  <p className="text-sm text-muted-foreground">Total para Revisar</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-xl bg-amber-100 dark:bg-amber-900/30">
+                      <Clock className="h-6 w-6 text-amber-500" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-foreground">{mediumPriorityCount}</p>
+                      <p className="text-sm text-muted-foreground">Esta Semana</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-xl bg-primary/10">
+                      <Brain className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-foreground">{errors.length}</p>
+                      <p className="text-sm text-muted-foreground">Total para Revisar</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
         {/* Filtros */}
         <div className="flex items-center gap-4 mb-6">
@@ -559,6 +576,12 @@ const ReviewErrors = () => {
             </AnimatePresence>
           </div>
         )}
+          </TabsContent>
+
+          <TabsContent value="stats">
+            {userId && <ReviewStatistics userId={userId} />}
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
