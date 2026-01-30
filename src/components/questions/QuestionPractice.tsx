@@ -149,7 +149,6 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
         setDifficulty(data.difficulty);
         // Sempre salva no cache local (para questões da API externa)
         setCachedDifficulty(questionKey, data.difficulty);
-        console.log(`[DifficultyAnalysis] Dificuldade analisada: ${data.difficulty} para ${questionKey}`);
       }
     } catch (err) {
       console.error("[DifficultyAnalysis] Erro ao analisar dificuldade:", err);
@@ -170,7 +169,6 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
     const cachedDifficulty = getCachedDifficulty(questionKey);
     if (cachedDifficulty) {
       setDifficulty(cachedDifficulty);
-      console.log(`[DifficultyCache] Usando cache para ${questionKey}: ${cachedDifficulty}`);
       return;
     }
 
