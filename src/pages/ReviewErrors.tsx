@@ -54,6 +54,7 @@ const ReviewErrors = () => {
   const [disciplineFilter, setDisciplineFilter] = useState<string>("all");
   const [disciplines, setDisciplines] = useState<string[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [statsRefreshTrigger, setStatsRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -270,12 +271,16 @@ const ReviewErrors = () => {
       
       // Remove imediatamente da lista visual para feedback instantâneo
       setErrors(prev => prev.filter(e => e.question_id !== selectedError.question_id));
+      // Dispara atualização das estatísticas
+      setStatsRefreshTrigger(prev => prev + 1);
     } else {
       toast.info("Continue praticando!", {
         description: "Esta questão voltará para revisão nos próximos dias."
       });
       // Recarrega a lista para recalcular prioridades
       fetchErrors(userId);
+      // Dispara atualização das estatísticas
+      setStatsRefreshTrigger(prev => prev + 1);
     }
   };
 
@@ -579,7 +584,7 @@ const ReviewErrors = () => {
           </TabsContent>
 
           <TabsContent value="stats">
-            {userId && <ReviewStatistics userId={userId} />}
+            {userId && <ReviewStatistics userId={userId} refreshTrigger={statsRefreshTrigger} />}
           </TabsContent>
         </Tabs>
       </main>

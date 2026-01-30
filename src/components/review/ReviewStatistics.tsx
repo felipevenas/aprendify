@@ -19,6 +19,7 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 
 
 interface ReviewStatisticsProps {
   userId: string;
+  refreshTrigger?: number;
 }
 
 interface DisciplineStats {
@@ -48,14 +49,14 @@ interface ReviewStats {
   trend: 'up' | 'down' | 'stable';
 }
 
-const ReviewStatistics = ({ userId }: ReviewStatisticsProps) => {
+const ReviewStatistics = ({ userId, refreshTrigger }: ReviewStatisticsProps) => {
   const [stats, setStats] = useState<ReviewStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!userId) return;
     fetchStats();
-  }, [userId]);
+  }, [userId, refreshTrigger]);
 
   const fetchStats = async () => {
     setLoading(true);
