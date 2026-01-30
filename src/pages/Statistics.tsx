@@ -220,7 +220,6 @@ const Statistics = () => {
 
   const fetchStatistics = async (userId: string) => {
     try {
-      console.log("Buscando estatísticas para o usuário:", userId);
 
       // Calcula data de início baseado no filtro
       let startDate = null;
