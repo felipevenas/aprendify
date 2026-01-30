@@ -133,7 +133,6 @@ const ReviewErrors = () => {
 
         // Se acertou depois do erro, não precisa revisar mais (por agora)
         if (hasCorrectAfterError) {
-          console.log(`[ReviewErrors] Questão ${questionId} já foi acertada após erro, removendo da lista`);
           continue;
         }
 
