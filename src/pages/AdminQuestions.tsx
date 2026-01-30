@@ -262,7 +262,6 @@ const AdminQuestions = () => {
       }));
       
       setQuestions(mappedQuestions);
-      console.log(`[AdminQuestions] Carregadas ${mappedQuestions.length} questões do banco de dados`);
     } catch (error) {
       console.error("[AdminQuestions] Erro ao carregar questões:", error);
       toast.error("Erro ao carregar questões");
