@@ -254,33 +254,60 @@ const ReviewErrors = () => {
 
   const handleAnswerSubmit = async (
     questionId: string, 
-    _selectedAnswer: string, 
-    _correctAnswer: string, 
+    selectedAnswer: string, 
+    correctAnswer: string, 
     isCorrect: boolean, 
-    _hadDoubt?: boolean
+    hadDoubt?: boolean
   ) => {
     if (!selectedError || !userId) return;
 
-    // Volta para a lista
-    setSelectedError(null);
+    try {
+      // Salva a tentativa no banco de dados
+      const attemptData = {
+        user_id: userId,
+        question_id: questionId,
+        discipline: selectedError.discipline || "desconhecida",
+        year: selectedError.question_data?.year || new Date().getFullYear().toString(),
+        selected_answer: selectedAnswer,
+        correct_answer: correctAnswer,
+        is_correct: isCorrect,
+        had_doubt: hadDoubt || null,
+        language: selectedError.question_data?.language || null,
+      };
 
-    if (isCorrect) {
-      toast.success("Parabéns! Questão revisada com sucesso! 🎉", {
-        description: "Esta questão foi removida da sua lista de revisão."
-      });
+      const { error: insertError } = await supabase
+        .from("question_attempts")
+        .insert(attemptData);
+
+      if (insertError) {
+        console.error("Erro ao salvar tentativa:", insertError);
+        toast.error("Erro ao salvar resposta");
+        return;
+      }
+
+      // Volta para a lista
+      setSelectedError(null);
+
+      if (isCorrect) {
+        toast.success("Parabéns! Questão revisada com sucesso! 🎉", {
+          description: "Esta questão foi removida da sua lista de revisão."
+        });
+        
+        // Remove imediatamente da lista visual para feedback instantâneo
+        setErrors(prev => prev.filter(e => e.question_id !== selectedError.question_id));
+      } else {
+        toast.info("Continue praticando!", {
+          description: "Esta questão voltará para revisão nos próximos dias."
+        });
+        // Recarrega a lista para recalcular prioridades
+        fetchErrors(userId);
+      }
       
-      // Remove imediatamente da lista visual para feedback instantâneo
-      setErrors(prev => prev.filter(e => e.question_id !== selectedError.question_id));
       // Dispara atualização das estatísticas
       setStatsRefreshTrigger(prev => prev + 1);
-    } else {
-      toast.info("Continue praticando!", {
-        description: "Esta questão voltará para revisão nos próximos dias."
-      });
-      // Recarrega a lista para recalcular prioridades
-      fetchErrors(userId);
-      // Dispara atualização das estatísticas
-      setStatsRefreshTrigger(prev => prev + 1);
+    } catch (error) {
+      console.error("Erro inesperado ao salvar resposta:", error);
+      toast.error("Erro ao processar resposta");
     }
   };
 
