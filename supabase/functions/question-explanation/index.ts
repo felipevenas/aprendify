@@ -61,7 +61,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("[question-explanation] Authenticated user:", user.id);
+    // User authenticated successfully
 
     // Verificar se é premium usando a função do banco
     const { data: isPremium, error: premiumError } = await supabase

@@ -179,7 +179,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("[correct-essay] Authenticated user:", user.id);
+    // User authenticated successfully
 
     // Check rate limit using service role client (in addition to monthly limits)
     const supabaseService = createClient(supabaseUrl, supabaseServiceKey);

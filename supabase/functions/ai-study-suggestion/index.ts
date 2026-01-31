@@ -43,7 +43,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("[ai-study-suggestion] Authenticated user:", user.id);
+    // User authenticated successfully
 
     // Check rate limit using service role client
     const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
@@ -149,7 +149,7 @@ Responda em português brasileiro de forma organizada e concisa.`;
     const data = await response.json();
     const suggestion = data.choices?.[0]?.message?.content || "Não foi possível gerar sugestões.";
 
-    console.log("[ai-study-suggestion] Suggestion generated successfully for user:", user.id);
+    console.log("[ai-study-suggestion] Suggestion generated successfully");
 
     return new Response(
       JSON.stringify({ suggestion }),
