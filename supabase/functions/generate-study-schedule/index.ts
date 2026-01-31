@@ -19,6 +19,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limit configuration - generous limit as it's resource-intensive
+const RATE_LIMIT_MAX_CALLS = 3; // 3 schedule generations per hour
+const RATE_LIMIT_WINDOW_MINUTES = 60;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -35,6 +39,8 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -47,6 +53,30 @@ serve(async (req) => {
       });
     }
 
+    // Check rate limit using service role client
+    const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
+    
+    const { data: rateLimitAllowed, error: rateLimitError } = await supabaseService
+      .rpc("check_rate_limit", {
+        _user_id: user.id,
+        _function_name: "generate-study-schedule",
+        _max_calls: RATE_LIMIT_MAX_CALLS,
+        _window_minutes: RATE_LIMIT_WINDOW_MINUTES,
+      });
+
+    if (rateLimitError) {
+      console.error("[generate-study-schedule] Rate limit check error:", rateLimitError);
+    } else if (!rateLimitAllowed) {
+      console.log("[generate-study-schedule] Rate limit exceeded for user:", user.id);
+      return new Response(
+        JSON.stringify({ 
+          error: "Limite de gerações de cronograma atingido. Tente novamente em 1 hora.",
+          rateLimited: true 
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const groqApiKey = Deno.env.get("GROQ_API_KEY");
     if (!groqApiKey) {
       return new Response(JSON.stringify({ error: "GROQ_API_KEY não configurada" }), {
@@ -55,7 +85,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[generate-study-schedule] Gerando cronograma para usuário ${user.id}`);
+    console.log("[generate-study-schedule] Generating schedule for authenticated user");
 
     // Buscar desempenho do usuário em questões (últimos 30 dias têm mais peso)
     const { data: questionAttempts } = await supabase
@@ -193,9 +223,11 @@ serve(async (req) => {
       userSubjects: subjects?.map(s => s.name) || [],
     };
 
-    console.log("[generate-study-schedule] Performance data:", JSON.stringify(performanceData, null, 2));
-
-    // Prompt otimizado para incluir tópicos específicos
+    console.log("[generate-study-schedule] Performance analysis:", JSON.stringify({
+      criticalTopics: criticalTopics.length,
+      attentionTopics: attentionTopics.length,
+      weakDisciplines: weakDisciplines.length
+    }));
     const prompt = `Gere um cronograma PERSONALIZADO de estudos para ENEM baseado no desempenho do aluno.
 
 DESEMPENHO POR DISCIPLINA:

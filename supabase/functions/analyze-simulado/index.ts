@@ -6,6 +6,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limit configuration
+const RATE_LIMIT_MAX_CALLS = 10; // 10 simulado analyses per hour
+const RATE_LIMIT_WINDOW_MINUTES = 60;
+
 interface SimuladoAnswer {
   discipline: string;
   is_correct: boolean | null;
@@ -15,6 +19,7 @@ interface SimuladoAnswer {
 /**
  * Edge function to analyze simulado results and generate AI-powered insights
  * Identifies strengths, weaknesses, and provides study tips
+ * Rate limited to prevent API quota exhaustion
  */
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -26,7 +31,7 @@ serve(async (req) => {
     // Validate authentication
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      console.error("Missing authorization header");
+      console.error("[analyze-simulado] Missing authorization header");
       return new Response(
         JSON.stringify({ error: "Não autorizado" }),
         {
@@ -51,7 +56,7 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
 
     if (userError || !user) {
-      console.error("Invalid token:", userError);
+      console.error("[analyze-simulado] Invalid token:", userError);
       return new Response(
         JSON.stringify({ error: "Token inválido" }),
         {
@@ -60,6 +65,32 @@ serve(async (req) => {
         }
       );
     }
+
+    // Check rate limit using service role client
+    const supabaseRateLimit = createClient(supabaseUrl, supabaseServiceKey);
+    
+    const { data: rateLimitAllowed, error: rateLimitError } = await supabaseRateLimit
+      .rpc("check_rate_limit", {
+        _user_id: user.id,
+        _function_name: "analyze-simulado",
+        _max_calls: RATE_LIMIT_MAX_CALLS,
+        _window_minutes: RATE_LIMIT_WINDOW_MINUTES,
+      });
+
+    if (rateLimitError) {
+      console.error("[analyze-simulado] Rate limit check error:", rateLimitError);
+    } else if (!rateLimitAllowed) {
+      console.log("[analyze-simulado] Rate limit exceeded for user:", user.id);
+      return new Response(
+        JSON.stringify({ 
+          error: "Limite de análises atingido. Tente novamente em 1 hora.",
+          rateLimited: true 
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("[analyze-simulado] Authenticated user:", user.id);
 
     const { simuladoId } = await req.json();
 
