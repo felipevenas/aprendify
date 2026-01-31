@@ -105,14 +105,11 @@ const Questions = () => {
       });
 
       if (error) {
-        console.error("Erro ao extrair tópico:", error);
         return null;
       }
 
-      console.log("Tópico extraído com sucesso:", data?.topic);
       return data?.topic || null;
-    } catch (error) {
-      console.error("Erro ao chamar extract-question-topic:", error);
+    } catch {
       return null;
     }
   };
@@ -166,9 +163,7 @@ const Questions = () => {
           .eq("id", insertedAttempt.id);
         
         if (updateError) {
-          console.error("Erro ao atualizar tópico:", updateError);
-        } else {
-          console.log(`Tópico extraído e salvo: ${extractedTopic}`);
+          // Silently fail - topic extraction is not critical
         }
       }
     } catch (error) {

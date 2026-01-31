@@ -58,11 +58,10 @@ export const NotificationBell = () => {
   const fetchNotifications = async (uid: string) => {
     setLoading(true);
     try {
-      // Busca notificações ativas
+      // Busca notificações ativas através da view segura (sem expor created_by)
       const { data: notifs, error: notifsError } = await supabase
-        .from("system_notifications")
+        .from("system_notifications_public")
         .select("*")
-        .eq("is_active", true)
         .order("created_at", { ascending: false })
         .limit(20);
 

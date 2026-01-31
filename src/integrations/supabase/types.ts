@@ -99,6 +99,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "coupon_redemptions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "creator_coupons_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "coupon_redemptions_subscription_id_fkey"
             columns: ["subscription_id"]
             isOneToOne: false
@@ -419,6 +426,13 @@ export type Database = {
             columns: ["notification_id"]
             isOneToOne: false
             referencedRelation: "system_notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_reads_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "system_notifications_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1010,7 +1024,54 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      creator_coupons_public: {
+        Row: {
+          coupon_code: string | null
+          created_at: string | null
+          id: string | null
+          is_active: boolean | null
+        }
+        Insert: {
+          coupon_code?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_active?: boolean | null
+        }
+        Update: {
+          coupon_code?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_active?: boolean | null
+        }
+        Relationships: []
+      }
+      system_notifications_public: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          id: string | null
+          is_active: boolean | null
+          notification_type: string | null
+          title: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          notification_type?: string | null
+          title?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          notification_type?: string | null
+          title?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       check_rate_limit: {
