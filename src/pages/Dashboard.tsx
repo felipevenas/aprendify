@@ -36,19 +36,22 @@ const dashboardTooltips = [
   {
     id: "welcome-banner",
     title: "Bem-vindo ao Aprendify!",
-    description: "Aqui você verá suas metas diárias, streak de estudos e sugestões personalizadas de IA para otimizar seus estudos.",
+    description:
+      "Aqui você verá suas metas diárias, streak de estudos e sugestões personalizadas de IA para otimizar seus estudos.",
     target: "[data-tour='welcome-banner']",
   },
   {
     id: "quick-stats",
     title: "Estatísticas Rápidas",
-    description: "Acompanhe seu progresso diário: questões respondidas, taxa de acertos e tempo de estudo em um só lugar.",
+    description:
+      "Acompanhe seu progresso diário: questões respondidas, taxa de acertos e tempo de estudo em um só lugar.",
     target: "[data-tour='quick-stats']",
   },
   {
     id: "question-bank",
     title: "Banco de Questões",
-    description: "Pratique com milhares de questões reais do ENEM de 2009 até 2025. Filtre por disciplina, ano e dificuldade.",
+    description:
+      "Pratique com milhares de questões reais do ENEM de 2009 até 2025. Filtre por disciplina, ano e dificuldade.",
     target: "[data-tour='question-bank']",
   },
   {
@@ -60,7 +63,8 @@ const dashboardTooltips = [
   {
     id: "modules-grid",
     title: "Módulos de Estudo",
-    description: "Acesse cronogramas, tarefas, anotações, flashcards, correção de redação e simulados. Cada módulo foi projetado para otimizar seu aprendizado.",
+    description:
+      "Acesse cronogramas, tarefas, anotações, flashcards, correção de redação e simulados. Cada módulo foi projetado para otimizar seu aprendizado.",
     target: "[data-tour='modules-grid']",
   },
 ];
@@ -257,10 +261,7 @@ const Dashboard = () => {
         <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           {/* Welcome Banner Dinâmico */}
           <div data-tour="welcome-banner">
-            <WelcomeBanner 
-              userName={user?.user_metadata?.full_name?.split(" ")[0] || "Estudante"}
-              userId={user?.id}
-            />
+            <WelcomeBanner userName={user?.user_metadata?.full_name?.split(" ")[0] || "Estudante"} userId={user?.id} />
           </div>
 
           {/* Quick Stats Row - 4 mini-cards */}
@@ -290,7 +291,7 @@ const Dashboard = () => {
                 {/* Efeito de brilho animado */}
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <div className="absolute top-0 right-0 w-72 h-72 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/20 transition-colors duration-500" />
-                
+
                 {/* Badge pulsante */}
                 <motion.div
                   className="absolute top-4 right-4"
@@ -304,7 +305,7 @@ const Dashboard = () => {
 
                 <CardHeader className="relative pb-2">
                   <div className="flex items-start justify-between">
-                    <motion.div 
+                    <motion.div
                       className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center mb-4 shadow-lg"
                       whileHover={{ scale: 1.1, rotate: 5 }}
                       transition={{ type: "spring", stiffness: 300 }}
@@ -316,15 +317,11 @@ const Dashboard = () => {
                     Banco de Questões
                   </CardTitle>
                   <CardDescription className="text-base sm:text-lg">
-                    +15.000 questões reais do ENEM de 2009 a 2024
+                    +2700 questões reais do ENEM de 2009 a 2025
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="relative pt-4">
-                  <Button 
-                    variant="default" 
-                    size="lg" 
-                    className="gap-2 group-hover:gap-3 transition-all duration-300"
-                  >
+                  <Button variant="default" size="lg" className="gap-2 group-hover:gap-3 transition-all duration-300">
                     <span>Começar a praticar</span>
                     <motion.div
                       animate={{ x: [0, 4, 0] }}
@@ -444,7 +441,7 @@ const Dashboard = () => {
             </motion.div>
           )}
         </main>
-        
+
         {/* Botão de Sessão Rápida flutuante */}
         <QuickSessionButton userId={user?.id} />
       </div>
