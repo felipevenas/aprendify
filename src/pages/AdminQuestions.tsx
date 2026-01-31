@@ -393,8 +393,6 @@ const AdminQuestions = () => {
       const question = automationQueue[0];
       
       try {
-        console.log(`[Automation] Processando questão ${question.index}...`);
-        
         const { data, error } = await supabase.functions.invoke("format-question", {
           body: {
             questionId: question.id,
@@ -412,11 +410,9 @@ const AdminQuestions = () => {
               ? { ...q, difficulty: data.difficulty, title: data.title || q.title, context: data.context || q.context }
               : q
           ));
-          
-          console.log(`[Automation] Questão ${question.index} processada: ${data.difficulty}`);
         }
-      } catch (err) {
-        console.error(`[Automation] Erro na questão ${question.index}:`, err);
+      } catch {
+        // Silent fail for automation
       }
       
       // Remove da fila e atualiza progresso
@@ -468,8 +464,6 @@ const AdminQuestions = () => {
     setAnalyzingQuestionId(question.id);
     
     try {
-      console.log(`[Individual] Analisando questão ${question.index}...`);
-      
       const { data, error } = await supabase.functions.invoke("format-question", {
         body: {
           questionId: question.id,
@@ -492,8 +486,7 @@ const AdminQuestions = () => {
         
         toast.success(`Questão ${question.index}: ${data.difficulty === 'easy' ? 'Fácil' : data.difficulty === 'medium' ? 'Médio' : 'Difícil'}`);
       }
-    } catch (err) {
-      console.error(`[Individual] Erro na questão ${question.index}:`, err);
+    } catch {
       toast.error("Erro ao analisar questão");
     } finally {
       setAnalyzingQuestionId(null);
@@ -743,15 +736,12 @@ const AdminQuestions = () => {
           }
           
           if (cancelled) break;
-
-          console.log(`[GlobalClassification] Processando ${yearStat.year} - ${yearPending} pendentes`);
           
           const { data, error } = await supabase.functions.invoke("classify-questions", {
             body: { batchSize: QUESTIONS_PER_BATCH, year: yearStat.year },
           });
 
           if (error) {
-            console.error(`[GlobalClassification] Erro no ano ${yearStat.year}:`, error);
             
             // Se for erro de rate limit ou tokens, pausa automaticamente
             const errorStr = error.message?.toLowerCase() || '';
