@@ -7,8 +7,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limit configuration - admin-only function
+const RATE_LIMIT_MAX_CALLS = 20; // 20 coupon creations per hour
+const RATE_LIMIT_WINDOW_MINUTES = 60;
+
 const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
+  // Redact sensitive information from logs
+  const safeDetails = details ? { ...details } : undefined;
+  if (safeDetails?.email) safeDetails.email = "[REDACTED]";
+  const detailsStr = safeDetails ? ` - ${JSON.stringify(safeDetails)}` : "";
   console.log(`[CREATE-CREATOR-COUPON] ${step}${detailsStr}`);
 };
 
@@ -71,6 +78,25 @@ serve(async (req) => {
     }
     logStep("Admin verified", { adminId: adminUser.id });
 
+    // Check rate limit
+    const { data: rateLimitAllowed, error: rateLimitError } = await supabaseClient
+      .rpc("check_rate_limit", {
+        _user_id: adminUser.id,
+        _function_name: "create-creator-coupon",
+        _max_calls: RATE_LIMIT_MAX_CALLS,
+        _window_minutes: RATE_LIMIT_WINDOW_MINUTES,
+      });
+
+    if (rateLimitError) {
+      logStep("Rate limit check error");
+    } else if (!rateLimitAllowed) {
+      logStep("Rate limit exceeded");
+      return new Response(
+        JSON.stringify({ error: "Too many requests", rateLimited: true }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Parse request body
     const { userId, couponCode } = await req.json();
     if (!userId || !couponCode) {
@@ -78,7 +104,7 @@ serve(async (req) => {
     }
 
     const formattedCouponCode = couponCode.trim().toUpperCase();
-    logStep("Request data", { userId, couponCode: formattedCouponCode });
+    logStep("Processing coupon creation", { targetUserId: userId });
 
     // Validate coupon code
     const validation = isValidCouponCode(formattedCouponCode);

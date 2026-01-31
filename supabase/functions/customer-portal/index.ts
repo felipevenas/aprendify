@@ -7,8 +7,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limit configuration
+const RATE_LIMIT_MAX_CALLS = 10; // 10 portal access attempts per hour
+const RATE_LIMIT_WINDOW_MINUTES = 60;
+
 const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  // Redact sensitive information from logs
+  const safeDetails = details ? { ...details } : undefined;
+  if (safeDetails?.email) safeDetails.email = "[REDACTED]";
+  const detailsStr = safeDetails ? ` - ${JSON.stringify(safeDetails)}` : '';
   console.log(`[CUSTOMER-PORTAL] ${step}${detailsStr}`);
 };
 
@@ -22,24 +29,42 @@ serve(async (req) => {
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-    logStep("Stripe key verified");
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey, { 
+      auth: { persistSession: false } 
+    });
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
-    logStep("Authorization header found");
 
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError) throw new Error(`Authentication error: ${userError.message}`);
     const user = userData.user;
     if (!user?.email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { userId: user.id, email: user.email });
+    logStep("User authenticated", { userId: user.id });
+
+    // Check rate limit
+    const { data: rateLimitAllowed, error: rateLimitError } = await supabaseClient
+      .rpc("check_rate_limit", {
+        _user_id: user.id,
+        _function_name: "customer-portal",
+        _max_calls: RATE_LIMIT_MAX_CALLS,
+        _window_minutes: RATE_LIMIT_WINDOW_MINUTES,
+      });
+
+    if (rateLimitError) {
+      logStep("Rate limit check error");
+    } else if (!rateLimitAllowed) {
+      logStep("Rate limit exceeded");
+      return new Response(
+        JSON.stringify({ error: "Too many requests", rateLimited: true }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
