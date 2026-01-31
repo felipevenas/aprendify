@@ -50,7 +50,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("[generate-essay-topic] Authenticated user:", user.id);
+    // User authenticated successfully
 
     // Check rate limit using service role client
     const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
