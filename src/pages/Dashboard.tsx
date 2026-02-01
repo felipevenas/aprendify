@@ -27,6 +27,9 @@ import QuickStats from "@/components/dashboard/QuickStats";
 import ContextualCTA from "@/components/dashboard/ContextualCTA";
 import ErrorReviewCard from "@/components/dashboard/ErrorReviewCard";
 import QuickSessionButton from "@/components/dashboard/QuickSessionButton";
+import WeeklyChallenges from "@/components/dashboard/WeeklyChallenges";
+import Leaderboard from "@/components/dashboard/Leaderboard";
+import DynamicStudyPlan from "@/components/dashboard/DynamicStudyPlan";
 import { PageLoader } from "@/components/ui/page-loader";
 import { useHelpTooltips } from "@/contexts/HelpTooltipsContext";
 import { Button } from "@/components/ui/button";
@@ -271,6 +274,13 @@ const Dashboard = () => {
 
           {/* CTA Contextual */}
           <ContextualCTA userId={user?.id} />
+
+          {/* Row com Plano Dinâmico, Desafios e Leaderboard */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 mb-5 sm:mb-6">
+            <DynamicStudyPlan userId={user?.id} />
+            <WeeklyChallenges userId={user?.id} />
+            <Leaderboard userId={user?.id} />
+          </div>
 
           {/* Card de Revisão de Erros (Spaced Repetition) */}
           <ErrorReviewCard userId={user?.id} />
