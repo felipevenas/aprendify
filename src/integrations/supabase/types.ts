@@ -363,6 +363,42 @@ export type Database = {
         }
         Relationships: []
       }
+      leaderboard_stats: {
+        Row: {
+          created_at: string
+          id: string
+          points: number
+          questions_answered: number
+          questions_correct: number
+          streak_days: number
+          updated_at: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          points?: number
+          questions_answered?: number
+          questions_correct?: number
+          streak_days?: number
+          updated_at?: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          points?: number
+          questions_answered?: number
+          questions_correct?: number
+          streak_days?: number
+          updated_at?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       notes: {
         Row: {
           content: string
@@ -965,6 +1001,47 @@ export type Database = {
           },
         ]
       }
+      user_challenge_progress: {
+        Row: {
+          challenge_id: string
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          current_value: number
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          challenge_id: string
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          current_value?: number
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          current_value?: number
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_challenge_progress_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1019,6 +1096,48 @@ export type Database = {
           streak_completed_today?: boolean
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      weekly_challenges: {
+        Row: {
+          challenge_type: string
+          created_at: string
+          description: string
+          discipline: string | null
+          end_date: string
+          id: string
+          is_active: boolean
+          reward_points: number
+          start_date: string
+          target_value: number
+          title: string
+        }
+        Insert: {
+          challenge_type?: string
+          created_at?: string
+          description: string
+          discipline?: string | null
+          end_date: string
+          id?: string
+          is_active?: boolean
+          reward_points?: number
+          start_date: string
+          target_value?: number
+          title: string
+        }
+        Update: {
+          challenge_type?: string
+          created_at?: string
+          description?: string
+          discipline?: string | null
+          end_date?: string
+          id?: string
+          is_active?: boolean
+          reward_points?: number
+          start_date?: string
+          target_value?: number
+          title?: string
         }
         Relationships: []
       }
@@ -1083,6 +1202,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      get_current_week_start: { Args: never; Returns: string }
       get_daily_question_count: { Args: { _user_id: string }; Returns: number }
       get_monthly_essay_count: { Args: { _user_id: string }; Returns: number }
       get_user_flashcard_count: { Args: { _user_id: string }; Returns: number }
