@@ -7,8 +7,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Rate limit configuration - prevent subscription check abuse
-const RATE_LIMIT_MAX_CALLS = 20; // 20 checks per hour
+// Rate limit configuration - subscription checks are frequent but low-cost
+// Increased limit since this is called on every page load
+const RATE_LIMIT_MAX_CALLS = 200; // 200 checks per hour (more than enough for normal use)
 const RATE_LIMIT_WINDOW_MINUTES = 60;
 
 const logStep = (step: string, details?: any) => {
