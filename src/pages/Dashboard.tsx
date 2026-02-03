@@ -163,7 +163,7 @@ const Dashboard = () => {
           {/* Layout principal: 2 colunas em desktop */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 sm:gap-6 mb-6">
             {/* Coluna esquerda: Banco de Questões + Gráfico */}
-            <div className="lg:col-span-3 space-y-5">
+            <div className="lg:col-span-3 flex flex-col gap-5">
               {/* Banco de Questões - Card destacado */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -219,23 +219,25 @@ const Dashboard = () => {
                 </Card>
               </motion.div>
 
-              {/* Gráfico de estatísticas */}
+              {/* Gráfico de estatísticas - cresce para preencher */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.1 }}
                 data-tour="stats-chart"
+                className="flex-1"
               >
                 <QuestionStatsChart />
               </motion.div>
             </div>
 
-            {/* Coluna direita: Gamificação em Tabs */}
-            <div className="lg:col-span-2" data-tour="gamification">
+            {/* Coluna direita: Gamificação em Tabs - mesma altura que coluna esquerda */}
+            <div className="lg:col-span-2 flex" data-tour="gamification">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.2 }}
+                className="w-full flex"
               >
                 <GamificationTabs userId={user?.id} />
               </motion.div>
