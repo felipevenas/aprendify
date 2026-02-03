@@ -116,7 +116,29 @@ const WeeklyChallenges = ({ userId }: WeeklyChallengesProps) => {
   }
 
   if (challenges.length === 0) {
-    return null;
+    return (
+      <Card className="border-border/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Target className="h-5 w-5 text-primary" />
+            Desafios da Semana
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-6 text-center">
+            <div className="p-3 rounded-full bg-muted/50 mb-3">
+              <Trophy className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Novos desafios em breve!
+            </p>
+            <p className="text-xs text-muted-foreground/70 mt-1">
+              Fique atento para os próximos desafios semanais
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   const getIcon = (discipline: string | null, completed: boolean) => {
