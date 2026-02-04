@@ -10,7 +10,7 @@ import { HelpTooltipsProvider } from "@/contexts/HelpTooltipsContext";
 import { useBackgroundPreloader } from "@/hooks/useBackgroundPreloader";
 import HelpButton from "@/components/help/HelpButton";
 import TourOverlay from "@/components/help/TourOverlay";
-import Landing from "./pages/Landing";
+import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Schedule from "./pages/Schedule";
@@ -58,7 +58,7 @@ const App = () => (
               <Sonner />
               <BrowserRouter>
                 <Routes>
-                  <Route path="/" element={<Landing />} />
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/schedule" element={<Schedule />} />
