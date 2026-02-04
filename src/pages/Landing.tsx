@@ -24,8 +24,8 @@ const Landing = () => {
   const features = [
     {
       icon: BookOpen,
-      title: "15.000+ Questões ENEM",
-      description: "Banco completo de questões oficiais organizadas por disciplina, ano e nível de dificuldade."
+      title: "2.700+ Questões ENEM",
+      description: "Banco completo de questões oficiais de 2009 a 2025, organizadas por disciplina e dificuldade."
     },
     {
       icon: Brain,
@@ -89,14 +89,14 @@ const Landing = () => {
     },
     {
       name: "Premium Anual",
-      price: "R$ 14,90",
+      price: "R$ 15,92",
       period: "/mês",
-      description: "Economize 25% no plano anual",
+      description: "Economize 20% no plano anual",
       originalPrice: "R$ 238,80",
-      finalPrice: "R$ 178,80/ano",
+      finalPrice: "R$ 191,04/ano",
       features: [
         "Tudo do plano mensal",
-        "Economia de R$ 60/ano",
+        "Economia de R$ 47,76/ano",
         "Acesso garantido por 12 meses",
         "Atualizações incluídas"
       ],
@@ -106,8 +106,8 @@ const Landing = () => {
   ];
 
   const stats = [
-    { value: "15.000+", label: "Questões" },
-    { value: "10.000+", label: "Estudantes" },
+    { value: "2.700+", label: "Questões ENEM" },
+    { value: "2009-2025", label: "Provas Oficiais" },
     { value: "98%", label: "Satisfação" },
     { value: "24/7", label: "Disponível" }
   ];
@@ -118,10 +118,7 @@ const Landing = () => {
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <GraduationCap className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-xl">Aprendify</span>
+            <img src="/lovable-uploads/0056438c-afde-473e-9a53-b79e41424fcc.png" alt="Aprendify" className="h-8 w-auto" />
           </div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" asChild>
@@ -362,10 +359,7 @@ const Landing = () => {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="h-6 w-6 rounded bg-primary flex items-center justify-center">
-                <GraduationCap className="h-4 w-4 text-primary-foreground" />
-              </div>
-              <span className="font-semibold">Aprendify</span>
+              <img src="/lovable-uploads/0056438c-afde-473e-9a53-b79e41424fcc.png" alt="Aprendify" className="h-6 w-auto" />
             </div>
             <p className="text-sm text-muted-foreground">
               © 2025 Aprendify. Todos os direitos reservados.
