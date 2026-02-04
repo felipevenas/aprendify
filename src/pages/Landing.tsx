@@ -15,7 +15,7 @@ import {
   Star,
   Zap,
   Shield,
-  GraduationCap
+  CreditCard
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -113,18 +113,26 @@ const Landing = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-hidden">
+      {/* Subtle background gradient */}
+      <div className="fixed inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 pointer-events-none" />
+      
       {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+      <header className="border-b border-border/50 bg-background/80 backdrop-blur-xl sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img src="/lovable-uploads/0056438c-afde-473e-9a53-b79e41424fcc.png" alt="Aprendify" className="h-8 w-auto" />
+          <div className="flex items-center gap-2 sm:gap-2.5 cursor-pointer group">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-300">
+              <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
+            </div>
+            <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+              Aprendify
+            </span>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" asChild>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Button variant="ghost" asChild className="hover:bg-primary/10 transition-colors">
               <Link to="/auth">Entrar</Link>
             </Button>
-            <Button asChild>
+            <Button asChild className="shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
               <Link to="/auth">Criar Conta</Link>
             </Button>
           </div>
@@ -172,17 +180,22 @@ const Landing = () => {
           className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16 max-w-3xl mx-auto"
         >
           {stats.map((stat, index) => (
-            <div key={index} className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-primary">{stat.value}</div>
-              <div className="text-sm text-muted-foreground">{stat.label}</div>
-            </div>
+            <motion.div 
+              key={index} 
+              className="text-center p-4 rounded-xl bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/30 hover:shadow-lg transition-all duration-300"
+              whileHover={{ scale: 1.05, y: -2 }}
+            >
+              <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">{stat.value}</div>
+              <div className="text-sm text-muted-foreground mt-1">{stat.label}</div>
+            </motion.div>
           ))}
         </motion.div>
       </section>
 
       {/* Features Section */}
-      <section className="bg-muted/50 py-16 md:py-24">
-        <div className="container mx-auto px-4">
+      <section className="bg-muted/30 py-16 md:py-24 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none" />
+        <div className="container mx-auto px-4 relative">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -190,6 +203,10 @@ const Landing = () => {
             transition={{ duration: 0.5 }}
             className="text-center mb-12"
           >
+            <Badge className="mb-4 px-4 py-1.5" variant="secondary">
+              <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+              Recursos
+            </Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               Tudo que você precisa para ser aprovado
             </h2>
@@ -206,13 +223,14 @@ const Landing = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: index * 0.1 }}
+                whileHover={{ y: -4 }}
               >
-                <Card className="h-full hover:shadow-lg transition-shadow">
+                <Card className="h-full hover:shadow-xl hover:border-primary/30 transition-all duration-300 group">
                   <CardHeader>
-                    <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
+                    <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300">
                       <feature.icon className="h-6 w-6 text-primary" />
                     </div>
-                    <CardTitle className="text-xl">{feature.title}</CardTitle>
+                    <CardTitle className="text-xl group-hover:text-primary transition-colors">{feature.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <CardDescription className="text-base">
@@ -227,6 +245,7 @@ const Landing = () => {
       </section>
 
       {/* Pricing Section */}
+      {/* Pricing Section */}
       <section id="planos" className="container mx-auto px-4 py-16 md:py-24">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -235,6 +254,10 @@ const Landing = () => {
           transition={{ duration: 0.5 }}
           className="text-center mb-12"
         >
+          <Badge className="mb-4 px-4 py-1.5" variant="secondary">
+            <CreditCard className="h-3.5 w-3.5 mr-1.5" />
+            Planos
+          </Badge>
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
             Planos que cabem no seu bolso
           </h2>
@@ -251,12 +274,14 @@ const Landing = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: index * 0.1 }}
+              whileHover={{ y: -4 }}
+              className={plan.popular ? 'md:-mt-4 md:mb-4' : ''}
             >
-              <Card className={`h-full relative ${plan.popular ? 'border-primary shadow-lg scale-105' : ''}`}>
+              <Card className={`h-full relative transition-all duration-300 hover:shadow-xl ${plan.popular ? 'border-primary shadow-xl bg-gradient-to-b from-primary/5 to-transparent' : 'hover:border-primary/30'}`}>
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-primary text-primary-foreground px-4">
-                      <Star className="h-3 w-3 mr-1" />
+                    <Badge className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground px-4 shadow-lg">
+                      <Star className="h-3 w-3 mr-1 fill-current" />
                       Mais Popular
                     </Badge>
                   </div>
@@ -265,14 +290,14 @@ const Landing = () => {
                   <CardTitle className="text-xl">{plan.name}</CardTitle>
                   <CardDescription>{plan.description}</CardDescription>
                   <div className="mt-4">
-                    <span className="text-4xl font-bold">{plan.price}</span>
+                    <span className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">{plan.price}</span>
                     <span className="text-muted-foreground">{plan.period}</span>
                   </div>
                   {plan.finalPrice && (
                     <p className="text-sm text-muted-foreground mt-1">
                       <span className="line-through">{plan.originalPrice}</span>
                       {" → "}
-                      <span className="text-primary font-medium">{plan.finalPrice}</span>
+                      <span className="text-primary font-semibold">{plan.finalPrice}</span>
                     </p>
                   )}
                 </CardHeader>
@@ -286,8 +311,9 @@ const Landing = () => {
                     ))}
                   </ul>
                   <Button 
-                    className="w-full" 
+                    className={`w-full transition-all duration-300 ${plan.popular ? 'shadow-lg hover:shadow-xl' : ''}`}
                     variant={plan.popular ? "default" : "outline"}
+                    size="lg"
                     asChild
                   >
                     <Link to="/auth">{plan.cta}</Link>
@@ -355,19 +381,24 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t py-8">
+      <footer className="border-t border-border/50 py-8 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <img src="/lovable-uploads/0056438c-afde-473e-9a53-b79e41424fcc.png" alt="Aprendify" className="h-6 w-auto" />
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+                <BookOpen className="h-3.5 w-3.5 text-primary-foreground" />
+              </div>
+              <span className="font-semibold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                Aprendify
+              </span>
             </div>
             <p className="text-sm text-muted-foreground">
               © 2025 Aprendify. Todos os direitos reservados.
             </p>
             <div className="flex gap-6 text-sm text-muted-foreground">
-              <Link to="/auth" className="hover:text-foreground transition-colors">Entrar</Link>
-              <a href="#planos" className="hover:text-foreground transition-colors">Planos</a>
-              <Link to="/feedback" className="hover:text-foreground transition-colors">Contato</Link>
+              <Link to="/auth" className="hover:text-primary transition-colors">Entrar</Link>
+              <a href="#planos" className="hover:text-primary transition-colors">Planos</a>
+              <Link to="/feedback" className="hover:text-primary transition-colors">Contato</Link>
             </div>
           </div>
         </div>
