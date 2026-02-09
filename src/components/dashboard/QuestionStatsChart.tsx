@@ -168,15 +168,15 @@ const QuestionStatsChart = () => {
 
   if (loading) {
     return (
-      <Card className="h-full">
-        <CardHeader className="pb-2 pt-4 px-4">
+      <Card className="h-full flex flex-col">
+        <CardHeader className="pb-2 pt-4 px-4 shrink-0">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold">
             <BarChart3 className="h-4 w-4 text-primary" />
             Seu Progresso
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-0 pb-3 px-4">
-          <div className="h-[140px] flex items-center justify-center text-muted-foreground text-sm">
+        <CardContent className="pt-0 pb-3 px-4 flex-1 flex items-center justify-center">
+          <div className="text-muted-foreground text-sm">
             <motion.div
               animate={{ opacity: [0.5, 1, 0.5] }}
               transition={{ duration: 1.5, repeat: Infinity }}
@@ -192,7 +192,7 @@ const QuestionStatsChart = () => {
   const hasData = chartData.some(d => d.acertos > 0 || d.erros > 0);
 
   return (
-    <Card className="h-full overflow-hidden">
+    <Card className="h-full overflow-hidden flex flex-col">
       <CardHeader className="pb-2 pt-4 px-4">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold">
@@ -222,13 +222,13 @@ const QuestionStatsChart = () => {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-0 pb-3 px-4">
+      <CardContent className="pt-0 pb-3 px-4 flex-1 min-h-0">
         {hasData ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="h-[140px] w-full"
+            className="h-full w-full min-h-[120px]"
           >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 5 }}>
@@ -271,7 +271,7 @@ const QuestionStatsChart = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="h-[140px] flex flex-col items-center justify-center text-muted-foreground text-sm gap-2"
+            className="h-full min-h-[120px] flex flex-col items-center justify-center text-muted-foreground text-sm gap-2"
           >
             <BarChart3 className="h-8 w-8 text-muted-foreground/50" />
             <span>Comece a praticar!</span>
