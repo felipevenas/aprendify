@@ -14,6 +14,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 interface ModuleCard {
@@ -104,10 +105,10 @@ const ModulesGrid = () => {
               <card.icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
             </div>
             {card.isPremium && (
-              <span className="px-2 py-0.5 bg-gradient-to-r from-amber-400/20 to-amber-600/20 text-amber-600 dark:text-amber-400 text-[10px] font-bold rounded-full flex items-center gap-1">
+              <Badge variant="outline" className="px-1.5 py-0.5 text-[10px] font-semibold border-primary/30 bg-primary/10 text-primary gap-1">
                 <Crown className="h-2.5 w-2.5" />
                 Premium
-              </span>
+              </Badge>
             )}
           </div>
           <CardTitle className="text-base sm:text-lg group-hover:text-primary transition-colors duration-300">
