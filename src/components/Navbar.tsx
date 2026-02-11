@@ -126,26 +126,28 @@ const Navbar = () => {
                 longestStreak={streakData.longestStreak}
               />
             )}
-            {/* Ícone do Plano - apenas para premium/creator */}
-            {!isLoading && (isPremium || isCreator) && (
+            {/* Ícone do Plano */}
+            {!isLoading && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => isCreator ? navigate("/creator") : setShowPremiumModal(true)}
+                      onClick={() => isCreator ? navigate("/creator") : isPremium ? setShowPremiumModal(true) : navigate("/subscription")}
                       className="rounded-full h-9 w-9 sm:h-10 sm:w-10 transition-all duration-300 hover:scale-105"
                     >
                       {isCreator ? (
                         <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
-                      ) : (
+                      ) : isPremium ? (
                         <Crown className="h-4 w-4 sm:h-5 sm:w-5 text-amber-500" />
+                      ) : (
+                        <Crown className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground/50" />
                       )}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{isCreator ? "Plano Criador" : "Plano Premium"}</p>
+                    <p>{isCreator ? "Plano Criador" : isPremium ? "Plano Premium" : "Plano Gratuito"}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -281,18 +283,20 @@ const Navbar = () => {
                   {/* Conteúdo do Menu */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-2">
                     {/* Ícone do Plano Mobile */}
-                    {!isLoading && (isPremium || isCreator) && (
+                    {!isLoading && (
                       <SheetClose asChild>
                         <button
-                          onClick={() => isCreator ? navigate("/creator") : setShowPremiumModal(true)}
+                          onClick={() => isCreator ? navigate("/creator") : isPremium ? setShowPremiumModal(true) : navigate("/subscription")}
                           className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-accent transition-colors"
                         >
                           {isCreator ? (
                             <Sparkles className="h-5 w-5 text-purple-500" />
-                          ) : (
+                          ) : isPremium ? (
                             <Crown className="h-5 w-5 text-amber-500" />
+                          ) : (
+                            <Crown className="h-5 w-5 text-muted-foreground/50" />
                           )}
-                          <span className="font-medium">{isCreator ? "Plano Criador" : "Plano Premium"}</span>
+                          <span className="font-medium">{isCreator ? "Plano Criador" : isPremium ? "Plano Premium" : "Plano Gratuito"}</span>
                         </button>
                       </SheetClose>
                     )}

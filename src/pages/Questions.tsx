@@ -61,11 +61,24 @@ const Questions = () => {
     checkAuth();
   }, [navigate]);
 
-  // Busca questão com verificação de limite
+  // Busca questão com verificação de limite (com check server-side)
   const handleFetchQuestion = useCallback(async (random: boolean = true) => {
-    if (!isPremium && dailyQuestionCount >= FREE_DAILY_LIMIT) {
-      toast.error("Você atingiu o limite de 10 questões diárias. Assine o Premium para questões ilimitadas!");
-      return;
+    if (!isPremium) {
+      // Verificação server-side para garantir que o limite não foi ultrapassado
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: todayAttempts } = await supabase
+          .from("question_attempts")
+          .select("id")
+          .eq("user_id", user.id)
+          .gte("created_at", new Date().toISOString().split('T')[0]);
+        
+        const realCount = todayAttempts?.length || 0;
+        if (realCount >= FREE_DAILY_LIMIT) {
+          toast.error("Você atingiu o limite de 10 questões diárias. Assine o Premium para questões ilimitadas!");
+          return;
+        }
+      }
     }
 
     const result = await fetchQuestion(
@@ -121,6 +134,21 @@ const Questions = () => {
     if (userError || !user) {
       toast.error("Erro de autenticação. Por favor, faça login novamente.");
       return;
+    }
+
+    // Verificação server-side do limite diário para usuários gratuitos
+    if (!isPremium) {
+      const { data: todayAttempts } = await supabase
+        .from("question_attempts")
+        .select("id")
+        .eq("user_id", user.id)
+        .gte("created_at", new Date().toISOString().split('T')[0]);
+      
+      const realCount = todayAttempts?.length || 0;
+      if (realCount >= FREE_DAILY_LIMIT) {
+        toast.error("Você atingiu o limite de 10 questões diárias. Assine o Premium para questões ilimitadas!");
+        return;
+      }
     }
 
     try {
