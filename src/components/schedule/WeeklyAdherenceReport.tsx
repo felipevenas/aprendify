@@ -78,13 +78,13 @@ const WeeklyAdherenceReport = ({ items }: WeeklyAdherenceReportProps) => {
       return {
         icon: Minus,
         color: "text-amber-500",
-        text: `${missed} sessões perdidas. Considere ajustar o cronograma para sua rotina.`,
+        text: `${missed} sessões perdidas. Considere ajustar o plano para sua rotina.`,
       };
     } else {
       return {
         icon: TrendingDown,
         color: "text-destructive",
-        text: "Taxa de aderência baixa. Recomendamos regenerar o cronograma com a IA.",
+        text: "Taxa de aderência baixa. Recomendamos regenerar o plano com a IA.",
       };
     }
   };

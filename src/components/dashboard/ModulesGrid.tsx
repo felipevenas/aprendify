@@ -40,7 +40,7 @@ const primaryModules: ModuleCard[] = [
     path: "/essays",
   },
   {
-    title: "Cronograma Mensal",
+    title: "Plano de Estudos",
     description: "Organize suas sessões de estudo",
     icon: Calendar,
     path: "/schedule",

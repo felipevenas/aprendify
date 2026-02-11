@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Calendar, Sparkles } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Sparkles, BookOpen } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -13,6 +13,7 @@ import DayScheduleDetail from "@/components/schedule/DayScheduleDetail";
 import GenerateScheduleButton from "@/components/schedule/GenerateScheduleButton";
 import AddScheduleItemDialog from "@/components/schedule/AddScheduleItemDialog";
 import WeeklyAdherenceReport from "@/components/schedule/WeeklyAdherenceReport";
+import { Progress } from "@/components/ui/progress";
 
 interface ScheduleItem {
   id: string;
@@ -62,20 +63,21 @@ const Schedule = () => {
     checkAuth();
   }, [navigate]);
 
-  // Auto-regeneração: verifica se passou o período de 7 dias e regenera automaticamente
   useEffect(() => {
     const checkAutoRegeneration = async () => {
       if (!lastGeneration) return;
-      
+
       const nextRegen = new Date(lastGeneration.next_regeneration_at);
       const now = new Date();
-      
+
       if (now >= nextRegen) {
         console.log("[Schedule] Auto-regeneração ativada - período de 7 dias completado");
-        toast.info("Gerando novo cronograma baseado no seu desempenho...");
-        
+        toast.info("Gerando novo plano de estudos baseado no seu desempenho...");
+
         try {
-          const { data: { session } } = await supabase.auth.getSession();
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
           const accessToken = session?.access_token;
 
           const { data, error } = await supabase.functions.invoke("generate-study-schedule", {
@@ -88,7 +90,7 @@ const Schedule = () => {
           }
 
           if (data?.success) {
-            toast.success(`Novo cronograma gerado com ${data.itemsCreated} sessões!`);
+            toast.success(`Novo plano gerado com ${data.itemsCreated} sessões!`);
             fetchSchedule();
             fetchLastGeneration();
           }
@@ -103,7 +105,6 @@ const Schedule = () => {
     }
   }, [loading, lastGeneration]);
 
-  // Real-time subscription
   useEffect(() => {
     const channel = supabase
       .channel("schedule_changes")
@@ -144,7 +145,7 @@ const Schedule = () => {
       setItems(data || []);
     } catch (error) {
       console.error("Error fetching schedule:", error);
-      toast.error("Erro ao carregar cronograma");
+      toast.error("Erro ao carregar plano de estudos");
     }
   };
 
@@ -173,7 +174,6 @@ const Schedule = () => {
   const handleDelete = async (id: string) => {
     try {
       const { error } = await supabase.from("schedule_items").delete().eq("id", id);
-
       if (error) throw error;
       toast.success("Sessão removida!");
     } catch (error) {
@@ -197,8 +197,7 @@ const Schedule = () => {
         .eq("id", id);
 
       if (error) throw error;
-
-      toast.success(completed ? "Sessão concluída!" : "Sessão desmarcada");
+      toast.success(completed ? "Sessão concluída! 🎉" : "Sessão desmarcada");
     } catch (error) {
       console.error("Error toggling complete:", error);
       toast.error("Erro ao atualizar sessão");
@@ -216,6 +215,8 @@ const Schedule = () => {
 
   const completedCount = items.filter((i) => i.completed).length;
   const completionRate = items.length > 0 ? Math.round((completedCount / items.length) * 100) : 0;
+  const totalStudyMinutes = items.reduce((acc, item) => acc + (item.estimated_duration || 60), 0);
+  const totalStudyHours = Math.floor(totalStudyMinutes / 60);
 
   if (loading) {
     return (
@@ -232,29 +233,32 @@ const Schedule = () => {
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/3">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
           {/* Header */}
-          <div className="mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div className="mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
               <div className="flex items-center gap-3">
                 <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="shrink-0">
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
                 <div>
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-6 w-6 text-primary" />
-                    <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Cronograma</h1>
+                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <BookOpen className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h1 className="text-xl sm:text-2xl font-bold text-foreground">Plano de Estudos</h1>
+                      <p className="text-muted-foreground text-xs sm:text-sm">
+                        {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-muted-foreground text-sm mt-1">
-                    {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
-                  </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 ml-12 sm:ml-0">
                 <GenerateScheduleButton onGenerated={handleGenerated} lastGeneration={lastGeneration} />
-
                 <Button
                   variant="outline"
                   size="sm"
@@ -262,7 +266,7 @@ const Schedule = () => {
                     setEditItem(null);
                     setDialogOpen(true);
                   }}
-                  className="gap-2"
+                  className="gap-1.5"
                 >
                   <Plus className="h-4 w-4" />
                   <span className="hidden sm:inline">Adicionar</span>
@@ -270,55 +274,55 @@ const Schedule = () => {
               </div>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            {/* Compact Stats Row */}
+            <div className="grid grid-cols-4 gap-2 sm:gap-3">
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="p-4 bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 shadow-sm"
+                className="p-3 bg-card rounded-xl border border-border/50 shadow-sm text-center"
               >
-                <p className="text-xs text-muted-foreground mb-1">Sessões</p>
-                <p className="text-2xl font-bold text-foreground">{items.length}</p>
+                <p className="text-xs text-muted-foreground">Sessões</p>
+                <p className="text-lg sm:text-xl font-bold text-foreground">{items.length}</p>
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
-                className="p-4 bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 shadow-sm"
+                className="p-3 bg-card rounded-xl border border-border/50 shadow-sm text-center"
               >
-                <p className="text-xs text-muted-foreground mb-1">Concluídas</p>
-                <p className="text-2xl font-bold text-green-600">{completedCount}</p>
+                <p className="text-xs text-muted-foreground">Feitas</p>
+                <p className="text-lg sm:text-xl font-bold text-green-600 dark:text-green-400">{completedCount}</p>
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="p-4 bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 shadow-sm"
+                className="p-3 bg-card rounded-xl border border-border/50 shadow-sm text-center"
               >
-                <p className="text-xs text-muted-foreground mb-1">Pendentes</p>
-                <p className="text-2xl font-bold text-amber-600">{items.length - completedCount}</p>
+                <p className="text-xs text-muted-foreground">Horas</p>
+                <p className="text-lg sm:text-xl font-bold text-foreground">{totalStudyHours}h</p>
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25 }}
-                className="p-4 bg-gradient-to-br from-primary/10 to-primary/5 backdrop-blur-sm rounded-xl border border-primary/20 shadow-sm"
+                className="p-3 bg-card rounded-xl border border-primary/20 shadow-sm text-center"
               >
-                <p className="text-xs text-muted-foreground mb-1">Aderência</p>
-                <div className="flex items-baseline gap-1">
-                  <p className="text-2xl font-bold text-primary">{completionRate}%</p>
-                  {completionRate >= 70 && <Sparkles className="h-4 w-4 text-primary" />}
+                <p className="text-xs text-muted-foreground">Aderência</p>
+                <div className="flex flex-col items-center">
+                  <p className="text-lg sm:text-xl font-bold text-primary">{completionRate}%</p>
+                  <Progress value={completionRate} className="h-1 w-full mt-1" />
                 </div>
               </motion.div>
             </div>
           </div>
 
           {/* Layout Principal */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Sidebar - Calendário e Report */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
@@ -326,10 +330,7 @@ const Schedule = () => {
               transition={{ delay: 0.3 }}
               className="lg:col-span-1 space-y-4"
             >
-              <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 shadow-sm overflow-hidden">
-                <MonthlyCalendar items={items} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
-              </div>
-
+              <MonthlyCalendar items={items} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
               <WeeklyAdherenceReport items={items} />
             </motion.div>
 
