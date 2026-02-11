@@ -105,8 +105,8 @@ const ModulesGrid = () => {
               <card.icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
             </div>
             {card.isPremium && (
-              <Badge variant="outline" className="px-1.5 py-0.5 text-[10px] font-semibold border-primary/30 bg-primary/10 text-primary gap-1">
-                <Crown className="h-2.5 w-2.5" />
+              <Badge variant="outline" className="px-1 py-0 text-[8px] sm:px-1.5 sm:py-0.5 sm:text-[10px] font-semibold border-primary/30 bg-primary/10 text-primary gap-0.5 sm:gap-1">
+                <Crown className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
                 Premium
               </Badge>
             )}
