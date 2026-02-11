@@ -477,32 +477,44 @@ export type Database = {
         Row: {
           birthdate: string | null
           created_at: string
+          daily_question_goal: number | null
           email: string
           full_name: string | null
           id: string
+          onboarding_completed: boolean | null
           phone: string | null
+          target_exam_year: string | null
           updated_at: string
           username: string | null
+          weak_subjects: string[] | null
         }
         Insert: {
           birthdate?: string | null
           created_at?: string
+          daily_question_goal?: number | null
           email: string
           full_name?: string | null
           id: string
+          onboarding_completed?: boolean | null
           phone?: string | null
+          target_exam_year?: string | null
           updated_at?: string
           username?: string | null
+          weak_subjects?: string[] | null
         }
         Update: {
           birthdate?: string | null
           created_at?: string
+          daily_question_goal?: number | null
           email?: string
           full_name?: string | null
           id?: string
+          onboarding_completed?: boolean | null
           phone?: string | null
+          target_exam_year?: string | null
           updated_at?: string
           username?: string | null
+          weak_subjects?: string[] | null
         }
         Relationships: []
       }
