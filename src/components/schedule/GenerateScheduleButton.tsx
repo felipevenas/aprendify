@@ -81,7 +81,7 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
 
       if (error) {
         console.error("Error generating schedule:", error);
-        const msg = (error as any)?.message || "Erro ao gerar cronograma. Tente novamente.";
+        const msg = (error as any)?.message || "Erro ao gerar plano. Tente novamente.";
         toast.error(msg);
         return;
       }
@@ -111,11 +111,11 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
       // Toca som de sucesso
       playSuccessSound();
       
-      toast.success(`Cronograma gerado com ${data.itemsCreated} sessões de estudo!`);
+      toast.success(`Plano gerado com ${data.itemsCreated} sessões de estudo!`);
       onGenerated();
     } catch (error) {
       console.error("Error:", error);
-      toast.error(error instanceof Error ? error.message : "Erro ao gerar cronograma");
+      toast.error(error instanceof Error ? error.message : "Erro ao gerar plano de estudos");
     } finally {
       setLoading(false);
     }
@@ -132,7 +132,7 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
     return (
       <Button disabled className="gap-2">
         <Loader2 className="h-4 w-4 animate-spin" />
-        Gerando cronograma...
+        Gerando plano...
       </Button>
     );
   }
@@ -144,8 +144,8 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
         <DialogTrigger asChild>
           <Button className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all relative">
             <Sparkles className="h-4 w-4" />
-            Gerar Cronograma com IA
-            <Lock className="h-3 w-3 absolute -top-1 -right-1 text-amber-500" />
+            Gerar Plano com IA
+            <Lock className="h-3 w-3 absolute -top-1 -right-1 text-primary" />
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-md">
@@ -155,7 +155,7 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
             </div>
             <DialogTitle className="text-2xl">Recurso Premium</DialogTitle>
             <DialogDescription className="text-base">
-              A geração de cronograma com IA é exclusiva para assinantes Premium
+              A geração do plano de estudos com IA é exclusiva para assinantes Premium
             </DialogDescription>
           </DialogHeader>
 
@@ -163,15 +163,15 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
             <div className="flex items-start gap-3">
               <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 shrink-0" />
               <div>
-                <h3 className="font-semibold text-sm">Cronograma Personalizado</h3>
-                <p className="text-xs text-muted-foreground">IA analisa seu desempenho e cria um plano de estudos sob medida</p>
+                <h3 className="font-semibold text-sm">Plano Personalizado</h3>
+                <p className="text-xs text-muted-foreground">IA analisa seu desempenho e cria um plano sob medida</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 shrink-0" />
               <div>
                 <h3 className="font-semibold text-sm">Atualização Automática</h3>
-                <p className="text-xs text-muted-foreground">Cronograma se adapta ao seu progresso a cada 7 dias</p>
+                <p className="text-xs text-muted-foreground">O plano se adapta ao seu progresso a cada 7 dias</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -260,19 +260,19 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
       <AlertDialogTrigger asChild>
         <Button className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all">
           <Sparkles className="h-4 w-4" />
-          Gerar Cronograma com IA
+          Gerar Plano com IA
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            Gerar Cronograma Inteligente
+            Gerar Plano Inteligente
           </AlertDialogTitle>
           <AlertDialogDescription className="text-left space-y-3">
             <p>
               A IA vai analisar seu desempenho nas questões e simulados para criar um 
-              cronograma personalizado de 7 dias. Após completar os 7 dias, a IA gerará 
+              plano de estudos personalizado de 7 dias. Após completar os 7 dias, a IA gerará 
               automaticamente o próximo período com base no seu progresso.
             </p>
             <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm">
@@ -293,7 +293,7 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
           <AlertDialogCancel>Cancelar</AlertDialogCancel>
           <AlertDialogAction onClick={() => handleGenerate(false)} className="gap-2">
             <Sparkles className="h-4 w-4" />
-            Gerar Cronograma
+            Gerar Plano
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
