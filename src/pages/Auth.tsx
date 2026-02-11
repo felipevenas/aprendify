@@ -80,9 +80,9 @@ const dynamicContent = [
   {
     title: "Organize seus estudos de forma inteligente",
     description:
-      "Gerencie seu cronograma, resolva questões do ENEM, faça anotações e acompanhe seu progresso em um só lugar.",
+      "Gerencie seu plano de estudos, resolva questões do ENEM, faça anotações e acompanhe seu progresso em um só lugar.",
     features: [
-      "Cronogramas personalizados",
+      "Plano de Estudos personalizado",
       "Banco de questões do ENEM",
       "Anotações organizadas por matéria",
       "Acompanhamento de tarefas",
