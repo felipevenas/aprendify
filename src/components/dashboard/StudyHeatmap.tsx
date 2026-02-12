@@ -138,7 +138,9 @@ const StudyHeatmap = ({ userId, embedded = false }: StudyHeatmapProps) => {
     <div className="overflow-x-auto">
       {/* Stats row */}
       <div className="flex items-center justify-end gap-3 text-xs text-muted-foreground mb-2 px-1">
-        <span><strong className="text-foreground">{totalActiveDays}</strong> dias ativos</span>
+        <span>
+          <strong className="text-foreground">{totalActiveDays}</strong> dias ativos
+        </span>
         {currentStreak > 0 && (
           <span className="flex items-center gap-1">
             <Flame className="h-3 w-3 text-orange-500" />
@@ -156,9 +158,8 @@ const StudyHeatmap = ({ userId, embedded = false }: StudyHeatmapProps) => {
             style={{
               position: "relative",
               left: `${mh.colStart * 14}px`,
-              marginRight: i < monthHeaders.length - 1
-                ? `${(monthHeaders[i + 1].colStart - mh.colStart) * 14 - 24}px`
-                : 0,
+              marginRight:
+                i < monthHeaders.length - 1 ? `${(monthHeaders[i + 1].colStart - mh.colStart) * 14 - 24}px` : 0,
             }}
           >
             {mh.label}
@@ -190,22 +191,20 @@ const StudyHeatmap = ({ userId, embedded = false }: StudyHeatmapProps) => {
                           className={cn(
                             "w-[12px] h-[12px] rounded-[2px] transition-colors",
                             getColor(day.count),
-                            isToday && "ring-1 ring-foreground/30"
+                            isToday && "ring-1 ring-foreground/30",
                           )}
                         />
                       </TooltipTrigger>
                       <TooltipContent side="top" className="text-xs">
                         <p className="font-medium">
-                          {day.count} questão{day.count !== 1 ? "ões" : ""} em{" "}
+                          {day.count} questão(ões) em{" "}
                           {new Date(day.date + "T12:00:00").toLocaleDateString("pt-BR", {
                             day: "numeric",
                             month: "short",
                             year: "numeric",
                           })}
                         </p>
-                        {day.count >= DAILY_THRESHOLD && (
-                          <p className="text-primary">✓ Meta diária atingida!</p>
-                        )}
+                        {day.count >= DAILY_THRESHOLD && <p className="text-primary">✓ Meta diária atingida!</p>}
                       </TooltipContent>
                     </Tooltip>
                   );
