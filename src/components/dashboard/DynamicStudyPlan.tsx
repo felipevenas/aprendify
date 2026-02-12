@@ -44,7 +44,16 @@ interface DynamicStudyPlanProps {
   userId?: string;
 }
 
-const DAILY_GOAL = 20; // Daily questions goal
+const DAILY_GOAL = 20;
+
+const getMotivationalMessage = (progress: number, accuracy: number) => {
+  if (progress >= 100 && accuracy >= 80) return "🏆 Excelente! Meta batida com alta precisão!";
+  if (progress >= 100) return "✅ Meta diária concluída! Continue firme!";
+  if (progress >= 75) return "🔥 Quase lá! Falta pouco para a meta!";
+  if (progress >= 50) return "💪 Metade do caminho! Não pare agora!";
+  if (progress >= 25) return "📚 Bom começo! Mantenha o ritmo!";
+  return "🚀 Hora de começar! Sua meta te espera!";
+};
 
 const DynamicStudyPlan = ({ userId }: DynamicStudyPlanProps) => {
   const navigate = useNavigate();
@@ -349,7 +358,10 @@ const DynamicStudyPlan = ({ userId }: DynamicStudyPlanProps) => {
               {todayStats.questionsAnswered}/{DAILY_GOAL}
             </span>
           </div>
-          <Progress value={goalProgress} className="h-2 mb-3" />
+          <Progress value={goalProgress} className="h-2 mb-2" />
+          <p className="text-[11px] text-muted-foreground mb-2">
+            {getMotivationalMessage(goalProgress, accuracy)}
+          </p>
           
           <div className="grid grid-cols-3 gap-2">
             <div className="text-center p-2 rounded-md bg-background/50">

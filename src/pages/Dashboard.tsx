@@ -12,6 +12,7 @@ import QuickStats from "@/components/dashboard/QuickStats";
 import ErrorReviewCard from "@/components/dashboard/ErrorReviewCard";
 import GamificationTabs from "@/components/dashboard/GamificationTabs";
 import ModulesGrid from "@/components/dashboard/ModulesGrid";
+import StudyHeatmap from "@/components/dashboard/StudyHeatmap";
 import { PageLoader } from "@/components/ui/page-loader";
 import { useHelpTooltips } from "@/contexts/HelpTooltipsContext";
 import { Button } from "@/components/ui/button";
@@ -243,6 +244,15 @@ const Dashboard = () => {
               </motion.div>
             </div>
           </div>
+
+          {/* Heatmap de Frequência */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.25 }}
+          >
+            <StudyHeatmap userId={user?.id} />
+          </motion.div>
 
           {/* Card de Revisão de Erros */}
           <ErrorReviewCard userId={user?.id} />
