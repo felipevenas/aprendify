@@ -17,7 +17,11 @@ interface ChartData {
  * Mostra quantidade de questões respondidas com acertos e erros por dia
  * Com animações de entrada e tooltips melhorados
  */
-const QuestionStatsChart = () => {
+interface QuestionStatsChartProps {
+  embedded?: boolean;
+}
+
+const QuestionStatsChart = ({ embedded = false }: QuestionStatsChartProps = {}) => {
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
   const [weeklyTrend, setWeeklyTrend] = useState<"up" | "down" | "stable">("stable");
@@ -167,9 +171,18 @@ const QuestionStatsChart = () => {
   };
 
   if (loading) {
+    if (embedded) {
+      return (
+        <div className="flex items-center justify-center h-full min-h-[120px] text-muted-foreground text-sm">
+          <motion.div animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.5, repeat: Infinity }}>
+            Carregando...
+          </motion.div>
+        </div>
+      );
+    }
     return (
       <Card className="h-full flex flex-col">
-        <CardHeader className="pb-2 pt-4 px-4 shrink-0">
+        <CardHeader className="pb-2 pt-3 px-4 shrink-0">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold">
             <BarChart3 className="h-4 w-4 text-primary" />
             Seu Progresso
@@ -177,10 +190,7 @@ const QuestionStatsChart = () => {
         </CardHeader>
         <CardContent className="pt-0 pb-3 px-4 flex-1 flex items-center justify-center">
           <div className="text-muted-foreground text-sm">
-            <motion.div
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-            >
+            <motion.div animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.5, repeat: Infinity }}>
               Carregando...
             </motion.div>
           </div>
@@ -191,9 +201,59 @@ const QuestionStatsChart = () => {
 
   const hasData = chartData.some(d => d.acertos > 0 || d.erros > 0);
 
+  const chartContent = hasData ? (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="h-full w-full min-h-[120px]"
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+          <XAxis dataKey="name" tick={{ fontSize: 11 }} className="text-muted-foreground" axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 11 }} className="text-muted-foreground" allowDecimals={false} axisLine={false} tickLine={false} />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }} />
+          <Bar dataKey="acertos" name="Acertos" fill="hsl(142, 76%, 36%)" radius={[4, 4, 0, 0]} animationDuration={800} animationBegin={200} />
+          <Bar dataKey="erros" name="Erros" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} animationDuration={800} animationBegin={400} />
+        </BarChart>
+      </ResponsiveContainer>
+    </motion.div>
+  ) : (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full min-h-[120px] flex flex-col items-center justify-center text-muted-foreground text-sm gap-2">
+      <BarChart3 className="h-8 w-8 text-muted-foreground/50" />
+      <span>Comece a praticar!</span>
+    </motion.div>
+  );
+
+  if (embedded) {
+    return (
+      <div className="h-full flex flex-col">
+        <div className="flex items-center justify-end px-4 py-1">
+          {weeklyTrend !== "stable" && hasData && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
+                weeklyTrend === "up" ? "bg-green-500/10 text-green-500" : "bg-red-400/10 text-red-400"
+              }`}
+            >
+              {weeklyTrend === "up" ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+              {Math.abs(weeklyChange)}%
+            </motion.div>
+          )}
+          <span className="text-xs text-muted-foreground ml-2">7 dias</span>
+        </div>
+        <div className="flex-1 min-h-0 px-4 pb-2">
+          {chartContent}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Card className="h-full overflow-hidden flex flex-col">
-      <CardHeader className="pb-2 pt-4 px-4">
+      <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold">
             <BarChart3 className="h-4 w-4 text-primary" />
@@ -205,16 +265,10 @@ const QuestionStatsChart = () => {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
-                  weeklyTrend === "up" 
-                    ? "bg-green-500/10 text-green-500" 
-                    : "bg-red-400/10 text-red-400"
+                  weeklyTrend === "up" ? "bg-green-500/10 text-green-500" : "bg-red-400/10 text-red-400"
                 }`}
               >
-                {weeklyTrend === "up" ? (
-                  <TrendingUp className="h-3 w-3" />
-                ) : (
-                  <TrendingDown className="h-3 w-3" />
-                )}
+                {weeklyTrend === "up" ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                 {Math.abs(weeklyChange)}%
               </motion.div>
             )}
@@ -223,60 +277,7 @@ const QuestionStatsChart = () => {
         </div>
       </CardHeader>
       <CardContent className="pt-0 pb-3 px-4 flex-1 min-h-0">
-        {hasData ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="h-full w-full min-h-[120px]"
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
-                <XAxis 
-                  dataKey="name" 
-                  tick={{ fontSize: 11 }} 
-                  className="text-muted-foreground"
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis 
-                  tick={{ fontSize: 11 }} 
-                  className="text-muted-foreground"
-                  allowDecimals={false}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }} />
-                <Bar 
-                  dataKey="acertos" 
-                  name="Acertos" 
-                  fill="hsl(142, 76%, 36%)"
-                  radius={[4, 4, 0, 0]}
-                  animationDuration={800}
-                  animationBegin={200}
-                />
-                <Bar 
-                  dataKey="erros" 
-                  name="Erros" 
-                  fill="hsl(0, 84%, 60%)"
-                  radius={[4, 4, 0, 0]}
-                  animationDuration={800}
-                  animationBegin={400}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="h-full min-h-[120px] flex flex-col items-center justify-center text-muted-foreground text-sm gap-2"
-          >
-            <BarChart3 className="h-8 w-8 text-muted-foreground/50" />
-            <span>Comece a praticar!</span>
-          </motion.div>
-        )}
+        {chartContent}
       </CardContent>
     </Card>
   );
