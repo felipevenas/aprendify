@@ -19,43 +19,30 @@ const GamificationTabs = ({ userId }: GamificationTabsProps) => {
 
   return (
     <Card className="h-full flex flex-col overflow-hidden">
-      <CardHeader className="pb-2 pt-4 px-4 shrink-0">
-        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-          <Sparkles className="h-4 w-4 text-primary" />
-          Estudo & Gamificação
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0 pb-3 px-4 flex-1 flex flex-col min-h-0">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col">
-          <TabsList className="w-full grid grid-cols-3 mb-3 shrink-0">
-            <TabsTrigger value="study" className="gap-1.5 text-xs">
+      <CardHeader className="pb-1 pt-3 px-4 shrink-0">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="w-full grid grid-cols-3 h-8">
+            <TabsTrigger value="study" className="gap-1.5 text-xs h-7">
               <Sparkles className="h-3.5 w-3.5" />
               <span>Plano</span>
             </TabsTrigger>
-            <TabsTrigger value="challenges" className="gap-1.5 text-xs">
+            <TabsTrigger value="challenges" className="gap-1.5 text-xs h-7">
               <Target className="h-3.5 w-3.5" />
               <span>Desafios</span>
             </TabsTrigger>
-            <TabsTrigger value="ranking" className="gap-1.5 text-xs">
+            <TabsTrigger value="ranking" className="gap-1.5 text-xs h-7">
               <Trophy className="h-3.5 w-3.5" />
               <span>Ranking</span>
             </TabsTrigger>
           </TabsList>
-
-          <div className="flex-1 min-h-0 overflow-auto">
-            <TabsContent value="study" className="mt-0 h-full">
-              <DynamicStudyPlan userId={userId} />
-            </TabsContent>
-
-            <TabsContent value="challenges" className="mt-0 h-full">
-              <WeeklyChallenges userId={userId} />
-            </TabsContent>
-
-            <TabsContent value="ranking" className="mt-0 h-full">
-              <Leaderboard userId={userId} />
-            </TabsContent>
-          </div>
         </Tabs>
+      </CardHeader>
+      <CardContent className="pt-1 pb-2 px-3 flex-1 flex flex-col min-h-0">
+        <div className="flex-1 min-h-0 overflow-auto">
+          {activeTab === "study" && <DynamicStudyPlan userId={userId} />}
+          {activeTab === "challenges" && <WeeklyChallenges userId={userId} />}
+          {activeTab === "ranking" && <Leaderboard userId={userId} />}
+        </div>
       </CardContent>
     </Card>
   );
