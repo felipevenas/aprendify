@@ -11,12 +11,8 @@ import {
   Zap,
   Brain,
   CheckCircle2,
-  Flame,
-  Trophy,
-  TrendingUp,
   Calendar
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
@@ -273,20 +269,10 @@ const DynamicStudyPlan = ({ userId }: DynamicStudyPlanProps) => {
 
   if (loading) {
     return (
-      <Card className="border-border/50">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Plano de Estudo
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="animate-pulse space-y-3">
-            <div className="h-24 bg-muted rounded-lg" />
-            <div className="h-16 bg-muted rounded-lg" />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-3">
+        <div className="animate-pulse h-20 bg-muted rounded-lg" />
+        <div className="animate-pulse h-14 bg-muted rounded-lg" />
+      </div>
     );
   }
 
@@ -339,14 +325,7 @@ const DynamicStudyPlan = ({ userId }: DynamicStudyPlanProps) => {
   const maxWeekCount = Math.max(...weeklyProgress.map(d => d.count), 1);
 
   return (
-    <Card className="border-border/50">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Sparkles className="h-5 w-5 text-primary" />
-          Plano de Estudo
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <div className="space-y-3">
         {/* Today's Progress Section */}
         <div className="p-3 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
           <div className="flex items-center justify-between mb-2">
@@ -469,7 +448,6 @@ const DynamicStudyPlan = ({ userId }: DynamicStudyPlanProps) => {
           })}
         </div>
 
-        {/* Quick Action */}
         <Button 
           variant="outline" 
           className="w-full gap-2 border-dashed"
@@ -478,12 +456,12 @@ const DynamicStudyPlan = ({ userId }: DynamicStudyPlanProps) => {
           <Zap className="h-4 w-4" />
           {todayStats.questionsAnswered >= DAILY_GOAL 
             ? "Continuar estudando" 
-            : `Completar meta (${DAILY_GOAL - todayStats.questionsAnswered} restantes)`
+            : "Completar meta (" + (DAILY_GOAL - todayStats.questionsAnswered) + " restantes)"
           }
         </Button>
-      </CardContent>
-    </Card>
+    </div>
   );
 };
 
 export default DynamicStudyPlan;
+

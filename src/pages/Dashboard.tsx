@@ -6,13 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Brain, Upload, Users, Settings2, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
-import QuestionStatsChart from "@/components/dashboard/QuestionStatsChart";
 import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
 import QuickStats from "@/components/dashboard/QuickStats";
 import ErrorReviewCard from "@/components/dashboard/ErrorReviewCard";
 import GamificationTabs from "@/components/dashboard/GamificationTabs";
 import ModulesGrid from "@/components/dashboard/ModulesGrid";
-import StudyHeatmap from "@/components/dashboard/StudyHeatmap";
+import ProgressTabs from "@/components/dashboard/ProgressTabs";
 import { PageLoader } from "@/components/ui/page-loader";
 import { useHelpTooltips } from "@/contexts/HelpTooltipsContext";
 import { Button } from "@/components/ui/button";
@@ -220,7 +219,7 @@ const Dashboard = () => {
                 </Card>
               </motion.div>
 
-              {/* Gráfico de estatísticas - cresce para preencher */}
+              {/* Progresso + Heatmap em Tabs */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -228,11 +227,11 @@ const Dashboard = () => {
                 data-tour="stats-chart"
                 className="flex-1"
               >
-                <QuestionStatsChart />
+                <ProgressTabs userId={user?.id} />
               </motion.div>
             </div>
 
-            {/* Coluna direita: Gamificação em Tabs - mesma altura que coluna esquerda */}
+            {/* Coluna direita: Gamificação em Tabs */}
             <div className="lg:col-span-2 flex" data-tour="gamification">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -244,15 +243,6 @@ const Dashboard = () => {
               </motion.div>
             </div>
           </div>
-
-          {/* Heatmap de Frequência */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.25 }}
-          >
-            <StudyHeatmap userId={user?.id} />
-          </motion.div>
 
           {/* Card de Revisão de Erros */}
           <ErrorReviewCard userId={user?.id} />
