@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Calendar, Sparkles, BookOpen } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Sparkles, BookOpen, LayoutGrid, CalendarDays } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Navbar from "@/components/Navbar";
 import MonthlyCalendar from "@/components/schedule/MonthlyCalendar";
@@ -13,6 +13,8 @@ import DayScheduleDetail from "@/components/schedule/DayScheduleDetail";
 import GenerateScheduleButton from "@/components/schedule/GenerateScheduleButton";
 import AddScheduleItemDialog from "@/components/schedule/AddScheduleItemDialog";
 import WeeklyAdherenceReport from "@/components/schedule/WeeklyAdherenceReport";
+import WeeklyAgendaView from "@/components/schedule/WeeklyAgendaView";
+import SubjectProgressCircles from "@/components/schedule/SubjectProgressCircles";
 import { Progress } from "@/components/ui/progress";
 
 interface ScheduleItem {
@@ -45,6 +47,8 @@ const Schedule = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<ScheduleItem | null>(null);
   const [lastGeneration, setLastGeneration] = useState<ScheduleGeneration | null>(null);
+  const [viewMode, setViewMode] = useState<"month" | "week">("week");
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -258,6 +262,27 @@ const Schedule = () => {
               </div>
 
               <div className="flex items-center gap-2 ml-12 sm:ml-0">
+                {/* View toggle */}
+                <div className="flex items-center bg-muted rounded-lg p-0.5">
+                  <Button
+                    variant={viewMode === "week" ? "default" : "ghost"}
+                    size="sm"
+                    className="h-7 px-2 gap-1"
+                    onClick={() => setViewMode("week")}
+                  >
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline text-xs">Semana</span>
+                  </Button>
+                  <Button
+                    variant={viewMode === "month" ? "default" : "ghost"}
+                    size="sm"
+                    className="h-7 px-2 gap-1"
+                    onClick={() => setViewMode("month")}
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline text-xs">Mês</span>
+                  </Button>
+                </div>
                 <GenerateScheduleButton onGenerated={handleGenerated} lastGeneration={lastGeneration} />
                 <Button
                   variant="outline"
@@ -322,36 +347,92 @@ const Schedule = () => {
           </div>
 
           {/* Layout Principal */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-            {/* Sidebar - Calendário e Report */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-              className="lg:col-span-1 space-y-4"
-            >
-              <MonthlyCalendar items={items} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
-              <WeeklyAdherenceReport items={items} />
-            </motion.div>
+          {viewMode === "week" ? (
+            /* Weekly Agenda View */
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setWeekStart(subWeeks(weekStart, 1))}
+                  className="text-xs"
+                >
+                  ← Semana anterior
+                </Button>
+                <span className="text-sm font-medium text-muted-foreground">
+                  {format(weekStart, "dd MMM", { locale: ptBR })} – {format(addWeeks(weekStart, 1), "dd MMM yyyy", { locale: ptBR })}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setWeekStart(addWeeks(weekStart, 1))}
+                  className="text-xs"
+                >
+                  Próxima semana →
+                </Button>
+              </div>
 
-            {/* Conteúdo Principal - Dia Selecionado */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.35 }}
-              className="lg:col-span-2"
-            >
-              {selectedDate && (
-                <DayScheduleDetail
-                  date={selectedDate}
-                  items={selectedDateItems}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onToggleComplete={handleToggleComplete}
-                />
-              )}
-            </motion.div>
-          </div>
+              <WeeklyAgendaView
+                items={items}
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onToggleComplete={handleToggleComplete}
+                weekStart={weekStart}
+              />
+
+              {/* Bottom row: Day detail + Subject progress */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2">
+                  {selectedDate && (
+                    <DayScheduleDetail
+                      date={selectedDate}
+                      items={selectedDateItems}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                      onToggleComplete={handleToggleComplete}
+                    />
+                  )}
+                </div>
+                <div className="space-y-4">
+                  <SubjectProgressCircles items={items} />
+                  <WeeklyAdherenceReport items={items} />
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Monthly Calendar View */
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
+                className="lg:col-span-1 space-y-4"
+              >
+                <MonthlyCalendar items={items} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
+                <SubjectProgressCircles items={items} />
+                <WeeklyAdherenceReport items={items} />
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.35 }}
+                className="lg:col-span-2"
+              >
+                {selectedDate && (
+                  <DayScheduleDetail
+                    date={selectedDate}
+                    items={selectedDateItems}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onToggleComplete={handleToggleComplete}
+                  />
+                )}
+              </motion.div>
+            </div>
+          )}
         </motion.div>
       </main>
 
