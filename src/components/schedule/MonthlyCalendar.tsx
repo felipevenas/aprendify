@@ -9,9 +9,11 @@ import {
   isToday,
   addMonths,
   subMonths,
+  addDays,
+  subDays,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -65,6 +67,41 @@ const MonthlyCalendar = ({ items, selectedDate, onSelectDate }: MonthlyCalendarP
     return map;
   }, [items]);
 
+  // Calculate streak days (consecutive days with completed sessions)
+  const streakDays = useMemo(() => {
+    const streakSet = new Set<string>();
+    const sortedDates = Object.keys(itemsByDate)
+      .filter((key) => {
+        const d = itemsByDate[key];
+        return d.completed > 0;
+      })
+      .sort();
+
+    // For each completed day, check if it's part of a consecutive streak
+    sortedDates.forEach((dateStr) => {
+      streakSet.add(dateStr);
+    });
+
+    // Find current streak length
+    let currentStreak = 0;
+    let checkDate = new Date();
+    while (true) {
+      const key = format(checkDate, "yyyy-MM-dd");
+      const data = itemsByDate[key];
+      if (data && data.completed > 0) {
+        currentStreak++;
+        checkDate = subDays(checkDate, 1);
+      } else if (isToday(checkDate)) {
+        // Today might not have completions yet, skip
+        checkDate = subDays(checkDate, 1);
+      } else {
+        break;
+      }
+    }
+
+    return { set: streakSet, current: currentStreak };
+  }, [itemsByDate]);
+
   const getDayIndicator = (date: Date) => {
     const key = format(date, "yyyy-MM-dd");
     const data = itemsByDate[key];
@@ -75,6 +112,11 @@ const MonthlyCalendar = ({ items, selectedDate, onSelectDate }: MonthlyCalendarP
     if (data.hasHigh) return "high";
     if (data.hasMedium) return "medium";
     return "normal";
+  };
+
+  const isStreakDay = (date: Date) => {
+    const key = format(date, "yyyy-MM-dd");
+    return streakDays.set.has(key);
   };
 
   return (
@@ -118,6 +160,7 @@ const MonthlyCalendar = ({ items, selectedDate, onSelectDate }: MonthlyCalendarP
           const isSelected = selectedDate && isSameDay(day, selectedDate);
           const indicator = getDayIndicator(day);
           const data = itemsByDate[dateKey];
+          const streak = isStreakDay(day);
 
           return (
             <button
@@ -130,6 +173,7 @@ const MonthlyCalendar = ({ items, selectedDate, onSelectDate }: MonthlyCalendarP
                 isToday(day) && !isSelected && "ring-1.5 ring-primary font-bold",
                 isSelected && "bg-primary text-primary-foreground shadow-md hover:bg-primary/90",
                 day.getDay() === 0 && !isSelected && "text-destructive/70",
+                streak && !isSelected && "bg-primary/10 ring-1 ring-primary/30",
               )}
             >
               <span className={cn("leading-none", isToday(day) && !isSelected && "text-primary")}>
@@ -160,8 +204,18 @@ const MonthlyCalendar = ({ items, selectedDate, onSelectDate }: MonthlyCalendarP
         })}
       </div>
 
-      {/* Compact legend */}
-      <div className="flex items-center justify-center gap-3 mt-3 pt-3 border-t border-border/50 text-[10px] sm:text-xs text-muted-foreground">
+      {/* Streak indicator + legend */}
+      {streakDays.current > 0 && (
+        <div className="flex items-center justify-center gap-1.5 mt-3 pt-3 border-t border-border/50">
+          <Flame className="h-4 w-4 text-orange-500" />
+          <span className="text-sm font-bold text-orange-500">{streakDays.current}</span>
+          <span className="text-xs text-muted-foreground">dias consecutivos</span>
+        </div>
+      )}
+      <div className={cn(
+        "flex items-center justify-center gap-3 text-[10px] sm:text-xs text-muted-foreground",
+        streakDays.current > 0 ? "mt-2" : "mt-3 pt-3 border-t border-border/50"
+      )}>
         <div className="flex items-center gap-1">
           <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
           <span>Feito</span>
