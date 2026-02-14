@@ -50,6 +50,7 @@ interface AddScheduleItemDialogProps {
   onOpenChange: (open: boolean) => void;
   editItem?: ScheduleItem | null;
   selectedDate?: Date | null;
+  prefillStartTime?: string;
 }
 
 const PRIORITIES = [
@@ -58,7 +59,7 @@ const PRIORITIES = [
   { value: "alta", label: "Alta" },
 ];
 
-const AddScheduleItemDialog = ({ open, onOpenChange, editItem, selectedDate }: AddScheduleItemDialogProps) => {
+const AddScheduleItemDialog = ({ open, onOpenChange, editItem, selectedDate, prefillStartTime }: AddScheduleItemDialogProps) => {
   const [title, setTitle] = useState("");
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [startTime, setStartTime] = useState("");
@@ -87,9 +88,16 @@ const AddScheduleItemDialog = ({ open, onOpenChange, editItem, selectedDate }: A
         if (selectedDate) {
           setDate(selectedDate);
         }
+        if (prefillStartTime) {
+          setStartTime(prefillStartTime);
+          // Auto-set end time to 1 hour later
+          const [h] = prefillStartTime.split(":").map(Number);
+          const endH = Math.min(h + 1, 23);
+          setEndTime(`${String(endH).padStart(2, "0")}:00`);
+        }
       }
     }
-  }, [open, editItem, selectedDate]);
+  }, [open, editItem, selectedDate, prefillStartTime]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
