@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import {
   format,
   addDays,
@@ -40,7 +40,8 @@ interface WeeklyAgendaViewProps {
 }
 
 const HOURS = Array.from({ length: 16 }, (_, i) => i + 6); // 6h to 21h
-const HOUR_HEIGHT = 64; // px per hour — larger cells
+const HOUR_HEIGHT = 64;
+const GUTTER_WIDTH = 60;
 
 const WeeklyAgendaView = ({
   items,
@@ -53,6 +54,13 @@ const WeeklyAgendaView = ({
   weekStart,
 }: WeeklyAgendaViewProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to ~8am on mount
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 2 * HOUR_HEIGHT; // 8:00
+    }
+  }, []);
 
   const weekDays = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -80,23 +88,28 @@ const WeeklyAgendaView = ({
   const handleSlotClick = (day: Date, hour: number) => {
     onSelectDate(day);
     if (onAddAtSlot) {
-      const startTime = `${String(hour).padStart(2, "0")}:00`;
-      onAddAtSlot(day, startTime);
+      onAddAtSlot(day, `${String(hour).padStart(2, "0")}:00`);
     }
   };
 
-  // Current time indicator
   const now = new Date();
   const currentHour = now.getHours();
   const currentMinute = now.getMinutes();
   const showCurrentTime = currentHour >= 6 && currentHour <= 21;
   const currentTimeTop = ((currentHour - 6) * 60 + currentMinute) * (HOUR_HEIGHT / 60);
 
+  const totalGridHeight = HOURS.length * HOUR_HEIGHT;
+
   return (
     <div className="bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
-      {/* Day headers */}
-      <div className="grid grid-cols-[56px_repeat(7,1fr)] border-b border-border/50 sticky top-0 bg-card z-20">
-        <div className="p-2 border-r border-border/30" />
+      {/* ── Day headers ── */}
+      <div
+        className="grid border-b border-border/50 sticky top-0 bg-card z-20"
+        style={{ gridTemplateColumns: `${GUTTER_WIDTH}px repeat(7, 1fr)` }}
+      >
+        {/* Empty gutter cell */}
+        <div className="border-r border-border/30" />
+
         {weekDays.map((day) => {
           const isSelected = selectedDate && isSameDay(day, selectedDate);
           const dayKey = format(day, "yyyy-MM-dd");
@@ -109,46 +122,42 @@ const WeeklyAgendaView = ({
               key={dayKey}
               onClick={() => onSelectDate(day)}
               className={cn(
-                "py-3 px-1 text-center transition-all border-l border-border/30 relative",
-                "hover:bg-accent/40",
+                "py-2.5 text-center transition-all border-l border-border/30",
+                "hover:bg-accent/30",
                 isSelected && "bg-primary/8",
                 today && "bg-primary/5"
               )}
             >
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                 {format(day, "EEE", { locale: ptBR })}
               </p>
               <div
                 className={cn(
-                  "w-9 h-9 mx-auto flex items-center justify-center rounded-full text-lg font-bold transition-colors mt-0.5",
+                  "w-8 h-8 mx-auto flex items-center justify-center rounded-full text-base font-bold mt-0.5 transition-colors",
                   today && "bg-primary text-primary-foreground",
-                  isSelected && !today && "bg-primary/15 text-primary"
+                  isSelected && !today && "bg-primary/15 text-primary",
+                  !today && !isSelected && "text-foreground"
                 )}
               >
                 {format(day, "d")}
               </div>
               {dayItems.length > 0 && (
-                <div className="flex items-center justify-center gap-1 mt-1">
-                  <div className="flex gap-0.5">
-                    {dayItems.length <= 4
-                      ? dayItems.map((item) => (
-                          <div
-                            key={item.id}
-                            className={cn(
-                              "w-1.5 h-1.5 rounded-full",
-                              item.completed ? "bg-green-500" : "bg-primary/60"
-                            )}
-                          />
-                        ))
-                      : (
-                        <>
-                          <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
-                          <span className="text-[9px] text-muted-foreground font-medium ml-0.5">
-                            {completedCount}/{dayItems.length}
-                          </span>
-                        </>
-                      )}
-                  </div>
+                <div className="flex items-center justify-center gap-0.5 mt-1">
+                  {dayItems.length <= 5
+                    ? dayItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className={cn(
+                            "w-1.5 h-1.5 rounded-full transition-colors",
+                            item.completed ? "bg-green-500" : "bg-primary/50"
+                          )}
+                        />
+                      ))
+                    : (
+                      <span className="text-[9px] text-muted-foreground font-medium">
+                        {completedCount}/{dayItems.length}
+                      </span>
+                    )}
                 </div>
               )}
             </button>
@@ -156,25 +165,33 @@ const WeeklyAgendaView = ({
         })}
       </div>
 
-      {/* Time grid */}
-      <div ref={scrollRef} className="overflow-y-auto max-h-[600px] relative">
-        <div className="grid grid-cols-[56px_repeat(7,1fr)] relative">
-          {/* Hour labels */}
-          <div className="relative border-r border-border/30">
-            {HOURS.map((hour) => (
+      {/* ── Time grid ── */}
+      <div ref={scrollRef} className="overflow-y-auto max-h-[600px]">
+        <div
+          className="grid relative"
+          style={{ gridTemplateColumns: `${GUTTER_WIDTH}px repeat(7, 1fr)` }}
+        >
+          {/* ── Gutter: hour labels ── */}
+          <div className="relative border-r border-border/30" style={{ height: totalGridHeight }}>
+            {HOURS.map((hour, i) => (
               <div
                 key={hour}
-                className="flex items-start justify-end pr-2 pt-1"
-                style={{ height: `${HOUR_HEIGHT}px` }}
+                className="absolute right-0 pr-2 flex items-center justify-end"
+                style={{
+                  top: i * HOUR_HEIGHT - 7, // center the label on the line
+                  height: 14,
+                }}
               >
-                <span className="text-[11px] text-muted-foreground font-medium tabular-nums">
-                  {String(hour).padStart(2, "0")}:00
-                </span>
+                {i > 0 && (
+                  <span className="text-[10px] text-muted-foreground font-medium tabular-nums select-none">
+                    {String(hour).padStart(2, "0")}:00
+                  </span>
+                )}
               </div>
             ))}
           </div>
 
-          {/* Day columns */}
+          {/* ── Day columns ── */}
           {weekDays.map((day) => {
             const dayKey = format(day, "yyyy-MM-dd");
             const dayItems = itemsByDay[dayKey] || [];
@@ -186,30 +203,35 @@ const WeeklyAgendaView = ({
                 key={dayKey}
                 className={cn(
                   "relative border-l border-border/30",
-                  today && "bg-primary/[0.03]",
-                  isSelected && !today && "bg-accent/20"
+                  today && "bg-primary/[0.02]",
+                  isSelected && !today && "bg-accent/10"
                 )}
+                style={{ height: totalGridHeight }}
               >
-                {/* Hour grid lines — clickable slots */}
-                {HOURS.map((hour) => (
+                {/* Horizontal hour lines + clickable slots */}
+                {HOURS.map((hour, i) => (
                   <div
                     key={hour}
-                    className={cn(
-                      "border-b border-border/15 group/slot cursor-pointer transition-colors",
-                      "hover:bg-primary/[0.06]"
-                    )}
-                    style={{ height: `${HOUR_HEIGHT}px` }}
-                    onClick={() => handleSlotClick(day, hour)}
+                    className="absolute left-0 right-0"
+                    style={{ top: i * HOUR_HEIGHT, height: HOUR_HEIGHT }}
                   >
-                    {/* Half-hour divider */}
+                    {/* Hour line */}
+                    <div className="absolute top-0 left-0 right-0 border-t border-border/20" />
+                    {/* Half-hour line */}
                     <div
-                      className="border-b border-border/8 w-full"
-                      style={{ marginTop: `${HOUR_HEIGHT / 2}px` }}
+                      className="absolute left-0 right-0 border-t border-border/10"
+                      style={{ top: HOUR_HEIGHT / 2 }}
                     />
-                    {/* Add icon on hover */}
-                    <div className="hidden group-hover/slot:flex items-center justify-center absolute inset-0 pointer-events-none opacity-0 group-hover/slot:opacity-100 transition-opacity">
-                      <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Plus className="h-3 w-3 text-primary/60" />
+
+                    {/* Clickable slot */}
+                    <div
+                      className="absolute inset-0 cursor-pointer group/slot hover:bg-primary/[0.04] transition-colors"
+                      onClick={() => handleSlotClick(day, hour)}
+                    >
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/slot:opacity-100 transition-opacity pointer-events-none">
+                        <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Plus className="h-3 w-3 text-primary/50" />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -218,13 +240,11 @@ const WeeklyAgendaView = ({
                 {/* Current time indicator */}
                 {today && showCurrentTime && (
                   <div
-                    className="absolute left-0 right-0 z-10 pointer-events-none"
-                    style={{ top: `${currentTimeTop}px` }}
+                    className="absolute left-0 right-0 z-10 pointer-events-none flex items-center"
+                    style={{ top: currentTimeTop }}
                   >
-                    <div className="flex items-center">
-                      <div className="w-2.5 h-2.5 rounded-full bg-destructive -ml-1 shadow-sm" />
-                      <div className="flex-1 h-[2px] bg-destructive/80" />
-                    </div>
+                    <div className="w-2 h-2 rounded-full bg-destructive -ml-1 shadow-sm shrink-0" />
+                    <div className="flex-1 h-[2px] bg-destructive/70" />
                   </div>
                 )}
 
@@ -237,20 +257,20 @@ const WeeklyAgendaView = ({
                   return (
                     <motion.div
                       key={item.id}
-                      initial={{ opacity: 0, scale: 0.96 }}
+                      initial={{ opacity: 0, scale: 0.97 }}
                       animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.2 }}
                       className={cn(
-                        "absolute left-1 right-1 rounded-lg border-l-[3px] px-2 py-1.5 cursor-pointer",
-                        "transition-all hover:shadow-lg hover:z-30 group/item z-10",
-                        "backdrop-blur-sm",
+                        "absolute left-1 right-1 rounded-md border-l-[3px] px-2 py-1 cursor-pointer overflow-hidden",
+                        "transition-shadow hover:shadow-md hover:z-30 z-10",
                         item.completed
-                          ? "bg-green-500/8 border-l-green-500 border border-green-500/20"
-                          : "bg-card/95 border border-border/60 shadow-sm hover:border-primary/30",
+                          ? "bg-green-500/8 border-l-green-500 border border-green-500/15"
+                          : "bg-card border border-border/50 shadow-sm hover:border-primary/30",
                       )}
                       style={{
-                        top: `${top}px`,
-                        height: `${height}px`,
-                        minHeight: "28px",
+                        top: `${top + 1}px`,
+                        height: `${height - 2}px`,
+                        minHeight: "26px",
                         borderLeftColor: item.completed
                           ? undefined
                           : subject?.color || undefined,
@@ -260,7 +280,7 @@ const WeeklyAgendaView = ({
                         onEdit(item);
                       }}
                     >
-                      <div className="flex items-start justify-between gap-1 h-full">
+                      <div className="flex items-start justify-between gap-0.5 h-full">
                         <div className="flex-1 min-w-0 flex flex-col">
                           <div className="flex items-center gap-1">
                             <p
@@ -272,7 +292,7 @@ const WeeklyAgendaView = ({
                               {item.title}
                             </p>
                             {item.is_ai_generated && (
-                              <Sparkles className="h-2.5 w-2.5 text-primary/60 shrink-0" />
+                              <Sparkles className="h-2.5 w-2.5 text-primary/50 shrink-0" />
                             )}
                           </div>
                           {!isCompact && (
@@ -281,7 +301,7 @@ const WeeklyAgendaView = ({
                                 {item.start_time.substring(0, 5)} – {item.end_time.substring(0, 5)}
                               </p>
                               {height > 60 && subject && (
-                                <div className="flex items-center gap-1 mt-1">
+                                <div className="flex items-center gap-1 mt-0.5">
                                   <div
                                     className="w-2 h-2 rounded-full shrink-0"
                                     style={{ backgroundColor: subject.color }}
@@ -291,25 +311,20 @@ const WeeklyAgendaView = ({
                                   </span>
                                 </div>
                               )}
-                              {height > 80 && item.topic && item.topic !== item.title && (
-                                <p className="text-[9px] text-muted-foreground/70 mt-0.5 truncate italic">
-                                  {item.topic}
-                                </p>
-                              )}
                             </>
                           )}
                         </div>
 
-                        {/* Quick complete toggle */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             onToggleComplete(item.id, !item.completed);
                           }}
                           className={cn(
-                            "p-0.5 rounded-full transition-all shrink-0 mt-0.5",
-                            "opacity-60 hover:opacity-100",
-                            item.completed ? "text-green-500" : "text-muted-foreground hover:text-primary"
+                            "p-0.5 rounded-full shrink-0 mt-0.5 transition-colors",
+                            item.completed
+                              ? "text-green-500 hover:text-green-600"
+                              : "text-muted-foreground/50 hover:text-primary"
                           )}
                         >
                           {item.completed ? (
