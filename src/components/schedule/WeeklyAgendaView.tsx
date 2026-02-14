@@ -1,15 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import {
   format,
-  startOfWeek,
   addDays,
   isToday,
   isSameDay,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, CheckCircle2, Circle, Sparkles, Pencil, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, Circle, Sparkles, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSubjectById } from "@/lib/subjects";
 import { motion } from "framer-motion";
@@ -38,10 +35,12 @@ interface WeeklyAgendaViewProps {
   onEdit: (item: ScheduleItem) => void;
   onDelete: (id: string) => void;
   onToggleComplete: (id: string, completed: boolean) => void;
+  onAddAtSlot?: (date: Date, startTime: string) => void;
   weekStart: Date;
 }
 
-const HOURS = Array.from({ length: 15 }, (_, i) => i + 6); // 6h to 20h
+const HOURS = Array.from({ length: 16 }, (_, i) => i + 6); // 6h to 21h
+const HOUR_HEIGHT = 64; // px per hour — larger cells
 
 const WeeklyAgendaView = ({
   items,
@@ -50,8 +49,11 @@ const WeeklyAgendaView = ({
   onEdit,
   onDelete,
   onToggleComplete,
+  onAddAtSlot,
   weekStart,
 }: WeeklyAgendaViewProps) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   const weekDays = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   }, [weekStart]);
@@ -70,58 +72,83 @@ const WeeklyAgendaView = ({
   const getItemPosition = (item: ScheduleItem) => {
     const [startH, startM] = item.start_time.split(":").map(Number);
     const [endH, endM] = item.end_time.split(":").map(Number);
-    const top = ((startH - 6) * 60 + startM) * (48 / 60); // 48px per hour
-    const height = Math.max(((endH - startH) * 60 + (endM - startM)) * (48 / 60), 24);
+    const top = ((startH - 6) * 60 + startM) * (HOUR_HEIGHT / 60);
+    const height = Math.max(((endH - startH) * 60 + (endM - startM)) * (HOUR_HEIGHT / 60), 28);
     return { top, height };
   };
 
-  const getPriorityBorder = (priority?: string) => {
-    switch (priority) {
-      case "alta": return "border-l-destructive";
-      case "média": return "border-l-amber-500";
-      default: return "border-l-primary";
+  const handleSlotClick = (day: Date, hour: number) => {
+    onSelectDate(day);
+    if (onAddAtSlot) {
+      const startTime = `${String(hour).padStart(2, "0")}:00`;
+      onAddAtSlot(day, startTime);
     }
   };
+
+  // Current time indicator
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  const showCurrentTime = currentHour >= 6 && currentHour <= 21;
+  const currentTimeTop = ((currentHour - 6) * 60 + currentMinute) * (HOUR_HEIGHT / 60);
 
   return (
     <div className="bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
       {/* Day headers */}
-      <div className="grid grid-cols-[48px_repeat(7,1fr)] border-b border-border/50 sticky top-0 bg-card z-10">
-        <div className="p-2" />
+      <div className="grid grid-cols-[56px_repeat(7,1fr)] border-b border-border/50 sticky top-0 bg-card z-20">
+        <div className="p-2 border-r border-border/30" />
         {weekDays.map((day) => {
           const isSelected = selectedDate && isSameDay(day, selectedDate);
           const dayKey = format(day, "yyyy-MM-dd");
           const dayItems = itemsByDay[dayKey] || [];
           const completedCount = dayItems.filter((i) => i.completed).length;
+          const today = isToday(day);
 
           return (
             <button
               key={dayKey}
               onClick={() => onSelectDate(day)}
               className={cn(
-                "p-2 text-center transition-colors border-l border-border/30",
-                "hover:bg-accent/50",
-                isSelected && "bg-primary/10",
-                isToday(day) && "bg-primary/5"
+                "py-3 px-1 text-center transition-all border-l border-border/30 relative",
+                "hover:bg-accent/40",
+                isSelected && "bg-primary/8",
+                today && "bg-primary/5"
               )}
             >
-              <p className="text-[10px] uppercase text-muted-foreground font-medium">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
                 {format(day, "EEE", { locale: ptBR })}
               </p>
-              <p
+              <div
                 className={cn(
-                  "text-lg font-bold leading-tight",
-                  isToday(day) && "text-primary",
-                  isSelected && "text-primary"
+                  "w-9 h-9 mx-auto flex items-center justify-center rounded-full text-lg font-bold transition-colors mt-0.5",
+                  today && "bg-primary text-primary-foreground",
+                  isSelected && !today && "bg-primary/15 text-primary"
                 )}
               >
                 {format(day, "d")}
-              </p>
+              </div>
               {dayItems.length > 0 && (
-                <div className="flex items-center justify-center gap-0.5 mt-0.5">
-                  <span className="text-[9px] text-muted-foreground">
-                    {completedCount}/{dayItems.length}
-                  </span>
+                <div className="flex items-center justify-center gap-1 mt-1">
+                  <div className="flex gap-0.5">
+                    {dayItems.length <= 4
+                      ? dayItems.map((item) => (
+                          <div
+                            key={item.id}
+                            className={cn(
+                              "w-1.5 h-1.5 rounded-full",
+                              item.completed ? "bg-green-500" : "bg-primary/60"
+                            )}
+                          />
+                        ))
+                      : (
+                        <>
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+                          <span className="text-[9px] text-muted-foreground font-medium ml-0.5">
+                            {completedCount}/{dayItems.length}
+                          </span>
+                        </>
+                      )}
+                  </div>
                 </div>
               )}
             </button>
@@ -130,16 +157,17 @@ const WeeklyAgendaView = ({
       </div>
 
       {/* Time grid */}
-      <div className="overflow-y-auto max-h-[520px]">
-        <div className="grid grid-cols-[48px_repeat(7,1fr)] relative">
+      <div ref={scrollRef} className="overflow-y-auto max-h-[600px] relative">
+        <div className="grid grid-cols-[56px_repeat(7,1fr)] relative">
           {/* Hour labels */}
-          <div className="relative">
+          <div className="relative border-r border-border/30">
             {HOURS.map((hour) => (
               <div
                 key={hour}
-                className="h-12 border-b border-border/20 flex items-start justify-end pr-1.5 pt-0.5"
+                className="flex items-start justify-end pr-2 pt-1"
+                style={{ height: `${HOUR_HEIGHT}px` }}
               >
-                <span className="text-[10px] text-muted-foreground font-medium">
+                <span className="text-[11px] text-muted-foreground font-medium tabular-nums">
                   {String(hour).padStart(2, "0")}:00
                 </span>
               </div>
@@ -150,91 +178,147 @@ const WeeklyAgendaView = ({
           {weekDays.map((day) => {
             const dayKey = format(day, "yyyy-MM-dd");
             const dayItems = itemsByDay[dayKey] || [];
+            const today = isToday(day);
+            const isSelected = selectedDate && isSameDay(day, selectedDate);
 
             return (
               <div
                 key={dayKey}
                 className={cn(
                   "relative border-l border-border/30",
-                  isToday(day) && "bg-primary/[0.02]"
+                  today && "bg-primary/[0.03]",
+                  isSelected && !today && "bg-accent/20"
                 )}
               >
-                {/* Hour grid lines */}
+                {/* Hour grid lines — clickable slots */}
                 {HOURS.map((hour) => (
-                  <div key={hour} className="h-12 border-b border-border/20" />
+                  <div
+                    key={hour}
+                    className={cn(
+                      "border-b border-border/15 group/slot cursor-pointer transition-colors",
+                      "hover:bg-primary/[0.06]"
+                    )}
+                    style={{ height: `${HOUR_HEIGHT}px` }}
+                    onClick={() => handleSlotClick(day, hour)}
+                  >
+                    {/* Half-hour divider */}
+                    <div
+                      className="border-b border-border/8 w-full"
+                      style={{ marginTop: `${HOUR_HEIGHT / 2}px` }}
+                    />
+                    {/* Add icon on hover */}
+                    <div className="hidden group-hover/slot:flex items-center justify-center absolute inset-0 pointer-events-none opacity-0 group-hover/slot:opacity-100 transition-opacity">
+                      <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Plus className="h-3 w-3 text-primary/60" />
+                      </div>
+                    </div>
+                  </div>
                 ))}
+
+                {/* Current time indicator */}
+                {today && showCurrentTime && (
+                  <div
+                    className="absolute left-0 right-0 z-10 pointer-events-none"
+                    style={{ top: `${currentTimeTop}px` }}
+                  >
+                    <div className="flex items-center">
+                      <div className="w-2.5 h-2.5 rounded-full bg-destructive -ml-1 shadow-sm" />
+                      <div className="flex-1 h-[2px] bg-destructive/80" />
+                    </div>
+                  </div>
+                )}
 
                 {/* Schedule items */}
                 {dayItems.map((item) => {
                   const { top, height } = getItemPosition(item);
                   const subject = item.subject_id ? getSubjectById(item.subject_id) : null;
+                  const isCompact = height < 44;
 
                   return (
                     <motion.div
                       key={item.id}
-                      initial={{ opacity: 0, scale: 0.95 }}
+                      initial={{ opacity: 0, scale: 0.96 }}
                       animate={{ opacity: 1, scale: 1 }}
                       className={cn(
-                        "absolute left-0.5 right-0.5 rounded-md border-l-[3px] px-1.5 py-1 cursor-pointer",
-                        "transition-shadow hover:shadow-md hover:z-20 group overflow-hidden",
+                        "absolute left-1 right-1 rounded-lg border-l-[3px] px-2 py-1.5 cursor-pointer",
+                        "transition-all hover:shadow-lg hover:z-30 group/item z-10",
+                        "backdrop-blur-sm",
                         item.completed
-                          ? "bg-green-500/10 border-l-green-500 opacity-70"
-                          : "bg-card border shadow-sm",
-                        !item.completed && getPriorityBorder(item.priority)
+                          ? "bg-green-500/8 border-l-green-500 border border-green-500/20"
+                          : "bg-card/95 border border-border/60 shadow-sm hover:border-primary/30",
                       )}
                       style={{
                         top: `${top}px`,
                         height: `${height}px`,
-                        minHeight: "24px",
+                        minHeight: "28px",
                         borderLeftColor: item.completed
                           ? undefined
                           : subject?.color || undefined,
                       }}
-                      onClick={() => onSelectDate(day)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(item);
+                      }}
                     >
-                      <div className="flex items-start justify-between gap-0.5">
-                        <div className="flex-1 min-w-0">
-                          <p
-                            className={cn(
-                              "text-[10px] font-semibold truncate leading-tight",
-                              item.completed && "line-through text-muted-foreground"
-                            )}
-                          >
-                            {item.title}
-                          </p>
-                          {height > 30 && (
-                            <p className="text-[9px] text-muted-foreground truncate">
-                              {item.start_time.substring(0, 5)} – {item.end_time.substring(0, 5)}
+                      <div className="flex items-start justify-between gap-1 h-full">
+                        <div className="flex-1 min-w-0 flex flex-col">
+                          <div className="flex items-center gap-1">
+                            <p
+                              className={cn(
+                                "text-[11px] font-semibold truncate leading-tight",
+                                item.completed && "line-through text-muted-foreground"
+                              )}
+                            >
+                              {item.title}
                             </p>
+                            {item.is_ai_generated && (
+                              <Sparkles className="h-2.5 w-2.5 text-primary/60 shrink-0" />
+                            )}
+                          </div>
+                          {!isCompact && (
+                            <>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                {item.start_time.substring(0, 5)} – {item.end_time.substring(0, 5)}
+                              </p>
+                              {height > 60 && subject && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <div
+                                    className="w-2 h-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: subject.color }}
+                                  />
+                                  <span className="text-[9px] text-muted-foreground truncate">
+                                    {subject.name}
+                                  </span>
+                                </div>
+                              )}
+                              {height > 80 && item.topic && item.topic !== item.title && (
+                                <p className="text-[9px] text-muted-foreground/70 mt-0.5 truncate italic">
+                                  {item.topic}
+                                </p>
+                              )}
+                            </>
                           )}
                         </div>
 
-                        {/* Quick actions on hover */}
-                        <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onToggleComplete(item.id, !item.completed);
-                            }}
-                            className={cn(
-                              "p-0.5 rounded transition-colors",
-                              item.completed ? "text-green-500" : "text-muted-foreground hover:text-primary"
-                            )}
-                          >
-                            {item.completed ? (
-                              <CheckCircle2 className="h-3 w-3" />
-                            ) : (
-                              <Circle className="h-3 w-3" />
-                            )}
-                          </button>
-                        </div>
+                        {/* Quick complete toggle */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleComplete(item.id, !item.completed);
+                          }}
+                          className={cn(
+                            "p-0.5 rounded-full transition-all shrink-0 mt-0.5",
+                            "opacity-60 hover:opacity-100",
+                            item.completed ? "text-green-500" : "text-muted-foreground hover:text-primary"
+                          )}
+                        >
+                          {item.completed ? (
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          ) : (
+                            <Circle className="h-3.5 w-3.5" />
+                          )}
+                        </button>
                       </div>
-
-                      {height > 50 && subject && (
-                        <p className="text-[9px] text-muted-foreground truncate mt-0.5">
-                          {subject.name}
-                        </p>
-                      )}
                     </motion.div>
                   );
                 })}
