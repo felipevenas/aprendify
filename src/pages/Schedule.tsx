@@ -46,6 +46,7 @@ const Schedule = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<ScheduleItem | null>(null);
+  const [prefillSlot, setPrefillSlot] = useState<{ date: Date; startTime: string } | null>(null);
   const [lastGeneration, setLastGeneration] = useState<ScheduleGeneration | null>(null);
   const [viewMode, setViewMode] = useState<"month" | "week">("week");
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -379,6 +380,11 @@ const Schedule = () => {
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onToggleComplete={handleToggleComplete}
+                onAddAtSlot={(date, startTime) => {
+                  setEditItem(null);
+                  setPrefillSlot({ date, startTime });
+                  setDialogOpen(true);
+                }}
                 weekStart={weekStart}
               />
 
@@ -440,10 +446,14 @@ const Schedule = () => {
         open={dialogOpen}
         onOpenChange={(open) => {
           setDialogOpen(open);
-          if (!open) setEditItem(null);
+          if (!open) {
+            setEditItem(null);
+            setPrefillSlot(null);
+          }
         }}
         editItem={editItem}
-        selectedDate={selectedDate}
+        selectedDate={prefillSlot?.date || selectedDate}
+        prefillStartTime={prefillSlot?.startTime}
       />
     </div>
   );
