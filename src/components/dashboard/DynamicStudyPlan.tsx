@@ -284,11 +284,11 @@ const DynamicStudyPlan = ({ userId }: DynamicStudyPlanProps) => {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high":
-        return "border-red-500/30 bg-red-500/5 hover:bg-red-500/10";
+        return "border-destructive/30 bg-destructive/5 hover:bg-destructive/10";
       case "medium":
-        return "border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10";
+        return "border-warning/30 bg-warning/5 hover:bg-warning/10";
       default:
-        return "border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10";
+        return "border-success/30 bg-success/5 hover:bg-success/10";
     }
   };
 
@@ -310,13 +310,13 @@ const DynamicStudyPlan = ({ userId }: DynamicStudyPlanProps) => {
   const getTypeColor = (type: string) => {
     switch (type) {
       case "weak_discipline":
-        return "text-red-500";
+        return "text-destructive";
       case "review":
-        return "text-blue-500";
+        return "text-info";
       case "challenge":
-        return "text-amber-500";
+        return "text-warning";
       case "new_topic":
-        return "text-emerald-500";
+        return "text-success";
       default:
         return "text-primary";
     }
@@ -348,7 +348,7 @@ const DynamicStudyPlan = ({ userId }: DynamicStudyPlanProps) => {
                 <CheckCircle2 className="h-3 w-3" />
                 Acertos
               </div>
-              <span className="text-sm font-bold text-emerald-500">
+              <span className="text-sm font-bold text-success">
                 {accuracy}%
               </span>
             </div>
