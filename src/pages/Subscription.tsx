@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { loadMercadoPago } from "@/lib/loadMercadoPago";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,6 +42,7 @@ export default function Subscription() {
   const [isPortalLoading, setIsPortalLoading] = useState(false);
 
   useEffect(() => {
+    loadMercadoPago();
     fetchSubscription();
   }, []);
 
