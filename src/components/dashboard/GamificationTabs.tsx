@@ -18,7 +18,7 @@ const GamificationTabs = ({ userId }: GamificationTabsProps) => {
   const [activeTab, setActiveTab] = useState("study");
 
   return (
-    <Card className="h-full flex flex-col overflow-hidden">
+    <Card className="h-full w-full flex flex-col overflow-hidden">
       <CardHeader className="pb-1 pt-3 px-4 shrink-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full grid grid-cols-3 h-8">

@@ -232,12 +232,12 @@ const Dashboard = () => {
             </div>
 
             {/* Coluna direita: Gamificação em Tabs */}
-            <div className="lg:col-span-2 flex" data-tour="gamification">
+            <div className="lg:col-span-2 flex flex-col" data-tour="gamification">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.2 }}
-                className="w-full flex"
+                className="w-full flex-1 flex flex-col"
               >
                 <GamificationTabs userId={user?.id} />
               </motion.div>
