@@ -35,6 +35,9 @@ export const cleanMarkdownArtifacts = (text: string): string => {
   // Remove códigos de questão (ex: *020325AZ7*)
   cleaned = cleaned.replace(/\*\d{6}[A-Z]+\d*\*/g, '');
   
+  // Remove URLs de imagens da API do ENEM (ex: https://enem.dev/.../image.png)
+  cleaned = cleaned.replace(/https?:\/\/[^\s]+\.(?:png|jpg|jpeg|gif|svg|webp)(?:\?[^\s]*)?/gi, '');
+  
   // Remove HTML entities comuns
   cleaned = cleaned.replace(/&nbsp;/g, ' ');
   cleaned = cleaned.replace(/&amp;/g, '&');
