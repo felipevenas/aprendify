@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Target, Trophy, Flame, CheckCircle2, Zap } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDisciplineName } from "@/lib/formatters";
@@ -98,46 +97,26 @@ const WeeklyChallenges = ({ userId }: WeeklyChallengesProps) => {
 
   if (loading) {
     return (
-      <Card className="border-border/50">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Target className="h-5 w-5 text-primary" />
-            Desafios da Semana
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="animate-pulse space-y-3">
-            <div className="h-16 bg-muted rounded-lg" />
-            <div className="h-16 bg-muted rounded-lg" />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-3">
+        <div className="animate-pulse h-16 bg-muted rounded-lg" />
+        <div className="animate-pulse h-16 bg-muted rounded-lg" />
+      </div>
     );
   }
 
   if (challenges.length === 0) {
     return (
-      <Card className="border-border/50">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Target className="h-5 w-5 text-primary" />
-            Desafios da Semana
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-6 text-center">
-            <div className="p-3 rounded-full bg-muted/50 mb-3">
-              <Trophy className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Novos desafios em breve!
-            </p>
-            <p className="text-xs text-muted-foreground/70 mt-1">
-              Fique atento para os próximos desafios semanais
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col items-center justify-center py-6 text-center">
+        <div className="p-3 rounded-full bg-muted/50 mb-3">
+          <Trophy className="h-6 w-6 text-muted-foreground" />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Novos desafios em breve!
+        </p>
+        <p className="text-xs text-muted-foreground/70 mt-1">
+          Fique atento para os próximos desafios semanais
+        </p>
+      </div>
     );
   }
 
@@ -148,27 +127,13 @@ const WeeklyChallenges = ({ userId }: WeeklyChallengesProps) => {
   };
 
   const getIconColor = (discipline: string | null, completed: boolean) => {
-    if (completed) return "text-green-500";
-    if (!discipline) return "text-orange-500";
+    if (completed) return "text-success";
+    if (!discipline) return "text-warning";
     return "text-primary";
   };
 
-  const getProgressColor = (progress: number, completed: boolean) => {
-    if (completed) return "bg-green-500";
-    if (progress >= 75) return "bg-yellow-500";
-    if (progress >= 50) return "bg-orange-500";
-    return "bg-primary";
-  };
-
   return (
-    <Card className="border-border/50">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Target className="h-5 w-5 text-primary" />
-          Desafios da Semana
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <div className="space-y-3">
         {challenges.slice(0, 3).map((challenge, index) => {
           const progress = Math.min((challenge.current_value / challenge.target_value) * 100, 100);
           const Icon = getIcon(challenge.discipline, challenge.completed);
@@ -182,7 +147,7 @@ const WeeklyChallenges = ({ userId }: WeeklyChallengesProps) => {
               transition={{ delay: index * 0.1 }}
               className={`p-3 rounded-lg border ${
                 challenge.completed
-                  ? "bg-green-500/10 border-green-500/30"
+                  ? "bg-success/10 border-success/30"
                   : "bg-muted/30 border-border/50"
               }`}
             >
@@ -193,7 +158,7 @@ const WeeklyChallenges = ({ userId }: WeeklyChallengesProps) => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <h4 className="font-medium text-sm truncate">{challenge.title}</h4>
-                    <div className="flex items-center gap-1 text-xs text-amber-500 shrink-0">
+                    <div className="flex items-center gap-1 text-xs text-warning shrink-0">
                       <Zap className="h-3 w-3" />
                       <span>{challenge.reward_points}</span>
                     </div>
@@ -219,7 +184,7 @@ const WeeklyChallenges = ({ userId }: WeeklyChallengesProps) => {
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="text-green-500"
+                    className="text-success"
                   >
                     <Trophy className="h-5 w-5" />
                   </motion.div>
@@ -228,8 +193,7 @@ const WeeklyChallenges = ({ userId }: WeeklyChallengesProps) => {
             </motion.div>
           );
         })}
-      </CardContent>
-    </Card>
+    </div>
   );
 };
 
