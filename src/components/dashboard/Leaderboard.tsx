@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Trophy, Medal, Crown, TrendingUp, User } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 
 interface LeaderboardEntry {
@@ -143,32 +142,22 @@ const Leaderboard = ({ userId }: LeaderboardProps) => {
 
   if (loading) {
     return (
-      <Card className="border-border/50">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Trophy className="h-5 w-5 text-amber-500" />
-            Ranking Semanal
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="animate-pulse space-y-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-12 bg-muted rounded-lg" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-2">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="h-12 bg-muted rounded-lg animate-pulse" />
+        ))}
+      </div>
     );
   }
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
       case 1:
-        return <Crown className="h-4 w-4 text-amber-400" />;
+        return <Crown className="h-4 w-4 text-warning" />;
       case 2:
-        return <Medal className="h-4 w-4 text-gray-400" />;
+        return <Medal className="h-4 w-4 text-muted-foreground" />;
       case 3:
-        return <Medal className="h-4 w-4 text-amber-600" />;
+        return <Medal className="h-4 w-4 text-warning" />;
       default:
         return <span className="text-xs font-bold text-muted-foreground">#{rank}</span>;
     }
@@ -178,26 +167,19 @@ const Leaderboard = ({ userId }: LeaderboardProps) => {
     if (isCurrentUser) return "bg-primary/10 border-primary/30";
     switch (rank) {
       case 1:
-        return "bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border-amber-500/30";
+        return "bg-warning/10 border-warning/30";
       case 2:
-        return "bg-gradient-to-r from-gray-400/10 to-gray-300/10 border-gray-400/30";
+        return "bg-muted/50 border-border";
       case 3:
-        return "bg-gradient-to-r from-amber-600/10 to-orange-500/10 border-amber-600/30";
+        return "bg-warning/5 border-warning/20";
       default:
         return "bg-muted/30 border-border/50";
     }
   };
 
   return (
-    <Card className="border-border/50">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Trophy className="h-5 w-5 text-amber-500" />
-          Ranking Semanal
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {entries.length === 0 ? (
+    <div className="space-y-2">
+      {entries.length === 0 ? (
           <div className="text-center py-6 text-muted-foreground">
             <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">Nenhuma atividade esta semana</p>
@@ -277,8 +259,7 @@ const Leaderboard = ({ userId }: LeaderboardProps) => {
             )}
           </>
         )}
-      </CardContent>
-    </Card>
+    </div>
   );
 };
 
