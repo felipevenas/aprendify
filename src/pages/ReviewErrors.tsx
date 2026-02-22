@@ -14,7 +14,7 @@ import {
   BarChart3
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import Navbar from "@/components/Navbar";
+
 import { PageLoader } from "@/components/ui/page-loader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -362,7 +362,6 @@ const ReviewErrors = () => {
   if (!isPremium) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <main className="max-w-4xl mx-auto px-4 py-12">
           <PremiumLockScreen
             title="Revisão de Erros"
@@ -378,7 +377,6 @@ const ReviewErrors = () => {
   if (selectedError && selectedError.question_data) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <main className="max-w-4xl mx-auto px-4 py-8">
           <Button
             variant="ghost"
@@ -413,7 +411,7 @@ const ReviewErrors = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
+      
       <main className="max-w-6xl mx-auto px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

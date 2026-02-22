@@ -20,7 +20,7 @@ import {
   CheckCircle2,
   XCircle
 } from "lucide-react";
-import Navbar from "@/components/Navbar";
+
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -155,7 +155,6 @@ export default function Subscription() {
   if (isLoading || isPremiumLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
@@ -165,7 +164,7 @@ export default function Subscription() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
+      
       
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         <motion.div

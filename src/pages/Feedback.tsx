@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import Navbar from "@/components/Navbar";
+
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -122,7 +122,6 @@ const Feedback = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -132,7 +131,7 @@ const Feedback = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
+      
       <main className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
