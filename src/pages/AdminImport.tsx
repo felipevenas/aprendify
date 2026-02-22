@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Upload, FileJson, CheckCircle, AlertCircle, PenLine, CloudDownload, RefreshCw, Clock, Database } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import Navbar from "@/components/Navbar";
+
 import AddManualQuestionForm from "@/components/admin/AddManualQuestionForm";
 
 const AVAILABLE_YEARS = [
@@ -255,7 +255,7 @@ const AdminImport = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <Navbar />
+      
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div
