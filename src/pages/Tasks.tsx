@@ -7,7 +7,7 @@ import { ArrowLeft, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import TaskList from "@/components/tasks/TaskList";
 import AddTaskDialog from "@/components/tasks/AddTaskDialog";
-import Navbar from "@/components/Navbar";
+
 
 const Tasks = () => {
   const [loading, setLoading] = useState(true);
@@ -40,7 +40,7 @@ const Tasks = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <Navbar />
+      
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div

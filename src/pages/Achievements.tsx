@@ -7,7 +7,7 @@ import { Trophy, ArrowLeft, Lock, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import Navbar from "@/components/Navbar";
+
 import { PageLoader } from "@/components/ui/page-loader";
 import { useAchievements, Achievement } from "@/hooks/useAchievements";
 import { cn } from "@/lib/utils";
@@ -134,7 +134,7 @@ const Achievements = () => {
       <div className="min-h-screen bg-background">
         <div className="fixed inset-0 bg-gradient-to-br from-primary/3 via-transparent to-accent/3 pointer-events-none" />
 
-        <Navbar />
+        
 
         <main className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           {/* Header */}
