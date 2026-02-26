@@ -51,8 +51,16 @@ import {
   Settings2,
   AlertTriangle,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
-const mainNavItems = [
+type NavItem = { title: string; path: string; icon: typeof LayoutDashboard };
+
+const mainNavItems: NavItem[] = [
   { title: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { title: "Banco de Questões", path: "/questions", icon: Brain },
   { title: "Simulados", path: "/simulados", icon: ClipboardList },
@@ -60,19 +68,25 @@ const mainNavItems = [
   { title: "Flashcards", path: "/flashcards", icon: Layers },
 ];
 
-const studyToolItems = [
+const studyToolItems: NavItem[] = [
   { title: "Cronograma", path: "/schedule", icon: Calendar },
   { title: "Tarefas", path: "/tasks", icon: CheckSquare },
   { title: "Anotações", path: "/notes", icon: FileText },
 ];
 
-const analyticsItems = [
+const analyticsItems: NavItem[] = [
   { title: "Desempenho", path: "/statistics", icon: BarChart3 },
   { title: "Revisão de Erros", path: "/review-errors", icon: AlertTriangle },
   { title: "Conquistas", path: "/achievements", icon: Trophy },
 ];
 
-const adminItems = [
+const accountItems: NavItem[] = [
+  { title: "Configurações", path: "/settings", icon: Settings },
+  { title: "Assinatura", path: "/subscription", icon: CreditCard },
+  { title: "Feedback", path: "/feedback", icon: MessageSquarePlus },
+];
+
+const adminItems: NavItem[] = [
   { title: "Importar Questões", path: "/admin/import", icon: Upload },
   { title: "Gerenciar Usuários", path: "/admin/users", icon: Users },
   { title: "Gerenciar Questões", path: "/admin/questions", icon: Settings2 },
@@ -126,51 +140,71 @@ export function AppSidebar() {
     return name.substring(0, 2).toUpperCase();
   };
 
-  const renderNavGroup = (items: typeof mainNavItems, label: string) => (
+  const renderNavItem = (item: NavItem) => {
+    const isActive = location.pathname === item.path;
+    const button = (
+      <SidebarMenuButton asChild isActive={isActive}>
+        <NavLink
+          to={item.path}
+          className="flex items-center gap-3 rounded-md transition-all duration-200"
+          activeClassName="bg-primary/10 text-primary font-medium"
+        >
+          <item.icon className="h-4 w-4 shrink-0" />
+          <span>{item.title}</span>
+        </NavLink>
+      </SidebarMenuButton>
+    );
+
+    if (collapsed) {
+      return (
+        <Tooltip key={item.path}>
+          <TooltipTrigger asChild>
+            <SidebarMenuItem>{button}</SidebarMenuItem>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="font-medium">
+            {item.title}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return <SidebarMenuItem key={item.path}>{button}</SidebarMenuItem>;
+  };
+
+  const renderNavGroup = (items: NavItem[], label: string) => (
     <SidebarGroup>
-      <SidebarGroupLabel>{label}</SidebarGroupLabel>
+      <SidebarGroupLabel className="text-[11px] uppercase tracking-wider text-muted-foreground/60 font-semibold">
+        {label}
+      </SidebarGroupLabel>
       <SidebarGroupContent>
-        <SidebarMenu>
-          {items.map((item) => (
-            <SidebarMenuItem key={item.path}>
-              <SidebarMenuButton asChild isActive={location.pathname === item.path}>
-                <NavLink
-                  to={item.path}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent"
-                  activeClassName="bg-primary/10 text-primary font-medium"
-                >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  <span>{item.title}</span>
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
+        <SidebarMenu>{items.map(renderNavItem)}</SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
   );
 
   return (
-    <>
-      <Sidebar collapsible="icon" className="border-r border-border/50">
-        {/* Header: Logo */}
-        <SidebarHeader className="px-4 py-4">
+    <TooltipProvider delayDuration={0}>
+      <Sidebar collapsible="icon" className="border-r border-border/30">
+        {/* Header */}
+        <SidebarHeader className="px-3 py-4">
           <div
             className="flex items-center gap-2.5 cursor-pointer group"
             onClick={() => navigate("/dashboard")}
           >
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-300 shrink-0">
-              <BookOpen className="h-5 w-5 text-primary-foreground" />
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all duration-300 shrink-0">
+              <BookOpen className="h-4 w-4 text-primary-foreground" />
             </div>
             {!collapsed && (
-              <span className="text-xl font-bold text-gradient">Aprendify</span>
+              <span className="text-lg font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                Aprendify
+              </span>
             )}
           </div>
         </SidebarHeader>
 
-        {/* Streak + Notifications (compact) */}
+        {/* Quick actions bar */}
         {!collapsed && (
-          <div className="px-4 pb-3 flex items-center gap-2">
+          <div className="px-3 pb-2 flex items-center gap-1.5">
             {!streakLoading && streakData && (
               <StreakIndicator
                 currentStreak={streakData.currentStreak}
@@ -183,115 +217,121 @@ export function AppSidebar() {
             {!isLoading && (
               <button
                 onClick={() => isCreator ? navigate("/creator") : isPremium ? setShowPremiumModal(true) : navigate("/subscription")}
-                className="p-1.5 rounded-full hover:bg-accent transition-colors"
+                className="p-1.5 rounded-md hover:bg-accent transition-colors"
               >
                 {isCreator ? (
                   <Sparkles className="h-4 w-4 text-purple-500" />
                 ) : isPremium ? (
                   <Crown className="h-4 w-4 text-amber-500" />
                 ) : (
-                  <Crown className="h-4 w-4 text-muted-foreground/50" />
+                  <Crown className="h-4 w-4 text-muted-foreground/40" />
                 )}
               </button>
             )}
           </div>
         )}
 
-        <SidebarContent>
+        <SidebarSeparator className="mx-3 opacity-50" />
+
+        <SidebarContent className="px-1">
           {renderNavGroup(mainNavItems, "Principal")}
           {renderNavGroup(studyToolItems, "Ferramentas")}
           {renderNavGroup(analyticsItems, "Análise")}
-
-          {/* Settings & Account */}
-          <SidebarGroup>
-            <SidebarGroupLabel>Conta</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={location.pathname === "/settings"}>
-                    <NavLink to="/settings" className="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent" activeClassName="bg-primary/10 text-primary font-medium">
-                      <Settings className="h-4 w-4 shrink-0" />
-                      <span>Configurações</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={location.pathname === "/subscription"}>
-                    <NavLink to="/subscription" className="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent" activeClassName="bg-primary/10 text-primary font-medium">
-                      <CreditCard className="h-4 w-4 shrink-0" />
-                      <span>Assinatura</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={location.pathname === "/feedback"}>
-                    <NavLink to="/feedback" className="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent" activeClassName="bg-primary/10 text-primary font-medium">
-                      <MessageSquarePlus className="h-4 w-4 shrink-0" />
-                      <span>Feedback</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          {/* Admin section */}
-          {isAdmin && renderNavGroup(adminItems, "Admin")}
+          {renderNavGroup(accountItems, "Conta")}
+          {isAdmin && (
+            <>
+              <SidebarSeparator className="mx-3 opacity-50" />
+              {renderNavGroup(adminItems, "Admin")}
+            </>
+          )}
         </SidebarContent>
 
-        {/* Footer: User + Theme + Logout */}
-        <SidebarFooter className="px-3 pb-4 space-y-2">
-          <SidebarSeparator />
+        {/* Footer */}
+        <SidebarFooter className="px-3 pb-3 space-y-1.5">
+          <SidebarSeparator className="opacity-50" />
 
           {/* Theme toggle */}
-          {!collapsed && (
+          {!collapsed ? (
             <div
-              className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-accent cursor-pointer"
+              className="flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-accent/50 cursor-pointer transition-colors"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             >
-              <div className="flex items-center gap-2">
-                {theme === "dark" ? <Moon className="h-4 w-4 text-muted-foreground" /> : <Sun className="h-4 w-4 text-muted-foreground" />}
-                <span className="text-sm">Tema Escuro</span>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                {theme === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                <span>Tema Escuro</span>
               </div>
-              <Switch checked={theme === "dark"} onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")} />
+              <Switch
+                checked={theme === "dark"}
+                onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+                className="scale-90"
+              />
             </div>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  className="w-full flex items-center justify-center p-2 rounded-md hover:bg-accent/50 transition-colors"
+                >
+                  {theme === "dark" ? (
+                    <Moon className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Sun className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Alternar tema</TooltipContent>
+            </Tooltip>
           )}
 
           {/* User profile */}
-          {user && (
-            <div className="flex items-center gap-3 px-3 py-2">
-              <Avatar className="h-8 w-8 ring-2 ring-primary/20 ring-offset-1 ring-offset-background shrink-0">
+          {user && !collapsed && (
+            <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-md">
+              <Avatar className="h-7 w-7 ring-1 ring-border shrink-0">
                 <AvatarImage src={user.user_metadata?.avatar_url} />
-                <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-xs font-semibold">
+                <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
                   {getInitials(userName)}
                 </AvatarFallback>
               </Avatar>
-              {!collapsed && (
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{userName}</p>
-                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                </div>
-              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate leading-tight">{userName}</p>
+                <p className="text-[11px] text-muted-foreground/70 truncate">{user.email}</p>
+              </div>
             </div>
           )}
 
           {/* Logout */}
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={handleLogout}
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-              >
-                <LogOut className="h-4 w-4 shrink-0" />
-                <span>Sair</span>
-              </SidebarMenuButton>
+              {collapsed ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <SidebarMenuButton
+                      onClick={handleLogout}
+                      className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <LogOut className="h-4 w-4 shrink-0" />
+                      <span>Sair</span>
+                    </SidebarMenuButton>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Sair</TooltipContent>
+                </Tooltip>
+              ) : (
+                <SidebarMenuButton
+                  onClick={handleLogout}
+                  className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <LogOut className="h-4 w-4 shrink-0" />
+                  <span>Sair</span>
+                </SidebarMenuButton>
+              )}
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
 
       <PremiumModal open={showPremiumModal} onOpenChange={setShowPremiumModal} isPremium={isPremium} />
-    </>
+    </TooltipProvider>
   );
 }
 
