@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { format, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
+import Navbar from "@/components/Navbar";
 import MonthlyCalendar from "@/components/schedule/MonthlyCalendar";
 import DayScheduleDetail from "@/components/schedule/DayScheduleDetail";
 import GenerateScheduleButton from "@/components/schedule/GenerateScheduleButton";
@@ -236,7 +236,7 @@ const Schedule = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/3">
-      
+      <Navbar />
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>

@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-
+import Navbar from "@/components/Navbar";
 import DifficultyIndicator from "@/components/questions/DifficultyIndicator";
 import { cn } from "@/lib/utils";
 import { formatDisciplineName } from "@/lib/formatters";
@@ -870,7 +870,7 @@ const AdminQuestions = () => {
         <div className="absolute -bottom-20 right-1/4 w-64 h-64 bg-primary/3 rounded-full blur-3xl" />
       </div>
       
-      
+      <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
         <motion.div
