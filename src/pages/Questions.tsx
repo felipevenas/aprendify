@@ -11,7 +11,7 @@ import QuestionPractice from "@/components/questions/QuestionPractice";
 import QuestionFilters from "@/components/questions/QuestionFilters";
 import AddQuestionNoteDialog from "@/components/questions/AddQuestionNoteDialog";
 import SessionIndicator from "@/components/questions/SessionIndicator";
-
+import Navbar from "@/components/Navbar";
 import { usePremium } from "@/hooks/usePremium";
 import { useQuestionBank } from "@/hooks/useQuestionBank";
 import { useStreakContext } from "@/contexts/StreakContext";
@@ -235,7 +235,7 @@ const Questions = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      
+      <Navbar />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}

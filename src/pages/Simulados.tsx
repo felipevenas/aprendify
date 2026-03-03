@@ -20,7 +20,7 @@ import { NewSimuladoDialog } from "@/components/simulados/NewSimuladoDialog";
 import { SimuladoHistoryCard } from "@/components/simulados/SimuladoHistoryCard";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
+import Navbar from "@/components/Navbar";
 import PremiumLockScreen from "@/components/PremiumLockScreen";
 import {
   AlertDialog,
@@ -71,6 +71,7 @@ const Simulados = () => {
   if (premiumLoading || loading) {
     return (
       <>
+        <Navbar />
         <div className="min-h-screen flex items-center justify-center bg-background">
           <div className="flex flex-col items-center gap-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -85,6 +86,7 @@ const Simulados = () => {
   if (!isPremium) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
+        <Navbar />
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <PremiumLockScreen
             title="Simulados Premium"
@@ -119,7 +121,7 @@ const Simulados = () => {
 
   return (
     <>
-      
+      <Navbar />
       <div className="min-h-screen bg-background p-4 md:p-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

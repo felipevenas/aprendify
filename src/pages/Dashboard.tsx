@@ -5,7 +5,7 @@ import { User } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Brain, Upload, Users, Settings2, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
-
+import Navbar from "@/components/Navbar";
 import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
 import QuickStats from "@/components/dashboard/QuickStats";
 import ErrorReviewCard from "@/components/dashboard/ErrorReviewCard";
@@ -146,7 +146,7 @@ const Dashboard = () => {
         {/* Gradiente sutil de fundo */}
         <div className="fixed inset-0 bg-gradient-to-br from-primary/3 via-transparent to-accent/3 pointer-events-none" />
 
-        
+        <Navbar />
 
         {/* Conteúdo principal */}
         <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">

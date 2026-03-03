@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Upload, Loader2, Shield, Users, ChevronRight, Volume2 } from "lucide-react";
-
+import Navbar from "@/components/Navbar";
 import TwoFactorAuth from "@/components/settings/TwoFactorAuth";
 import { useSoundPreferences } from "@/hooks/useSoundPreferences";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
@@ -175,7 +175,7 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      
+      <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div
