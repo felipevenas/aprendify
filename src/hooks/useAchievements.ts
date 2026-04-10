@@ -188,16 +188,17 @@ export const useAchievements = (userId?: string) => {
       if (existing?.unlocked) return false;
 
       try {
-        const { error } = await supabase.from("achievements").insert({
-          user_id: userId,
-          achievement_type: type,
+        const { data: unlocked, error } = await supabase.rpc("unlock_achievement", {
+          _user_id: userId,
+          _achievement_type: type,
         });
 
         if (error) {
-          // Already exists (unique constraint)
-          if (error.code === "23505") return false;
-          throw error;
+          console.error("Error unlocking achievement:", error);
+          return false;
         }
+
+        if (!unlocked) return false;
 
         const achievement = ACHIEVEMENT_DEFINITIONS[type];
 

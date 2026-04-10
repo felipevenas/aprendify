@@ -39,7 +39,7 @@ const AdminImport = () => {
     startTime: 0,
     estimatedTimeRemaining: "",
   });
-  const progressInterval = useRef<NodeJS.Timeout | null>(null);
+  const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Cleanup interval on unmount
   useEffect(() => {
