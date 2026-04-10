@@ -1230,6 +1230,10 @@ export type Database = {
         Returns: boolean
       }
       is_user_premium: { Args: { _user_id: string }; Returns: boolean }
+      unlock_achievement: {
+        Args: { _achievement_type: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       plan_type: "monthly" | "annual" | "god" | "creator"
