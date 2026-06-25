@@ -90,8 +90,9 @@ export function AppSidebar() {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id);
-      setIsAdmin(!!roleData?.some((r) => r.role === "admin"));
-      setIsCreator(!!roleData?.some((r) => r.role === "creator"));
+      const roles = (roleData ?? []).map((r) => r.role as string);
+      setIsAdmin(roles.includes("admin"));
+      setIsCreator(roles.includes("creator"));
     };
     load();
   }, []);
