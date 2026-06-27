@@ -16,6 +16,7 @@ import WeeklyAdherenceReport from "@/components/schedule/WeeklyAdherenceReport";
 import WeeklyAgendaView from "@/components/schedule/WeeklyAgendaView";
 import SubjectProgressCircles from "@/components/schedule/SubjectProgressCircles";
 import { Progress } from "@/components/ui/progress";
+import { PageLoader } from "@/components/ui/page-loader";
 
 interface ScheduleItem {
   id: string;
@@ -223,42 +224,25 @@ const Schedule = () => {
   const totalStudyMinutes = items.reduce((acc, item) => acc + (item.estimated_duration || 60), 0);
   const totalStudyHours = Math.floor(totalStudyMinutes / 60);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/3">
+    <PageLoader loading={loading} message="Carregando seu cronograma...">
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/3 app-layout-container">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <main className="max-w-7xl lg:ml-0 lg:mr-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
           {/* Header */}
           <div className="mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
               <div className="flex items-center gap-3">
-                <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="shrink-0">
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
+                <div className="p-2 bg-primary/10 rounded-lg text-primary shrink-0">
+                  <BookOpen className="h-6 w-6" />
+                </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <BookOpen className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h1 className="text-xl sm:text-2xl font-bold text-foreground">Plano de Estudos</h1>
-                      <p className="text-muted-foreground text-xs sm:text-sm">
-                        {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
-                      </p>
-                    </div>
-                  </div>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Plano de Estudos</h1>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                    {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
+                  </p>
                 </div>
               </div>
 
@@ -456,7 +440,8 @@ const Schedule = () => {
         prefillStartTime={prefillSlot?.startTime}
       />
     </div>
-  );
+  </PageLoader>
+);
 };
 
 export default Schedule;

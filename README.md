@@ -1,6 +1,6 @@
-# 📚 Aprendify | Plataforma de Gerenciamento de Estudos
+# 📚 Aprendify | Preparação de Alta Performance para o ENEM
 
-> Aplicação web moderna, minimalista e altamente responsiva para organizar cronogramas de estudo, tarefas e matérias, integrada com Supabase. Disponível em [aprendify.cloud](https://www.aprendify.cloud).
+> Ecossistema web completo, moderno e altamente otimizado para a preparação de estudantes rumo ao **ENEM (Exame Nacional do Ensino Médio)**. Desenvolvido para organizar o cronograma de estudos, praticar com questões reais, simular exames oficiais e obter correções de redação automatizadas com inteligência artificial. Disponível em [aprendify.cloud](https://www.aprendify.cloud).
 
 ![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-5.0-646CFF?logo=vite&logoColor=white)
@@ -14,16 +14,18 @@
 
 ## 📖 Propósito
 
-Facilitar a organização acadêmica de estudantes através de uma interface limpa, intuitiva e rápida. O Aprendify consolida o gerenciamento de cronogramas semanais, controle de tarefas com prazos e prioridades, e classificação de disciplinas com cores personalizadas, sincronizando tudo em tempo real através do Supabase com segurança avançada (RLS).
+O **Aprendify** foi inteiramente moldado e otimizado para atender à rotina intensa e às necessidades de preparação de quem vai prestar o **ENEM**. Mais do que um organizador acadêmico genérico, a plataforma une planejamento semanal inteligente, inteligência artificial calibrada sob a rubrica oficial de avaliação do exame, simulados dinâmicos com análise diagnóstica, cronômetros de foco (Pomodoro) e contagem regressiva integrada para dar aos estudantes as ferramentas necessárias para conquistarem a nota ideal de forma estruturada.
 
-## 🌟 Funcionalidades
+## 🌟 Funcionalidades Focadas no ENEM
 
-- **Autenticação e Autorização**: Sistema de cadastro e login integrado ao Supabase Auth com criptografia automática, papéis de usuário (Administrador e Usuário Padrão) e proteção de rotas privadas.
-- **Cronograma Semanal Dinâmico**: Grade semanal interativa (segunda a sexta) para gerenciar horários de aula e estudo vinculados a disciplinas e organizados por código de cores.
-- **Gestão de Tarefas Eficiente**: Lista de afazeres com checkbox de conclusão, prazos de entrega, nível de prioridade (Alta/Média/Baixa) e filtros por status de conclusão.
-- **Organização de Disciplinas (Matérias)**: Cadastro de disciplinas com descrição e paleta de cores predefinidas para identificação imediata nas tarefas e cronograma.
-- **Visualização Integrada**: Calendário intuitivo que consolida cronogramas e tarefas pendentes em um layout fluido.
-- **Políticas de Segurança Rígidas**: Integração de Row Level Security (RLS) no PostgreSQL, garantindo que cada estudante acesse e modifique apenas seus próprios dados.
+- **Banco de Questões Reais**: Prática e resolução de milhares de questões de edições anteriores do ENEM (2009-2024+), com filtros avançados por ano, disciplina/área do conhecimento, idioma, dificuldade e tópico extraído por IA.
+- **Corretor de Redação com IA**: Envio de redações corrigidas instantaneamente por inteligência artificial baseada exatamente nos critérios oficiais e nas **5 competências de avaliação do ENEM**, oferecendo notas detalhadas de 0 a 1000, pontos fortes, pontos fracos e dicas de evolução.
+- **Simulados e Estatísticas**: Geração de simulados customizados com relatórios diagnósticos de desempenho, mapeando forças, fraquezas e tópicos que exigem revisão.
+- **Timer Pomodoro & Foco**: Widget integrado de cronômetro Pomodoro (Foco, Pausa Curta e Pausa Longa) para organizar sessões concentradas de estudos.
+- **Contagem Regressiva Viva**: Contador dinâmico com o progresso do ano e dias restantes até a prova do ENEM.
+- **Cronograma e Matérias**: Grade horária de estudos personalizável organizada por código de cores de acordo com as disciplinas do ENEM.
+- **Gamificação e Desafios Semanais**: Competição saudável baseada em ranking de pontos (Leaderboard) e progresso diário de acertos de questões (streaks) para incentivar a constância.
+- **Segurança e Privacidade**: Controle de acesso a nível de linha (RLS) no Supabase, garantindo isolamento total dos dados de cada estudante.
 
 ---
 

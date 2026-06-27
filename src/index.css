@@ -320,3 +320,30 @@ All colors MUST be HSL.
     @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/30 transition-colors;
   }
 }
+
+/* Regras de Layout para a Sidebar Clássica do Aprendify */
+.app-layout-container {
+  padding-top: 4rem; /* altura do header (h-16 = 64px) */
+}
+
+@media (min-width: 1024px) {
+  .app-layout-container {
+    padding-left: 16rem; /* largura da sidebar (w-64 = 256px) */
+    padding-top: 4rem; /* altura do header */
+  }
+
+  /* Alinha o contêiner principal de todas as páginas de estudo à esquerda no desktop */
+  main {
+    margin-left: 0 !important;
+    margin-right: auto !important;
+  }
+}
+
+/* Transições suaves e efeitos ativos para os links da Sidebar */
+.sidebar-link-active {
+  @apply bg-primary/10 text-primary font-semibold shadow-sm border-r-2 border-primary;
+}
+
+.sidebar-link-inactive {
+  @apply text-muted-foreground hover:bg-muted/80 hover:text-foreground;
+}

@@ -10,11 +10,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Upload, Loader2, Shield, Users, ChevronRight, Volume2 } from "lucide-react";
+import { Upload, Loader2, Shield, Users, ChevronRight, Volume2, Settings as SettingsIcon } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import TwoFactorAuth from "@/components/settings/TwoFactorAuth";
 import { useSoundPreferences } from "@/hooks/useSoundPreferences";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
+import { PageLoader } from "@/components/ui/page-loader";
 
 /**
  * Página de configurações do usuário
@@ -133,11 +134,9 @@ const Settings = () => {
 
     setSaving(true);
     try {
-      // Faz upload para um bucket público (você precisaria criar esse bucket no Supabase)
-      // Por enquanto, vamos apenas simular e guardar a URL no metadata
       const { error: updateError } = await supabase.auth.updateUser({
         data: {
-          avatar_url: URL.createObjectURL(file), // Em produção, use o URL do storage
+          avatar_url: URL.createObjectURL(file),
         },
       });
 
@@ -162,218 +161,220 @@ const Settings = () => {
     return name.substring(0, 2).toUpperCase();
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <Navbar />
+    <PageLoader loading={loading} message="Carregando configurações...">
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 app-layout-container">
+        <Navbar />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-8">
-            Configurações
-          </h1>
+        <main className="max-w-7xl lg:ml-0 lg:mr-auto px-4 sm:px-6 lg:px-8 py-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-2 bg-primary/10 rounded-lg text-primary shrink-0">
+                <SettingsIcon className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                  Configurações
+                </h1>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Gerencie sua conta e preferências do sistema
+                </p>
+              </div>
+            </div>
 
-          <div className="space-y-6">
-            {/* Avatar */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Foto de Perfil</CardTitle>
-                <CardDescription>
-                  Atualize sua foto de perfil
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex items-center gap-6">
-                <Avatar className="h-20 w-20">
-                  <AvatarImage src={avatarUrl} />
-                  <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-2xl">
-                    {getInitials(fullName)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <Label htmlFor="avatar-upload" className="cursor-pointer">
-                    <Button variant="outline" disabled={saving} asChild>
-                      <span>
-                        {saving ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Upload className="h-4 w-4 mr-2" />
-                        )}
-                        Carregar Foto
-                      </span>
-                    </Button>
-                  </Label>
-                  <Input
-                    id="avatar-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleAvatarUpload}
-                  />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    PNG, JPG ou GIF (máx. 2MB)
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Informações do Perfil */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Informações do Perfil</CardTitle>
-                <CardDescription>
-                  Atualize suas informações pessoais
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Nome Completo</Label>
-                  <Input
-                    id="fullName"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Seu nome completo"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    value={email}
-                    disabled
-                    className="bg-muted"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    O email não pode ser alterado
-                  </p>
-                </div>
-                <Button onClick={handleUpdateProfile} disabled={saving}>
-                  {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Salvar Alterações
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Alterar Senha */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Alterar Senha</CardTitle>
-                <CardDescription>
-                  Mantenha sua conta segura com uma senha forte
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="newPassword">Nova Senha</Label>
-                  <Input
-                    id="newPassword"
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Digite a nova senha"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirme a nova senha"
-                  />
-                </div>
-                <Button onClick={handleUpdatePassword} disabled={saving}>
-                  {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Atualizar Senha
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Preferências de Som */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Volume2 className="h-5 w-5" />
-                  Efeitos Sonoros
-                </CardTitle>
-                <CardDescription>
-                  Configure os sons do aplicativo
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="sound-toggle">Ativar efeitos sonoros</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Sons ao acertar questões, completar streaks e gerar cronogramas
+            <div className="space-y-6">
+              {/* Avatar */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Foto de Perfil</CardTitle>
+                  <CardDescription>
+                    Atualize sua foto de perfil
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex items-center gap-6">
+                  <Avatar className="h-20 w-20">
+                    <AvatarImage src={avatarUrl} />
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-2xl">
+                      {getInitials(fullName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <Label htmlFor="avatar-upload" className="cursor-pointer">
+                      <Button variant="outline" disabled={saving} asChild>
+                        <span>
+                          {saving ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Upload className="h-4 w-4 mr-2" />
+                          )}
+                          Carregar Foto
+                        </span>
+                      </Button>
+                    </Label>
+                    <Input
+                      id="avatar-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleAvatarUpload}
+                    />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      PNG, JPG ou GIF (máx. 2MB)
                     </p>
                   </div>
-                  <Switch
-                    id="sound-toggle"
-                    checked={soundEnabled}
-                    onCheckedChange={(checked) => {
-                      setSoundEnabled(checked);
-                      if (checked) {
-                        playClickSound();
-                      }
-                      toast.success(checked ? "Sons ativados" : "Sons desativados");
-                    }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* Autenticação em Dois Fatores */}
-            {user && <TwoFactorAuth userId={user.id} />}
+              {/* Informações do Perfil */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Informações do Perfil</CardTitle>
+                  <CardDescription>
+                    Atualize suas informações pessoais
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Nome Completo</Label>
+                    <Input
+                      id="fullName"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Seu nome completo"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      value={email}
+                      disabled
+                      className="bg-muted"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      O email não pode ser alterado
+                    </p>
+                  </div>
+                  <Button onClick={handleUpdateProfile} disabled={saving}>
+                    {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Salvar Alterações
+                  </Button>
+                </CardContent>
+              </Card>
 
-            {/* Ferramentas de Administrador - Apenas para admins */}
-            {isAdmin && (
-              <Card className="border-primary/30 bg-primary/5">
+              {/* Alterar Senha */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Alterar Senha</CardTitle>
+                  <CardDescription>
+                    Mantenha sua conta segura com uma senha forte
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">Nova Senha</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Digite a nova senha"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirme a nova senha"
+                    />
+                  </div>
+                  <Button onClick={handleUpdatePassword} disabled={saving}>
+                    {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Atualizar Senha
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Preferências de Som */}
+              <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-primary" />
-                    Ferramentas de Administrador
+                    <Volume2 className="h-5 w-5" />
+                    Efeitos Sonoros
                   </CardTitle>
                   <CardDescription>
-                    Acesso privilegiado para gerenciar o sistema
+                    Configure os sons do aplicativo
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button 
-                    onClick={() => navigate("/admin/users")} 
-                    className="w-full justify-between"
-                    variant="outline"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      Gerenciar Usuários
-                    </span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Conceda benefícios, gerencie assinaturas e bana usuários
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="sound-toggle">Ativar efeitos sonoros</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Sons ao acertar questões, completar streaks e gerar cronogramas
+                      </p>
+                    </div>
+                    <Switch
+                      id="sound-toggle"
+                      checked={soundEnabled}
+                      onCheckedChange={(checked) => {
+                        setSoundEnabled(checked);
+                        if (checked) {
+                          playClickSound();
+                        }
+                        toast.success(checked ? "Sons ativados" : "Sons desativados");
+                      }}
+                    />
+                  </div>
                 </CardContent>
               </Card>
-            )}
-          </div>
-        </motion.div>
-      </main>
-    </div>
+
+              {/* Autenticação em Dois Fatores */}
+              {user && <TwoFactorAuth userId={user.id} />}
+
+              {/* Ferramentas de Administrador - Apenas para admins */}
+              {isAdmin && (
+                <Card className="border-primary/30 bg-primary/5">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Shield className="h-5 w-5 text-primary" />
+                      Ferramentas de Administrador
+                    </CardTitle>
+                    <CardDescription>
+                      Acesso privilegiado para gerenciar o sistema
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button 
+                      onClick={() => navigate("/admin/users")} 
+                      className="w-full justify-between"
+                      variant="outline"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Gerenciar Usuários
+                      </span>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Conceda benefícios, gerencie assinaturas e bana usuários
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </motion.div>
+        </main>
+      </div>
+    </PageLoader>
   );
 };
 
