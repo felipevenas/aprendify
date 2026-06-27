@@ -19,7 +19,16 @@ const Auth = lazy(() => import("./pages/Auth"));
 // Heavy app layout with providers - only loaded when navigating to app routes
 const AppLayout = lazy(() => import("./components/AppLayout"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutos de dados considerados frescos
+      gcTime: 1000 * 60 * 10,   // 10 minutos de retenção em memória (anteriormente cacheTime)
+      refetchOnWindowFocus: false, // Evita refetch automático ao alternar abas do navegador
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
