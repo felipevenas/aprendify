@@ -3,10 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { motion } from "framer-motion";
-import { Trophy, ArrowLeft, Lock, Sparkles } from "lucide-react";
+import { Trophy, Lock, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import { PageLoader } from "@/components/ui/page-loader";
 import { useAchievements, Achievement } from "@/hooks/useAchievements";
@@ -131,41 +130,31 @@ const Achievements = () => {
 
   return (
     <PageLoader loading={loading || achievementsLoading} message="Carregando conquistas...">
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background app-layout-container">
         <div className="fixed inset-0 bg-gradient-to-br from-primary/3 via-transparent to-accent/3 pointer-events-none" />
 
         <Navbar />
 
-        <main className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <main className="relative max-w-7xl lg:ml-0 lg:mr-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/dashboard")}
-              className="mb-4 -ml-2"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar ao Dashboard
-            </Button>
-
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-6">
               <motion.div
                 animate={{ rotate: [0, 10, -10, 0] }}
                 transition={{ duration: 2, repeat: Infinity, repeatDelay: 5 }}
-                className="p-3 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg"
+                className="p-3 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg text-white shrink-0"
               >
-                <Trophy className="h-8 w-8 text-white" />
+                <Trophy className="h-6 w-6" />
               </motion.div>
               <div>
-                <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
                   Conquistas
                 </h1>
-                <p className="text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Desbloqueie todas as conquistas e mostre sua dedicação!
                 </p>
               </div>

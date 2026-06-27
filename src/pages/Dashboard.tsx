@@ -1,64 +1,84 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, Upload, Users, Settings2, ArrowRight } from "lucide-react";
-import { motion } from "framer-motion";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import {
+  Play, Pause, RotateCcw, Timer, BookOpen, Trophy, ArrowRight, Brain, Upload, Users, Settings2,
+  Calendar, CheckSquare, Clock, GraduationCap, Flame, Target, Sparkles, MessageSquare, AlertCircle
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
-import QuickStats from "@/components/dashboard/QuickStats";
+import DailyGoalProgress from "@/components/dashboard/DailyGoalProgress";
+import DynamicStudyPlan from "@/components/dashboard/DynamicStudyPlan";
 import ErrorReviewCard from "@/components/dashboard/ErrorReviewCard";
-import GamificationTabs from "@/components/dashboard/GamificationTabs";
-import ModulesGrid from "@/components/dashboard/ModulesGrid";
-import ProgressTabs from "@/components/dashboard/ProgressTabs";
+import Leaderboard from "@/components/dashboard/Leaderboard";
+import WeeklyChallenges from "@/components/dashboard/WeeklyChallenges";
+import AchievementBadges from "@/components/dashboard/AchievementBadges";
 import { PageLoader } from "@/components/ui/page-loader";
 import { useHelpTooltips } from "@/contexts/HelpTooltipsContext";
-import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
-// Tooltips de ajuda do Dashboard
+// Tooltips de ajuda do novo Dashboard ENEM
 const dashboardTooltips = [
   {
-    id: "welcome-banner",
-    title: "Bem-vindo ao Aprendify!",
-    description:
-      "Aqui você verá suas metas diárias, streak de estudos e sugestões personalizadas.",
-    target: "[data-tour='welcome-banner']",
+    id: "countdown-enem",
+    title: "Foco no ENEM",
+    description: "Acompanhe de perto quantos dias faltam para a prova mais importante do ano.",
+    target: "[data-tour='countdown-enem']",
   },
   {
-    id: "quick-stats",
-    title: "Estatísticas Rápidas",
-    description:
-      "Acompanhe seu progresso diário: questões respondidas, taxa de acertos e streak.",
-    target: "[data-tour='quick-stats']",
+    id: "pomodoro-timer",
+    title: "Timer Pomodoro",
+    description: "Utilize sessões de foco (25 min) com pausas estruturadas diretamente no seu painel para turbinar sua concentração.",
+    target: "[data-tour='pomodoro-timer']",
   },
   {
-    id: "question-bank",
-    title: "Banco de Questões",
-    description:
-      "Pratique com milhares de questões reais do ENEM de 2009 até 2025.",
-    target: "[data-tour='question-bank']",
+    id: "performance-areas",
+    title: "Desempenho por Áreas",
+    description: "Analise seu progresso de acertos e proficiência nas 4 grandes áreas oficiais do ENEM + Redação.",
+    target: "[data-tour='performance-areas']",
   },
   {
-    id: "gamification",
-    title: "Estudo e Desafios",
-    description:
-      "Veja seu plano de estudo personalizado, desafios semanais e ranking.",
-    target: "[data-tour='gamification']",
-  },
-  {
-    id: "modules-grid",
-    title: "Ferramentas de Estudo",
-    description:
-      "Acesse simulados, redação, cronograma e outras ferramentas.",
-    target: "[data-tour='modules-grid']",
+    id: "study-planning",
+    title: "Planejamento Diário",
+    description: "Veja o que estudar hoje e organize suas tarefas e metas diárias no painel lateral.",
+    target: "[data-tour='study-planning']",
   },
 ];
 
-/**
- * Dashboard principal da aplicação
- * Layout minimalista com foco em ações principais
- */
+interface AreaPerformance {
+  id: string;
+  name: string;
+  color: string;
+  totalAttempts: number;
+  correctAttempts: number;
+  accuracy: number;
+}
+
+// Componente de ícone auxiliar para Coffee/Pausa
+const CoffeeIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M17 8h1a4 4 0 1 1 0 8h-1" />
+    <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
+    <line x1="6" x2="6" y1="2" y2="4" />
+    <line x1="10" x2="10" y1="2" y2="4" />
+    <line x1="14" x2="14" y1="2" y2="4" />
+  </svg>
+);
+
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,11 +86,31 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { setTooltips } = useHelpTooltips();
 
-  // Configurar tooltips do dashboard
+  // Estados da Contagem Regressiva para o ENEM
+  const [daysToEnem, setDaysToEnem] = useState(0);
+  const [enemProgress, setEnemProgress] = useState(0);
+
+  // Estados do Pomodoro Timer
+  const [pomodoroMode, setPomodoroMode] = useState<"focus" | "shortBreak" | "longBreak">("focus");
+  const [timeLeft, setTimeLeft] = useState(25 * 60);
+  const [timerActive, setTimerActive] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Estados de Desempenho do Aluno por Área
+  const [areaStats, setAreaStats] = useState<AreaPerformance[]>([
+    { id: "linguagens", name: "Linguagens e Códigos", color: "#3B82F6", totalAttempts: 0, correctAttempts: 0, accuracy: 0 },
+    { id: "ciencias-humanas", name: "Ciências Humanas", color: "#8B5CF6", totalAttempts: 0, correctAttempts: 0, accuracy: 0 },
+    { id: "ciencias-natureza", name: "Ciências da Natureza", color: "#22C55E", totalAttempts: 0, correctAttempts: 0, accuracy: 0 },
+    { id: "matematica", name: "Matemática e suas Tecnologias", color: "#F97316", totalAttempts: 0, correctAttempts: 0, accuracy: 0 },
+    { id: "redacao", name: "Redação", color: "#EF4444", totalAttempts: 0, correctAttempts: 0, accuracy: 0 },
+  ]);
+
+  // Configurar tooltips
   useEffect(() => {
     setTooltips(dashboardTooltips);
   }, [setTooltips]);
 
+  // Efeito de Inicialização e Autenticação
   useEffect(() => {
     const checkAuth = async () => {
       const {
@@ -84,9 +124,65 @@ const Dashboard = () => {
 
       setUser(session.user);
 
-      // Verifica se o usuário é admin
+      // Busca o papel do usuário
       const { data: roleData } = await supabase.rpc("get_user_role", { _user_id: session.user.id });
       setIsAdmin(roleData === "admin");
+
+      // Buscar tentativas de questões para cálculo de desempenho por área
+      try {
+        const { data: attempts } = await supabase
+          .from("question_attempts")
+          .select("is_correct, subject_id")
+          .eq("user_id", session.user.id);
+
+        if (attempts && attempts.length > 0) {
+          const statsMap = {
+            "linguagens": { totalAttempts: 0, correctAttempts: 0 },
+            "ciencias-humanas": { totalAttempts: 0, correctAttempts: 0 },
+            "ciencias-natureza": { totalAttempts: 0, correctAttempts: 0 },
+            "matematica": { totalAttempts: 0, correctAttempts: 0 },
+            "redacao": { totalAttempts: 0, correctAttempts: 0 },
+          };
+
+          attempts.forEach((attempt) => {
+            const subjectId = attempt.subject_id;
+            if (subjectId && statsMap[subjectId as keyof typeof statsMap]) {
+              statsMap[subjectId as keyof typeof statsMap].totalAttempts += 1;
+              if (attempt.is_correct) {
+                statsMap[subjectId as keyof typeof statsMap].correctAttempts += 1;
+              }
+            }
+          });
+
+          setAreaStats(prev => prev.map(stat => {
+            const data = statsMap[stat.id as keyof typeof statsMap];
+            return {
+              ...stat,
+              totalAttempts: data ? data.totalAttempts : 0,
+              correctAttempts: data ? data.correctAttempts : 0,
+              accuracy: data && data.totalAttempts > 0
+                ? Math.round((data.correctAttempts / data.totalAttempts) * 100)
+                : 0
+            };
+          }));
+        }
+      } catch (error) {
+        console.error("Erro ao carregar estatísticas do usuário:", error);
+      }
+
+      // Calcula os dias para o ENEM (Próxima Prova: 8 de Novembro de 2026)
+      const enemDate = new Date("2026-11-08T13:00:00-03:00");
+      const startDate = new Date("2026-01-01T00:00:00-03:00");
+      const now = new Date();
+      const diffTime = enemDate.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      const totalYearMs = enemDate.getTime() - startDate.getTime();
+      const currentPassedMs = now.getTime() - startDate.getTime();
+      const progress = Math.min(Math.max(Math.round((currentPassedMs / totalYearMs) * 100), 0), 100);
+
+      setDaysToEnem(diffDays > 0 ? diffDays : 0);
+      setEnemProgress(progress);
 
       setLoading(false);
     };
@@ -106,205 +202,303 @@ const Dashboard = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  // Cards de admin para ferramentas administrativas
-  const adminCards = [
-    {
-      title: "Importar Questões",
-      description: "Importe questões do ENEM em formato JSON",
-      icon: Upload,
-      path: "/admin/import",
-    },
-    {
-      title: "Gerenciar Usuários",
-      description: "Gerencie usuários, assinaturas e permissões",
-      icon: Users,
-      path: "/admin/users",
-    },
-    {
-      title: "Gerenciar Questões",
-      description: "Edite questões e automatize classificação via IA",
-      icon: Settings2,
-      path: "/admin/questions",
-    },
-  ];
+  // Efeito e lógica do Pomodoro Timer
+  useEffect(() => {
+    if (timerActive) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            handleTimerComplete();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.4,
-        ease: "easeOut" as const,
-      },
-    },
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [timerActive]);
+
+  const handleTimerComplete = () => {
+    setTimerActive(false);
+    playAlertSound();
+
+    if (pomodoroMode === "focus") {
+      toast.success("Parabéns! Sessão de Foco concluída. Hora de descansar!", {
+        duration: 5000,
+      });
+      setPomodoroMode("shortBreak");
+      setTimeLeft(5 * 60);
+    } else {
+      toast.success("Descanso finalizado. Vamos voltar aos estudos?", {
+        duration: 5000,
+      });
+      setPomodoroMode("focus");
+      setTimeLeft(25 * 60);
+    }
   };
 
+  const playAlertSound = () => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // Tom A5
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.3); // Bipe de 300ms
+    } catch (e) {
+      console.warn("AudioContext não suportado no navegador", e);
+    }
+  };
+
+  const toggleTimer = () => {
+    setTimerActive(!timerActive);
+  };
+
+  const resetTimer = () => {
+    setTimerActive(false);
+    if (pomodoroMode === "focus") setTimeLeft(25 * 60);
+    else if (pomodoroMode === "shortBreak") setTimeLeft(5 * 60);
+    else setTimeLeft(15 * 60);
+  };
+
+  const changePomodoroMode = (mode: "focus" | "shortBreak" | "longBreak") => {
+    setTimerActive(false);
+    setPomodoroMode(mode);
+    if (mode === "focus") setTimeLeft(25 * 60);
+    else if (mode === "shortBreak") setTimeLeft(5 * 60);
+    else setTimeLeft(15 * 60);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
+
+
   return (
-    <PageLoader loading={loading} message="Preparando seu dashboard...">
-      <div className="min-h-screen bg-background">
-        {/* Gradiente sutil de fundo */}
+    <PageLoader loading={loading} message="Preparando seu painel de estudos...">
+      <div className="min-h-screen bg-background app-layout-container">
         <div className="fixed inset-0 bg-gradient-to-br from-primary/3 via-transparent to-accent/3 pointer-events-none" />
 
         <Navbar />
 
-        {/* Conteúdo principal */}
-        <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
-          {/* Welcome Banner */}
-          <div data-tour="welcome-banner">
-            <WelcomeBanner userName={user?.user_metadata?.full_name?.split(" ")[0] || "Estudante"} userId={user?.id} />
-          </div>
+        {/* Conteúdo Principal do Painel */}
+        <main className="relative max-w-7xl lg:ml-0 lg:mr-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
 
-          {/* Quick Stats Row */}
-          <div data-tour="quick-stats">
-            <QuickStats userId={user?.id} />
-          </div>
+          {/* Banner de Boas-Vindas */}
+          <WelcomeBanner userName={user?.user_metadata?.full_name?.split(" ")[0] || "Estudante"} userId={user?.id} />
 
-          {/* Layout principal: 2 colunas em desktop */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 sm:gap-6 mb-6">
-            {/* Coluna esquerda: Banco de Questões + Gráfico */}
-            <div className="lg:col-span-3 flex flex-col gap-5">
-              {/* Banco de Questões - Card destacado */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
-                data-tour="question-bank"
-              >
-                <Card
-                  className="group cursor-pointer border-primary/30 overflow-hidden relative bg-gradient-to-br from-primary/5 to-primary/10 hover:border-primary/50 hover:shadow-xl transition-all duration-300"
-                  onClick={() => navigate("/questions")}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/20 transition-colors duration-500" />
+          {/* Grid Geral do Dashboard */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-6">
 
-                  <motion.div
-                    className="absolute top-4 right-4"
-                    animate={{ scale: [1, 1.05, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    <span className="px-2.5 py-1 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-[10px] sm:text-xs font-bold rounded-full tracking-wide uppercase shadow-lg">
-                      ⚡ Comece Aqui
-                    </span>
-                  </motion.div>
+            {/* ─── COLUNA PRINCIPAL (ESQUERDA - COLSPAN 2) ───────────────────── */}
+            <div className="xl:col-span-2 space-y-6">
 
-                  <CardHeader className="relative pb-2">
-                    <div className="flex items-start justify-between">
-                      <motion.div
-                        className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center mb-3 shadow-lg"
-                        whileHover={{ scale: 1.1, rotate: 5 }}
-                        transition={{ type: "spring", stiffness: 300 }}
-                      >
-                        <Brain className="h-6 w-6 sm:h-7 sm:w-7 text-primary-foreground" />
-                      </motion.div>
+              {/* Card de Impacto: Regressiva ENEM */}
+              <div data-tour="countdown-enem">
+                <Card className="relative overflow-hidden bg-gradient-to-br from-primary/5 via-primary/10 to-accent/5 border-primary/20 shadow-md">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                  <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-6 relative">
+                    <div className="space-y-2 text-center sm:text-left">
+                      <div className="flex items-center justify-center sm:justify-start gap-2">
+                        <span className="px-2 py-0.5 bg-primary/15 text-primary text-xs font-bold rounded-full uppercase tracking-wider">
+                          ENEM 2026
+                        </span>
+                        <span className="text-xs text-muted-foreground">Provas em 08 e 15 de Nov</span>
+                      </div>
+                      <h2 className="text-2xl font-bold tracking-tight">O tempo está correndo!</h2>
+                      <p className="text-sm text-muted-foreground max-w-md">
+                        Cada hora de estudo focada coloca você mais perto da sua vaga na universidade dos sonhos. Mantenha a constância!
+                      </p>
                     </div>
-                    <CardTitle className="text-xl sm:text-2xl group-hover:text-primary transition-colors duration-300">
-                      Banco de Questões
-                    </CardTitle>
-                    <CardDescription className="text-sm sm:text-base">
-                      +2700 questões reais do ENEM de 2009 a 2025
-                    </CardDescription>
+
+                    <div className="flex flex-col items-center justify-center bg-background/60 backdrop-blur-sm px-6 py-4 rounded-2xl border border-border/50 shadow-sm shrink-0">
+                      <span className="text-5xl font-black text-primary tracking-tight">{daysToEnem}</span>
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Dias Restantes</span>
+                    </div>
+                  </CardContent>
+                  <div className="px-6 pb-4">
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                      <span>Início do ano letivo</span>
+                      <span>{enemProgress}% do ano concluído</span>
+                    </div>
+                    <Progress value={enemProgress} className="h-2 bg-muted-foreground/10" />
+                  </div>
+                </Card>
+              </div>
+
+              {/* Card de Foco: Timer Pomodoro */}
+              <div data-tour="pomodoro-timer">
+                <Card className="border-border/50 shadow-md">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-primary animate-pulse" />
+                      <CardTitle className="text-lg">Foco ENEM | Timer Pomodoro</CardTitle>
+                    </div>
+                    <CardDescription>Configure sessões de foco alternadas com descansos curtos</CardDescription>
                   </CardHeader>
-                  <CardContent className="relative pt-2 pb-5">
-                    <Button variant="default" size="default" className="gap-2 group-hover:gap-3 transition-all duration-300">
-                      <span>Começar a praticar</span>
-                      <motion.div
-                        animate={{ x: [0, 4, 0] }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  <CardContent className="flex flex-col md:flex-row items-center justify-between gap-6">
+                    {/* Seleção do Modo */}
+                    <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto">
+                      <Button
+                        variant={pomodoroMode === "focus" ? "default" : "outline"}
+                        onClick={() => changePomodoroMode("focus")}
+                        className="flex-1 text-xs justify-center md:justify-start gap-2"
                       >
-                        <ArrowRight className="h-4 w-4" />
-                      </motion.div>
-                    </Button>
+                        <Timer className="h-4 w-4" />
+                        <span>Sessão de Foco</span>
+                      </Button>
+                      <Button
+                        variant={pomodoroMode === "shortBreak" ? "default" : "outline"}
+                        onClick={() => changePomodoroMode("shortBreak")}
+                        className="flex-1 text-xs justify-center md:justify-start gap-2"
+                      >
+                        <CoffeeIcon className="h-4 w-4" />
+                        <span>Pausa Curta</span>
+                      </Button>
+                      <Button
+                        variant={pomodoroMode === "longBreak" ? "default" : "outline"}
+                        onClick={() => changePomodoroMode("longBreak")}
+                        className="flex-1 text-xs justify-center md:justify-start gap-2"
+                      >
+                        <CoffeeIcon className="h-4 w-4" />
+                        <span>Pausa Longa</span>
+                      </Button>
+                    </div>
+
+                    {/* Exibição Digital do Tempo */}
+                    <div className="flex flex-col items-center justify-center flex-1">
+                      <span className="text-6xl font-black font-mono tracking-wider text-foreground">
+                        {formatTime(timeLeft)}
+                      </span>
+                      <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wider mt-1.5">
+                        {pomodoroMode === "focus" ? "🔥 Modo Concentração" : "☕ Tempo de Descanso"}
+                      </span>
+                    </div>
+
+                    {/* Controles de Play/Pause */}
+                    <div className="flex gap-3 w-full md:w-auto justify-center">
+                      <Button
+                        size="lg"
+                        onClick={toggleTimer}
+                        className="rounded-full w-14 h-14 flex items-center justify-center p-0 shadow-md transition-transform hover:scale-105"
+                      >
+                        {timerActive ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 fill-current" />}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={resetTimer}
+                        className="rounded-full w-14 h-14 border-border/50 shadow-sm"
+                      >
+                        <RotateCcw className="h-5 w-5 text-muted-foreground" />
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </div>
 
-              {/* Progresso + Heatmap em Tabs */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.1 }}
-                data-tour="stats-chart"
-                className="flex-1"
-              >
-                <ProgressTabs userId={user?.id} />
-              </motion.div>
+              {/* Seção de Análise: Desempenho por Áreas do ENEM */}
+              <div data-tour="performance-areas">
+                <Card className="border-border/50 shadow-md">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <GraduationCap className="h-5 w-5 text-primary" />
+                      <CardTitle className="text-lg">Estatísticas e Desempenho por Área</CardTitle>
+                    </div>
+                    <CardDescription>
+                      Proficiência calculada com base no histórico de questões respondidas
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {areaStats.map((area) => (
+                      <div key={area.id} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: area.color }} />
+                            <span className="font-semibold text-foreground">{area.name}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span>{area.totalAttempts} respondidas</span>
+                            <span className="font-bold text-foreground text-sm">{area.accuracy}% acertos</span>
+                          </div>
+                        </div>
+                        <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+                          <motion.div
+                            className="h-full rounded-full"
+                            style={{ backgroundColor: area.color }}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${area.accuracy}%` }}
+                            transition={{ duration: 1, ease: "easeOut" }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Caderno de Erros */}
+              <ErrorReviewCard userId={user?.id} />
+
             </div>
 
-            {/* Coluna direita: Gamificação em Tabs */}
-            <div className="lg:col-span-2 flex flex-col" data-tour="gamification">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
-                className="w-full flex-1 flex flex-col"
-              >
-                <GamificationTabs userId={user?.id} />
-              </motion.div>
+            {/* ─── COLUNA LATERAL (DIREITA - COLSPAN 1) ───────────────────────── */}
+            <div className="space-y-6" data-tour="study-planning">
+
+              {/* Meta Diária */}
+              <DailyGoalProgress userId={user?.id} />
+
+              {/* Plano de Estudos do Dia */}
+              <DynamicStudyPlan userId={user?.id} showGoal={false} />
+
+              {/* Competição: Ranking & Desafios */}
+              <Card className="border-border/50 shadow-md">
+                <CardContent className="p-4 space-y-4">
+                  <div className="flex items-center gap-2 border-b border-border/50 pb-2">
+                    <Trophy className="h-4.5 w-4.5 text-amber-500 animate-bounce" />
+                    <span className="font-bold text-sm">Competição Semanal</span>
+                  </div>
+
+                  {/* Desafios Semanais */}
+                  <WeeklyChallenges userId={user?.id} />
+
+                  {/* Leaderboard Compacto */}
+                  <div className="pt-2 border-t border-border/50">
+                    <Leaderboard userId={user?.id} />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Conquistas (Badges) */}
+              <AchievementBadges userId={user?.id} />
+
             </div>
+
           </div>
 
-          {/* Card de Revisão de Erros */}
-          <ErrorReviewCard userId={user?.id} />
 
-          {/* Grid de Módulos */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-            data-tour="modules-grid"
-          >
-            <ModulesGrid />
-          </motion.div>
 
-          {/* Cards de Admin */}
-          {isAdmin && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-              className="mt-8"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <span className="px-2.5 py-1 bg-gradient-to-r from-amber-400/20 to-amber-600/20 text-amber-600 dark:text-amber-400 text-xs font-bold rounded-full uppercase tracking-wide">
-                  Admin
-                </span>
-                <h2 className="text-lg font-semibold text-foreground">Ferramentas de Administração</h2>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {adminCards.map((card) => (
-                  <motion.div key={card.path} variants={itemVariants} className="h-full">
-                    <Card
-                      className="h-full group cursor-pointer border-amber-500/30 overflow-hidden relative bg-gradient-to-br from-amber-50/50 to-orange-50/50 dark:from-amber-950/20 dark:to-orange-950/20 hover:border-amber-500/50"
-                      onClick={() => navigate(card.path)}
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-                      <CardHeader className="relative pb-2">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mb-3 group-hover:scale-110 transition-all duration-300">
-                          <card.icon className="h-5 w-5 text-white" />
-                        </div>
-                        <CardTitle className="text-base group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors duration-300">
-                          {card.title}
-                        </CardTitle>
-                        <CardDescription className="text-xs">{card.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="relative pt-1 pb-4">
-                        <div className="flex items-center text-amber-600 dark:text-amber-400 font-medium gap-1 text-xs">
-                          <span>Acessar</span>
-                          <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">→</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          )}
         </main>
       </div>
     </PageLoader>
   );
 };
+
+
 
 export default Dashboard;

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { PageLoader } from "@/components/ui/page-loader";
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
@@ -466,88 +467,93 @@ const Statistics = () => {
     }
   };
 
-  // Aguarda carregar tanto os dados quanto o status premium
-  if (loading || premiumLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">Carregando estatísticas...</p>
-        </div>
-      </div>
-    );
-  }
+  // Verifica estados após terminar o carregamento para evitar piscadas
+  const showEmptyState = !loading && !premiumLoading && totalAttempts === 0 && totalEssays === 0;
+  const showLockState = !loading && !premiumLoading && !isPremium;
 
   // Mostra mensagem amigável se ainda não houver tentativas
-  if (totalAttempts === 0 && totalEssays === 0) {
+  if (showEmptyState) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-        <Navbar />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center min-h-[60vh] text-center"
-          >
-            <BookOpen className="h-24 w-24 text-muted-foreground mb-6" />
-            <h1 className="text-3xl font-bold mb-4">Comece a Praticar!</h1>
-            <p className="text-muted-foreground text-lg mb-6 max-w-md">
-              Você ainda não respondeu nenhuma questão ou enviou redações. Comece a praticar para ver suas
-              estatísticas aqui.
-            </p>
-            <Button onClick={() => navigate("/questions")} className="gap-2">
-              <Target className="h-4 w-4" />
-              Ir para o Banco de Questões
-            </Button>
-          </motion.div>
-        </main>
-      </div>
+      <PageLoader loading={loading || premiumLoading} message="Preparando estatísticas...">
+        <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 app-layout-container">
+          <Navbar />
+          <main className="max-w-7xl lg:ml-0 lg:mr-auto px-4 sm:px-6 lg:px-8 py-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center justify-center min-h-[60vh] text-center"
+            >
+              <BookOpen className="h-24 w-24 text-muted-foreground mb-6" />
+              <h1 className="text-3xl font-bold mb-4">Comece a Praticar!</h1>
+              <p className="text-muted-foreground text-lg mb-6 max-w-md">
+                Você ainda não respondeu nenhuma questão ou enviou redações. Comece a praticar para ver suas
+                estatísticas aqui.
+              </p>
+              <Button onClick={() => navigate("/questions")} className="gap-2">
+                <Target className="h-4 w-4" />
+                Ir para o Banco de Questões
+              </Button>
+            </motion.div>
+          </main>
+        </div>
+      </PageLoader>
     );
   }
 
   // Bloqueia acesso para usuários free
-  if (!isPremium) {
+  if (showLockState) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-        <Navbar />
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <PremiumLockScreen
-            title="Estatísticas Premium"
-            description="Assine o plano Premium para acessar estatísticas detalhadas do seu desempenho"
-            features={[
-              {
-                title: "Análise Completa de Desempenho",
-                description: "Acompanhe sua evolução em todas as disciplinas",
-              },
-              {
-                title: "Gráficos e Histórico Completo",
-                description: "Visualize seu progresso ao longo do tempo",
-              },
-              {
-                title: "Sugestões Personalizadas com IA",
-                description: "Receba dicas de estudo baseadas no seu desempenho",
-              },
-              {
-                title: "Análise de Redações",
-                description: "Acompanhe a evolução das suas notas por competência",
-              },
-            ]}
-          />
-        </main>
-      </div>
+      <PageLoader loading={loading || premiumLoading} message="Preparando estatísticas...">
+        <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 app-layout-container">
+          <Navbar />
+          <main className="max-w-4xl lg:ml-0 lg:mr-auto px-4 sm:px-6 lg:px-8 py-20">
+            <PremiumLockScreen
+              title="Estatísticas Premium"
+              description="Assine o plano Premium para acessar estatísticas detalhadas do seu desempenho"
+              features={[
+                {
+                  title: "Análise Completa de Desempenho",
+                  description: "Acompanhe sua evolução em todas as disciplinas",
+                },
+                {
+                  title: "Gráficos e Histórico Completo",
+                  description: "Visualize seu progresso ao longo do tempo",
+                },
+                {
+                  title: "Sugestões Personalizadas com IA",
+                  description: "Receba dicas de estudo baseadas no seu desempenho",
+                },
+                {
+                  title: "Análise de Redações",
+                  description: "Acompanhe a evolução das suas notas por competência",
+                },
+              ]}
+            />
+          </main>
+        </div>
+      </PageLoader>
     );
   }
 
   const successRate = totalAttempts > 0 ? ((correctAnswers / totalAttempts) * 100).toFixed(1) : "0";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <Navbar />
+    <PageLoader loading={loading || premiumLoading} message="Preparando estatísticas...">
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 app-layout-container">
+        <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="max-w-7xl lg:ml-0 lg:mr-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-            <h1 className="text-3xl sm:text-4xl font-bold text-foreground">Estatísticas de Desempenho</h1>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg text-primary shrink-0">
+                <TrendingUp className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Estatísticas de Desempenho</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Acompanhe sua evolução e taxas de acerto</p>
+              </div>
+            </div>
 
             {/* Filtro de período */}
             <Tabs value={periodFilter} onValueChange={(v) => setPeriodFilter(v as any)} className="w-full sm:w-auto">
@@ -1132,6 +1138,7 @@ const Statistics = () => {
         </motion.div>
       </main>
     </div>
+  </PageLoader>
   );
 };
 

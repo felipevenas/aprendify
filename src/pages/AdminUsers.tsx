@@ -54,6 +54,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Navbar from "@/components/Navbar";
 import CreatorDetailsModal from "@/components/admin/CreatorDetailsModal";
+import { PageLoader } from "@/components/ui/page-loader";
 
 interface UserData {
   id: string;
@@ -435,33 +436,29 @@ const AdminUsers = () => {
     });
   };
 
-  if (loading || !isAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="text-muted-foreground">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <Navbar />
+    <PageLoader loading={loading || !isAdmin} message="Carregando usuários cadastrados...">
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 app-layout-container">
+        <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="max-w-7xl lg:ml-0 lg:mr-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-foreground flex items-center gap-3">
-                <Shield className="h-8 w-8 text-primary" />
-                Gerenciar Usuários
-              </h1>
-              <p className="text-muted-foreground mt-1">Administre os usuários cadastrados no sistema</p>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
+                <Shield className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                  Gerenciar Usuários
+                </h1>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                  Administre perfis, privilégios, assinaturas e status dos usuários cadastrados
+                </p>
+              </div>
             </div>
 
-            <Badge variant="secondary" className="text-sm px-4 py-2">
+            <Badge variant="secondary" className="text-sm px-4 py-2 shrink-0">
               <Users className="h-4 w-4 mr-2" />
               {users.length} usuários cadastrados
             </Badge>
@@ -904,8 +901,9 @@ const AdminUsers = () => {
         userId={creatorDetailsModal.userId}
         userName={creatorDetailsModal.userName}
       />
-    </div>
-  );
+  </div>
+</PageLoader>
+);
 };
 
 export default AdminUsers;

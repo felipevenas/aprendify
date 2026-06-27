@@ -2,10 +2,15 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
-import { ArrowLeft, Shield } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Bell } from "lucide-react";
+import Navbar from "@/components/Navbar";
 import { NotificationsManager } from "@/components/admin/NotificationsManager";
+import { PageLoader } from "@/components/ui/page-loader";
 
+/**
+ * Painel Administrativo de Notificações
+ * Permite que administradores publiquem e gerenciem notificações globais de sistema
+ */
 const AdminNotifications = () => {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -37,53 +42,40 @@ const AdminNotifications = () => {
     checkAdminRole();
   }, [navigate]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
-  }
-
-  if (!isAdmin) return null;
-
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/dashboard")}
-            className="mb-4"
+    <PageLoader loading={loading || !isAdmin} message="Preparando painel de notificações...">
+      <div className="min-h-screen bg-background app-layout-container">
+        <Navbar />
+
+        <main className="max-w-7xl lg:ml-0 lg:mr-auto px-4 sm:px-6 lg:px-8 py-8">
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar ao Dashboard
-          </Button>
-
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Shield className="h-6 w-6 text-primary" />
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
+                <Bell className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Gerenciar Notificações</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                  Gerencie as notificações do sistema enviadas para todos os usuários
+                </p>
+              </div>
             </div>
-            <h1 className="text-3xl font-bold">Painel de Administração</h1>
-          </div>
-          <p className="text-muted-foreground">
-            Gerencie notificações do sistema para todos os usuários
-          </p>
-        </motion.div>
+          </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <NotificationsManager />
-        </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <NotificationsManager />
+          </motion.div>
+        </main>
       </div>
-    </div>
+    </PageLoader>
   );
 };
 
