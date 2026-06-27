@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
-import { ArrowLeft, MessageSquare, Bug, Lightbulb, Wrench, Clock, CheckCircle, XCircle, Loader2, Search, Filter, Trash2, Eye } from "lucide-react";
+import { MessageSquare, Bug, Lightbulb, Wrench, Clock, CheckCircle, XCircle, Loader2, Search, Filter, Trash2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +16,7 @@ import Navbar from "@/components/Navbar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { PageLoader } from "@/components/ui/page-loader";
 
 type TicketType = "suggestion" | "improvement" | "bug";
 type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
@@ -47,6 +48,10 @@ const statusConfig = {
   closed: { label: "Fechado", icon: XCircle, color: "bg-muted text-muted-foreground" },
 };
 
+/**
+ * Painel Administrativo de Feedbacks
+ * Permite visualizar, filtrar, responder e atualizar status dos tickets dos usuários
+ */
 const AdminFeedback = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -121,7 +126,6 @@ const AdminFeedback = () => {
 
       if (error) throw error;
 
-      // Buscar informações dos usuários
       const userIds = [...new Set((ticketsData || []).map((t) => t.user_id))];
       const { data: profiles } = await supabase
         .from("profiles")
@@ -208,289 +212,272 @@ const AdminFeedback = () => {
     resolved: tickets.filter((t) => t.status === "resolved").length,
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <main className="max-w-6xl mx-auto px-4 py-6 sm:py-8">
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
-        >
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/dashboard")}
-            className="mb-4 -ml-2"
+    <PageLoader loading={loading} message="Carregando feedbacks dos usuários...">
+      <div className="min-h-screen bg-background app-layout-container">
+        <Navbar />
+        <main className="max-w-7xl lg:ml-0 lg:mr-auto px-4 py-6 sm:py-8">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar ao Dashboard
-          </Button>
-          
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-primary/10">
-              <MessageSquare className="h-6 w-6 text-primary" />
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
+                <MessageSquare className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                  Gerenciar Feedbacks
+                </h1>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                  Visualize e responda aos feedbacks dos usuários da plataforma
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                Gerenciar Feedbacks
-              </h1>
-              <p className="text-muted-foreground text-sm sm:text-base">
-                Visualize e responda aos feedbacks dos usuários
-              </p>
-            </div>
-          </div>
-        </motion.div>
+          </motion.div>
 
-        {/* Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6"
-        >
-          <Card className="p-4">
-            <p className="text-sm text-muted-foreground">Total</p>
-            <p className="text-2xl font-bold">{stats.total}</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-sm text-muted-foreground">Abertos</p>
-            <p className="text-2xl font-bold text-amber-500">{stats.open}</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-sm text-muted-foreground">Em análise</p>
-            <p className="text-2xl font-bold text-blue-500">{stats.inProgress}</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-sm text-muted-foreground">Resolvidos</p>
-            <p className="text-2xl font-bold text-green-500">{stats.resolved}</p>
-          </Card>
-        </motion.div>
+          {/* Stats */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6"
+          >
+            <Card className="p-4">
+              <p className="text-xs text-muted-foreground font-medium">Total</p>
+              <p className="text-2xl font-bold">{stats.total}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs text-muted-foreground font-medium">Abertos</p>
+              <p className="text-2xl font-bold text-amber-500">{stats.open}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs text-muted-foreground font-medium">Em análise</p>
+              <p className="text-2xl font-bold text-blue-500">{stats.inProgress}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs text-muted-foreground font-medium">Resolvidos</p>
+              <p className="text-2xl font-bold text-green-500">{stats.resolved}</p>
+            </Card>
+          </motion.div>
 
-        {/* Filters */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="flex flex-col sm:flex-row gap-3 mb-6"
-        >
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por título, descrição ou usuário..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-full sm:w-40">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Tipo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os tipos</SelectItem>
-              <SelectItem value="suggestion">Sugestão</SelectItem>
-              <SelectItem value="improvement">Melhoria</SelectItem>
-              <SelectItem value="bug">Correção</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-full sm:w-40">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="open">Aberto</SelectItem>
-              <SelectItem value="in_progress">Em análise</SelectItem>
-              <SelectItem value="resolved">Resolvido</SelectItem>
-              <SelectItem value="closed">Fechado</SelectItem>
-            </SelectContent>
-          </Select>
-        </motion.div>
-
-        {/* Tickets List */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">
-                Tickets ({filteredTickets.length})
-              </CardTitle>
-              <CardDescription>
-                Clique em um ticket para visualizar detalhes e responder
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {filteredTickets.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>Nenhum ticket encontrado</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredTickets.map((ticket) => {
-                    const typeConfig = ticketTypeConfig[ticket.ticket_type];
-                    const statusCfg = statusConfig[ticket.status];
-                    const TypeIcon = typeConfig.icon;
-                    const StatusIcon = statusCfg.icon;
-
-                    return (
-                      <div
-                        key={ticket.id}
-                        className="p-4 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-3 mb-2">
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium line-clamp-1">
-                              {ticket.title}
-                            </h4>
-                            <p className="text-xs text-muted-foreground">
-                              {ticket.user_name || ticket.user_email || "Usuário desconhecido"}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <Badge variant="outline" className={statusCfg.color}>
-                              <StatusIcon className={`h-3 w-3 mr-1 ${ticket.status === "in_progress" ? "animate-spin" : ""}`} />
-                              {statusCfg.label}
-                            </Badge>
-                          </div>
-                        </div>
-                        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                          {ticket.description}
-                        </p>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className={typeConfig.color}>
-                              <TypeIcon className="h-3 w-3 mr-1" />
-                              {typeConfig.label}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">
-                              {format(new Date(ticket.created_at), "dd MMM yyyy 'às' HH:mm", { locale: ptBR })}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleOpenTicket(ticket)}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              Ver
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => setTicketToDelete(ticket)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-      </main>
-
-      {/* Ticket Detail Dialog */}
-      <Dialog open={!!selectedTicket} onOpenChange={() => setSelectedTicket(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{selectedTicket?.title}</DialogTitle>
-            <DialogDescription>
-              Enviado por {selectedTicket?.user_name || selectedTicket?.user_email}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div className="p-4 rounded-lg bg-muted/50">
-              <p className="text-sm whitespace-pre-wrap">{selectedTicket?.description}</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={newStatus} onValueChange={(v) => setNewStatus(v as TicketStatus)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="open">Aberto</SelectItem>
-                  <SelectItem value="in_progress">Em análise</SelectItem>
-                  <SelectItem value="resolved">Resolvido</SelectItem>
-                  <SelectItem value="closed">Fechado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Notas/Resposta (visível para o usuário)</Label>
-              <Textarea
-                value={adminNotes}
-                onChange={(e) => setAdminNotes(e.target.value)}
-                placeholder="Adicione uma resposta ou notas..."
-                className="min-h-[100px]"
+          {/* Filters */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="flex flex-col sm:flex-row gap-3 mb-6"
+          >
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por título, descrição ou usuário..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
               />
             </div>
-          </div>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-full sm:w-40">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os tipos</SelectItem>
+                <SelectItem value="suggestion">Sugestão</SelectItem>
+                <SelectItem value="improvement">Melhoria</SelectItem>
+                <SelectItem value="bug">Correção</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                <SelectItem value="open">Aberto</SelectItem>
+                <SelectItem value="in_progress">Em análise</SelectItem>
+                <SelectItem value="resolved">Resolvido</SelectItem>
+                <SelectItem value="closed">Fechado</SelectItem>
+              </SelectContent>
+            </Select>
+          </motion.div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedTicket(null)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleUpdateTicket} disabled={updating}>
-              {updating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                "Salvar Alterações"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          {/* Tickets List */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">
+                  Tickets ({filteredTickets.length})
+                </CardTitle>
+                <CardDescription>
+                  Clique em um ticket para visualizar detalhes e responder
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {filteredTickets.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>Nenhum ticket encontrado</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredTickets.map((ticket) => {
+                      const typeConfig = ticketTypeConfig[ticket.ticket_type];
+                      const statusCfg = statusConfig[ticket.status];
+                      const TypeIcon = typeConfig.icon;
+                      const StatusIcon = statusCfg.icon;
 
-      {/* Delete Confirmation */}
-      <AlertDialog open={!!ticketToDelete} onOpenChange={() => setTicketToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir ticket?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita. O ticket será permanentemente removido.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteTicket}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+                      return (
+                        <div
+                          key={ticket.id}
+                          className="p-4 rounded-lg border border-border bg-card hover:bg-accent/5 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-medium line-clamp-1">
+                                {ticket.title}
+                              </h4>
+                              <p className="text-xs text-muted-foreground">
+                                {ticket.user_name || ticket.user_email || "Usuário desconhecido"}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Badge variant="outline" className={`shrink-0 ${statusCfg.color}`}>
+                                <StatusIcon className={`h-3 w-3 mr-1 ${ticket.status === "in_progress" ? "animate-spin" : ""}`} />
+                                {statusCfg.label}
+                              </Badge>
+                            </div>
+                          </div>
+                          <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                            {ticket.description}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className={typeConfig.color}>
+                                <TypeIcon className="h-3 w-3 mr-1" />
+                                {typeConfig.label}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(ticket.created_at), "dd MMM yyyy 'às' HH:mm", { locale: ptBR })}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenTicket(ticket)}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                Ver
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => setTicketToDelete(ticket)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        </main>
+
+        {/* Ticket Detail Dialog */}
+        <Dialog open={!!selectedTicket} onOpenChange={() => setSelectedTicket(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{selectedTicket?.title}</DialogTitle>
+              <DialogDescription>
+                Enviado por {selectedTicket?.user_name || selectedTicket?.user_email}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="p-4 rounded-lg bg-muted/50">
+                <p className="text-sm whitespace-pre-wrap">{selectedTicket?.description}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={newStatus} onValueChange={(v) => setNewStatus(v as TicketStatus)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="open">Aberto</SelectItem>
+                    <SelectItem value="in_progress">Em análise</SelectItem>
+                    <SelectItem value="resolved">Resolvido</SelectItem>
+                    <SelectItem value="closed">Fechado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Notas/Resposta (visível para o usuário)</Label>
+                <Textarea
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  placeholder="Adicione uma resposta ou notas..."
+                  className="min-h-[100px]"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSelectedTicket(null)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleUpdateTicket} disabled={updating}>
+                {updating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  "Salvar Alterações"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation */}
+        <AlertDialog open={!!ticketToDelete} onOpenChange={() => setTicketToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir ticket?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação não pode ser desfeita. O ticket será permanentemente removido.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteTicket}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </PageLoader>
   );
 };
 

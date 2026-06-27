@@ -38,6 +38,7 @@ interface TodayStats {
 
 interface DynamicStudyPlanProps {
   userId?: string;
+  showGoal?: boolean;
 }
 
 const DAILY_GOAL = 20;
@@ -51,7 +52,7 @@ const getMotivationalMessage = (progress: number, accuracy: number) => {
   return "🚀 Hora de começar! Sua meta te espera!";
 };
 
-const DynamicStudyPlan = ({ userId }: DynamicStudyPlanProps) => {
+const DynamicStudyPlan = ({ userId, showGoal = true }: DynamicStudyPlanProps) => {
   const navigate = useNavigate();
   const [suggestions, setSuggestions] = useState<StudySuggestion[]>([]);
   const [todayStats, setTodayStats] = useState<TodayStats>({
@@ -327,51 +328,53 @@ const DynamicStudyPlan = ({ userId }: DynamicStudyPlanProps) => {
   return (
     <div className="space-y-3">
         {/* Today's Progress Section */}
-        <div className="p-3 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium flex items-center gap-1.5">
-              <Target className="h-4 w-4 text-primary" />
-              Meta Diária
-            </span>
-            <span className="text-sm font-bold text-primary">
-              {todayStats.questionsAnswered}/{DAILY_GOAL}
-            </span>
+        {showGoal && (
+          <div className="p-3 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium flex items-center gap-1.5">
+                <Target className="h-4 w-4 text-primary" />
+                Meta Diária
+              </span>
+              <span className="text-sm font-bold text-primary">
+                {todayStats.questionsAnswered}/{DAILY_GOAL}
+              </span>
+            </div>
+            <Progress value={goalProgress} className="h-2 mb-2" />
+            <p className="text-[11px] text-muted-foreground mb-2">
+              {getMotivationalMessage(goalProgress, accuracy)}
+            </p>
+            
+            <div className="grid grid-cols-3 gap-2">
+              <div className="text-center p-2 rounded-md bg-background/50">
+                <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-0.5">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Acertos
+                </div>
+                <span className="text-sm font-bold text-success">
+                  {accuracy}%
+                </span>
+              </div>
+              <div className="text-center p-2 rounded-md bg-background/50">
+                <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-0.5">
+                  <Clock className="h-3 w-3" />
+                  Tempo
+                </div>
+                <span className="text-sm font-bold">
+                  {todayStats.studyTimeMinutes}min
+                </span>
+              </div>
+              <div className="text-center p-2 rounded-md bg-background/50">
+                <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-0.5">
+                  <BookOpen className="h-3 w-3" />
+                  Matérias
+                </div>
+                <span className="text-sm font-bold">
+                  {todayStats.disciplinesCovered.length}
+                </span>
+              </div>
+            </div>
           </div>
-          <Progress value={goalProgress} className="h-2 mb-2" />
-          <p className="text-[11px] text-muted-foreground mb-2">
-            {getMotivationalMessage(goalProgress, accuracy)}
-          </p>
-          
-          <div className="grid grid-cols-3 gap-2">
-            <div className="text-center p-2 rounded-md bg-background/50">
-              <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-0.5">
-                <CheckCircle2 className="h-3 w-3" />
-                Acertos
-              </div>
-              <span className="text-sm font-bold text-success">
-                {accuracy}%
-              </span>
-            </div>
-            <div className="text-center p-2 rounded-md bg-background/50">
-              <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-0.5">
-                <Clock className="h-3 w-3" />
-                Tempo
-              </div>
-              <span className="text-sm font-bold">
-                {todayStats.studyTimeMinutes}min
-              </span>
-            </div>
-            <div className="text-center p-2 rounded-md bg-background/50">
-              <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-0.5">
-                <BookOpen className="h-3 w-3" />
-                Matérias
-              </div>
-              <span className="text-sm font-bold">
-                {todayStats.disciplinesCovered.length}
-              </span>
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* Weekly Activity Mini Chart */}
         <div className="p-3 rounded-lg bg-muted/30 border border-border/50">

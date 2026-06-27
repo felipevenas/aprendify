@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { PageLoader } from "@/components/ui/page-loader";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
@@ -850,16 +851,9 @@ const AdminQuestions = () => {
     toast.info("Classificação global cancelada");
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 relative overflow-hidden">
+    <PageLoader loading={loading} message="Preparando banco de questões...">
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 relative overflow-hidden app-layout-container">
       {/* Efeito de glow seguindo o cursor */}
       <CursorGlow color="hsl(217, 91%, 50%)" size={500} opacity={0.06} />
       
@@ -872,37 +866,42 @@ const AdminQuestions = () => {
       
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+      <main className="max-w-7xl lg:ml-0 lg:mr-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
           {/* Header com gradiente */}
-          <div className="flex items-center gap-4 mb-8">
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => showYearOverview ? navigate("/dashboard") : setShowYearOverview(true)}
-                className="hover:bg-primary/10 transition-colors"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </motion.div>
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-foreground via-foreground to-primary bg-clip-text">
-                <span className="flex items-center gap-3">
-                  <Sparkles className="h-7 w-7 text-primary" />
-                  {showYearOverview ? "Gerenciar Questões ENEM" : `ENEM ${selectedYear}`}
-                </span>
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                {showYearOverview 
-                  ? "Selecione um ano para gerenciar as questões"
-                  : "Edite manualmente ou automatize a formatação via IA"
-                }
-              </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <div className="flex items-center gap-3">
+              {!showYearOverview && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setShowYearOverview(true)}
+                  className="hover:bg-primary/10 transition-colors shrink-0"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Voltar
+                </Button>
+              )}
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
+                  <Database className="h-6 w-6" />
+                </div>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                    {showYearOverview ? "Gerenciar Questões ENEM" : `Questões ENEM ${selectedYear}`}
+                  </h1>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                    {showYearOverview 
+                      ? "Selecione um ano para gerenciar as questões"
+                      : "Edite manualmente ou automatize a classificação e formatação via IA"
+                    }
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1867,6 +1866,7 @@ const AdminQuestions = () => {
         </DialogContent>
       </Dialog>
     </div>
+  </PageLoader>
   );
 };
 
