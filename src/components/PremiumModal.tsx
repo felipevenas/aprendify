@@ -17,15 +17,15 @@ type PlanType = "monthly" | "annual";
 
 const PLANS = {
   monthly: {
-    price: 19.9,
+    price: 9.9,
     period: "mês",
-    priceId: "price_1ScBwKBbpjcYJ0FGc4q0M28Y",
+    priceId: "price_1TnQt8BbpjcYJ0FGlA6eJbV6",
   },
   annual: {
-    price: 191.04,
+    price: 95.04,
     period: "ano",
-    priceId: "price_1ScBwKBbpjcYJ0FGReZBg3qd",
-    monthlyEquivalent: 15.92,
+    priceId: "price_1TnQtEBbpjcYJ0FGZ2GQbLKC",
+    monthlyEquivalent: 7.92,
     discount: 20,
   },
 };
