@@ -246,7 +246,7 @@ const Schedule = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 ml-12 sm:ml-0">
+              <div className="flex items-center gap-2 ml-12 sm:ml-0" data-tour="schedule-actions">
                 {/* View toggle */}
                 <div className="flex items-center bg-muted rounded-lg p-0.5">
                   <Button
@@ -285,7 +285,7 @@ const Schedule = () => {
             </div>
 
             {/* Compact Stats Row */}
-            <div className="grid grid-cols-4 gap-2 sm:gap-3">
+            <div className="grid grid-cols-4 gap-2 sm:gap-3" data-tour="schedule-stats">
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -334,7 +334,7 @@ const Schedule = () => {
           {/* Layout Principal */}
           {viewMode === "week" ? (
             /* Weekly Agenda View */
-            <div className="space-y-4">
+            <div className="space-y-4" data-tour="schedule-view">
               <div className="flex items-center justify-between">
                 <Button
                   variant="ghost"

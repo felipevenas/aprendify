@@ -103,7 +103,7 @@ const Essays = () => {
               </div>
 
               {/* Badge de limite */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2" data-tour="essays-limits">
                 <Badge variant={remaining > 0 ? "default" : "destructive"} className="gap-1">
                   <FileText className="h-3 w-3" />
                   {remaining} de {limit} restantes este mês
@@ -134,7 +134,7 @@ const Essays = () => {
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-6">
+            <TabsList className="mb-6" data-tour="essays-tabs">
               <TabsTrigger value="write" className="gap-2">
                 <PenLine className="h-4 w-4" />
                 Escrever
@@ -151,7 +151,7 @@ const Essays = () => {
             </TabsList>
 
             {/* Tab: Escrever redação */}
-            <TabsContent value="write">
+            <TabsContent value="write" data-tour="essays-write-area">
               <EssayForm onComplete={handleCorrectionComplete} canSubmit={remaining > 0} isPremium={isPremium} />
             </TabsContent>
 

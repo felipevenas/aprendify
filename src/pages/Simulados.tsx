@@ -135,7 +135,7 @@ const Simulados = () => {
               </div>
               
               {/* Ações no canto superior direito */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2" data-tour="simulados-actions">
                 <Button onClick={() => setDialogOpen(true)} size="sm" className="gap-2">
                   <Plus className="h-4 w-4" />
                   <span>Novo Simulado</span>
@@ -191,7 +191,7 @@ const Simulados = () => {
 
             {/* Stats Summary */}
             {completedSimulados.length > 0 && (
-              <section className="grid gap-4 md:grid-cols-3">
+              <section className="grid gap-4 md:grid-cols-3" data-tour="simulados-stats">
                 <Card>
                   <CardHeader className="pb-2">
                     <CardDescription>Total de Simulados</CardDescription>
@@ -222,7 +222,7 @@ const Simulados = () => {
             )}
 
             {/* History */}
-            <section>
+            <section data-tour="simulados-history">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <History className="h-5 w-5 text-muted-foreground" />
                 Histórico de Simulados
