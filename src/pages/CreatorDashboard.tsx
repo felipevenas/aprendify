@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Navbar from "@/components/Navbar";
 import PixKeySection from "@/components/creator/PixKeySection";
+import { PageLoader } from "@/components/ui/page-loader";
 
 interface CouponData {
   id: string;
@@ -190,12 +191,7 @@ const CreatorDashboard = () => {
 
   if (loading || !isCreator) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="text-muted-foreground">Carregando...</p>
-        </div>
-      </div>
+      <PageLoader loading={loading} message="Preparando seu painel do criador..." />
     );
   }
 
@@ -208,10 +204,10 @@ const CreatorDashboard = () => {
   }).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 app-layout-container">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -316,7 +312,7 @@ const CreatorDashboard = () => {
           </div>
 
           {/* Chart */}
-          <Card>
+          <Card className="mb-6">
             <CardHeader>
               <CardTitle>Resgates nos Últimos 30 Dias</CardTitle>
               <CardDescription>
@@ -365,7 +361,7 @@ const CreatorDashboard = () => {
 
           {/* Recent Redemptions Table */}
           {redemptions.length > 0 && (
-            <Card>
+            <Card className="mb-6">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
@@ -411,7 +407,7 @@ const CreatorDashboard = () => {
 
           {/* Histórico de Cupons Anteriores */}
           {couponHistory.length > 0 && (
-            <Card className="mt-6">
+            <Card className="mb-6">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <History className="h-5 w-5" />
@@ -459,7 +455,7 @@ const CreatorDashboard = () => {
           )}
 
           {!coupon && (
-            <Card className="mt-6">
+            <Card className="mb-6">
               <CardContent className="py-12 text-center">
                 <Sparkles className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">
