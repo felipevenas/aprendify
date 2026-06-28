@@ -23,6 +23,7 @@ import Navbar from "@/components/Navbar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { PageLoader } from "@/components/ui/page-loader";
+import { PremiumModal } from "@/components/PremiumModal";
 
 interface SubscriptionDetails {
   id: string;
@@ -43,6 +44,7 @@ export default function Subscription() {
   const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
+  const [showPlansModal, setShowPlansModal] = useState(false);
 
   useEffect(() => {
     fetchSubscription();
@@ -185,7 +187,7 @@ export default function Subscription() {
                   <p className="text-muted-foreground mb-6">
                     Assine o plano Premium para desbloquear todos os recursos
                   </p>
-                  <Button onClick={() => navigate("/dashboard")}>
+                  <Button onClick={() => setShowPlansModal(true)}>
                     Ver planos disponíveis
                   </Button>
                 </CardContent>
@@ -312,6 +314,12 @@ export default function Subscription() {
             )}
           </motion.div>
         </main>
+        
+        <PremiumModal 
+          open={showPlansModal} 
+          onOpenChange={setShowPlansModal} 
+          isPremium={isPremium} 
+        />
       </div>
     </PageLoader>
   );

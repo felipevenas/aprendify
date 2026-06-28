@@ -119,7 +119,7 @@ const Flashcards = () => {
 
           {/* Tabs: Praticar / Meus Flashcards */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsList className="grid w-full max-w-md grid-cols-2" data-tour="flashcard-tabs">
               <TabsTrigger value="practice" className="gap-2">
                 <Shuffle className="h-4 w-4" />
                 Praticar
@@ -133,7 +133,7 @@ const Flashcards = () => {
             {/* Tab de Prática */}
             <TabsContent value="practice" className="space-y-6">
               {/* Filtros com matérias fixas */}
-              <div className="flex flex-wrap items-center gap-4">
+              <div className="flex flex-wrap items-center gap-4" data-tour="flashcard-filters">
                 <Select value={subjectFilter} onValueChange={setSubjectFilter}>
                   <SelectTrigger className="w-[200px]">
                     <SelectValue placeholder="Filtrar por matéria" />
@@ -165,43 +165,45 @@ const Flashcards = () => {
               </div>
 
               {/* Área do Flashcard */}
-              <AnimatePresence mode="wait">
-                {currentFlashcard ? (
-                  <motion.div
-                    key={currentFlashcard.id}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <FlashcardCard
-                      front={currentFlashcard.front_content}
-                      back={currentFlashcard.back_content}
-                      subjectName={currentSubject?.name}
-                      subjectColor={currentSubject?.color}
-                    />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-center py-16"
-                  >
-                    <Layers className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground text-lg mb-4">
-                      {flashcardCount === 0
-                        ? "Você ainda não criou nenhum flashcard"
-                        : "Clique em 'Sortear Cartão' para começar a praticar"}
-                    </p>
-                    {flashcardCount === 0 && (
-                      <Button onClick={handleNewFlashcard} className="gap-2">
-                        <Plus className="h-4 w-4" />
-                        Criar primeiro flashcard
-                      </Button>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <div data-tour="flashcard-area">
+                <AnimatePresence mode="wait">
+                  {currentFlashcard ? (
+                    <motion.div
+                      key={currentFlashcard.id}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <FlashcardCard
+                        front={currentFlashcard.front_content}
+                        back={currentFlashcard.back_content}
+                        subjectName={currentSubject?.name}
+                        subjectColor={currentSubject?.color}
+                      />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="text-center py-16"
+                    >
+                      <Layers className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground text-lg mb-4">
+                        {flashcardCount === 0
+                          ? "Você ainda não criou nenhum flashcard"
+                          : "Clique em 'Sortear Cartão' para começar a praticar"}
+                      </p>
+                      {flashcardCount === 0 && (
+                        <Button onClick={handleNewFlashcard} className="gap-2">
+                          <Plus className="h-4 w-4" />
+                          Criar primeiro flashcard
+                        </Button>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
               {/* Botão de próximo após virar */}
               {currentFlashcard && (

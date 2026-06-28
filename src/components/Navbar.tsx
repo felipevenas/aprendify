@@ -111,7 +111,6 @@ const Navbar = () => {
       title: "Prática",
       items: [
         { name: "Banco de Questões", path: "/questions", icon: BookOpen },
-        { name: "Simulados", path: "/simulados", icon: FileSpreadsheet },
         { name: "Flashcards", path: "/flashcards", icon: Layers },
         { name: "Redações", path: "/essays", icon: PenTool },
       ]
@@ -231,9 +230,10 @@ const Navbar = () => {
       </aside>
 
       {/* ─── HEADER / TOPBAR MINIMALISTA (DESKTOP & MOBILE) ───────────────── */}
-      <header className="fixed top-0 right-0 left-0 lg:left-64 h-16 border-b border-border/50 bg-background/80 backdrop-blur-xl z-30 flex items-center justify-between px-4 sm:px-6 lg:px-8 shadow-sm">
-        
-        {/* Lado Esquerdo - Hambúrguer e Logo no Mobile */}
+      <header className="fixed top-0 right-0 left-0 lg:left-64 h-16 border-b border-border/50 bg-background/80 backdrop-blur-xl z-30 flex items-center shadow-sm">
+        <div className="max-w-7xl w-full mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-8">
+          
+          {/* Lado Esquerdo - Hambúrguer e Logo no Mobile */}
         <div className="flex items-center gap-2 lg:hidden">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
@@ -459,6 +459,7 @@ const Navbar = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+        </div>
         </div>
       </header>
 

@@ -556,7 +556,7 @@ const Statistics = () => {
             </div>
 
             {/* Filtro de período */}
-            <Tabs value={periodFilter} onValueChange={(v) => setPeriodFilter(v as any)} className="w-full sm:w-auto">
+            <Tabs value={periodFilter} onValueChange={(v) => setPeriodFilter(v as any)} className="w-full sm:w-auto" data-tour="stats-period">
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="today" className="text-xs sm:text-sm">
                   Hoje
@@ -575,7 +575,7 @@ const Statistics = () => {
           </div>
 
           {/* Cards de resumo - Questões e Redações */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" data-tour="stats-summary">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total de Questões</CardTitle>
@@ -629,7 +629,7 @@ const Statistics = () => {
           )}
 
           {/* Sugestão de IA */}
-          <Card className="mb-8 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
+          <Card className="mb-8 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5" data-tour="stats-ai">
             <CardHeader className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-center gap-2">

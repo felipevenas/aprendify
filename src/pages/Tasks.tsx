@@ -59,7 +59,7 @@ const Tasks = () => {
               </div>
               
               {/* Ações discretas */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2" data-tour="tasks-header">
                 <Button onClick={() => setDialogOpen(true)} size="sm" className="gap-2">
                   <Plus className="h-4 w-4" />
                   Nova Tarefa
@@ -67,7 +67,7 @@ const Tasks = () => {
               </div>
             </div>
 
-            <Card className="shadow-lg border-border/50 p-6">
+            <Card className="shadow-lg border-border/50 p-6" data-tour="tasks-list">
               <TaskList />
             </Card>
           </motion.div>

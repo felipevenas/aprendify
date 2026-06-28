@@ -9,7 +9,9 @@ import { useHelpTooltips } from "@/contexts/HelpTooltipsContext";
  * Aparece no canto inferior direito e ativa o tour de tooltips
  */
 const HelpButton = () => {
-  const { startTour, showTooltips } = useHelpTooltips();
+  const { startTour, showTooltips, tooltips } = useHelpTooltips();
+
+  if (tooltips.length === 0) return null;
 
   return (
     <AnimatePresence>

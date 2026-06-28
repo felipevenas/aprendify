@@ -108,7 +108,7 @@ const Landing = () => {
     },
     {
       name: "Premium Mensal",
-      price: "R$ 19,90",
+      price: "R$ 9,90",
       period: "/mês",
       description: "Acesso completo à plataforma",
       features: [
@@ -126,14 +126,14 @@ const Landing = () => {
     },
     {
       name: "Premium Anual",
-      price: "R$ 15,92",
+      price: "R$ 7,92",
       period: "/mês",
       description: "Economize 20% no plano anual",
-      originalPrice: "R$ 238,80",
-      finalPrice: "R$ 191,04/ano",
+      originalPrice: "R$ 118,80",
+      finalPrice: "R$ 95,04/ano",
       features: [
         "Tudo do plano mensal",
-        "Economia de R$ 47,76/ano",
+        "Economia de R$ 23,76/ano",
         "Acesso garantido por 12 meses",
         "Atualizações incluídas"
       ],

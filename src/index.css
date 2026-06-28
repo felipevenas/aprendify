@@ -332,9 +332,9 @@ All colors MUST be HSL.
     padding-top: 4rem; /* altura do header */
   }
 
-  /* Alinha o contêiner principal de todas as páginas de estudo à esquerda no desktop */
+  /* Centraliza o contêiner principal de todas as páginas de estudo na área restante no desktop */
   main {
-    margin-left: 0 !important;
+    margin-left: auto !important;
     margin-right: auto !important;
   }
 }

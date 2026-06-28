@@ -182,7 +182,6 @@ const Questions = () => {
       
       await recordQuestionAnswered();
       setSessionCount(prev => prev + 1); // Increment session counter
-      toast.success("Resposta registrada!");
 
       const extractedTopic = await topicPromise;
       if (extractedTopic && insertedAttempt?.id) {
@@ -219,9 +218,13 @@ const Questions = () => {
   // Carrega questão aleatória ao montar o componente
   useEffect(() => {
     if (!initialLoading && !currentQuestion && !loadingQuestion && userId) {
+      if (!isPremium && dailyQuestionCount >= FREE_DAILY_LIMIT) {
+        // Não busca questão se o usuário grátis já atingiu o limite
+        return;
+      }
       fetchQuestion(selectedYear, selectedDiscipline, selectedLanguage, selectedDifficulty, true, selectedTopic, selectedStatus, searchKeyword, userId);
     }
-  }, [initialLoading, userId]);
+  }, [initialLoading, userId, isPremium, dailyQuestionCount]);
 
   return (
     <PageLoader loading={initialLoading} message="Preparando suas questões...">
@@ -265,7 +268,7 @@ const Questions = () => {
             
             {/* Actions row */}
             <TooltipProvider>
-              <div className="flex items-center justify-end gap-2 mb-4">
+              <div className="flex items-center justify-end gap-2 mb-4" data-tour="questions-actions">
               
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -405,35 +408,49 @@ const Questions = () => {
         )}
 
         {/* Área da questão */}
-        {loadingQuestion ? (
-          <Card className="p-12 border-border/50 shadow-lg">
-            <div className="flex flex-col items-center justify-center gap-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-              <p className="text-muted-foreground">Carregando questão...</p>
-            </div>
-          </Card>
-        ) : currentQuestion ? (
-          <QuestionPractice 
-            question={currentQuestion}
-            onNext={() => handleFetchQuestion(true)}
-            onAnswer={handleAnswerSubmit}
-            isPremium={isPremium}
-          />
-        ) : (
-          <Card className="p-12 border-border/50 shadow-lg">
-            <div className="text-center">
-              <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Nenhuma questão encontrada</h3>
-              <p className="text-muted-foreground mb-6">
-                Ajuste os filtros ou clique em "Aleatória" para começar
+        <div data-tour="questions-area">
+          {loadingQuestion ? (
+            <Card className="p-12 border-border/50 shadow-lg">
+              <div className="flex flex-col items-center justify-center gap-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                <p className="text-muted-foreground">Carregando questão...</p>
+              </div>
+            </Card>
+          ) : !isPremium && dailyQuestionCount >= FREE_DAILY_LIMIT ? (
+            <Card className="p-12 border-border/50 shadow-lg text-center">
+              <Lock className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <h3 className="text-xl font-semibold mb-2">Limite diário atingido</h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                Você já respondeu o limite de 10 questões gratuitas por hoje. Assine o plano Premium para ter acesso a milhares de questões ilimitadas, resoluções com IA e muito mais!
               </p>
-              <Button onClick={() => handleFetchQuestion(true)} className="gap-2">
-                <Shuffle className="h-4 w-4" />
-                Buscar Questão Aleatória
+              <Button onClick={() => navigate("/subscription")} className="gap-2 bg-primary">
+                <Crown className="h-4 w-4" />
+                Ver Planos Premium
               </Button>
-            </div>
-          </Card>
-        )}
+            </Card>
+          ) : currentQuestion ? (
+            <QuestionPractice 
+              question={currentQuestion}
+              onNext={() => handleFetchQuestion(true)}
+              onAnswer={handleAnswerSubmit}
+              isPremium={isPremium}
+            />
+          ) : (
+            <Card className="p-12 border-border/50 shadow-lg">
+              <div className="text-center">
+                <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Nenhuma questão encontrada</h3>
+                <p className="text-muted-foreground mb-6">
+                  Ajuste os filtros ou clique em "Aleatória" para começar
+                </p>
+                <Button onClick={() => handleFetchQuestion(true)} className="gap-2">
+                  <Shuffle className="h-4 w-4" />
+                  Buscar Questão Aleatória
+                </Button>
+              </div>
+            </Card>
+          )}
+        </div>
       </main>
 
       <AddQuestionNoteDialog
