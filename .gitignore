@@ -25,3 +25,11 @@ dist-ssr
 
 # Environment variables
 .env
+
+# Supabase
+supabase/.temp/
+
+# IDE / Lovable
+.lovable/
+.agents/
+.antigravity/
