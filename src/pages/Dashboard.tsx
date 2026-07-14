@@ -353,7 +353,7 @@ const Dashboard = () => {
                   </CardHeader>
                   <CardContent className="flex flex-col md:flex-row items-center justify-between gap-6">
                     {/* Seleção do Modo */}
-                    <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto">
+                    <div className="flex flex-col sm:flex-row md:flex-col gap-2 w-full md:w-auto">
                       <Button
                         variant={pomodoroMode === "focus" ? "default" : "outline"}
                         onClick={() => changePomodoroMode("focus")}
@@ -470,7 +470,7 @@ const Dashboard = () => {
               <Card className="border-border/50 shadow-md">
                 <CardContent className="p-4 space-y-4">
                   <div className="flex items-center gap-2 border-b border-border/50 pb-2">
-                    <Trophy className="h-4.5 w-4.5 text-amber-500 animate-bounce" />
+                    <Trophy className="h-4 w-4 text-amber-500 animate-bounce" />
                     <span className="font-bold text-sm">Competição Semanal</span>
                   </div>
 

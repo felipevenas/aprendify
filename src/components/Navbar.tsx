@@ -169,7 +169,7 @@ const Navbar = () => {
                         isActive ? "sidebar-link-active" : "sidebar-link-inactive"
                       }`}
                     >
-                      <item.icon className={`h-4.5 w-4.5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+                      <item.icon className={`h-5 w-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
                       <span className="font-medium">{item.name}</span>
                     </button>
                   );
@@ -193,7 +193,7 @@ const Navbar = () => {
                         isActive ? "sidebar-link-active" : "sidebar-link-inactive"
                       }`}
                     >
-                      <item.icon className={`h-4.5 w-4.5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+                      <item.icon className={`h-5 w-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
                       <span className="font-medium">{item.name}</span>
                     </button>
                   );
@@ -327,7 +327,7 @@ const Navbar = () => {
           
           {/* Logo Mobile */}
           <div onClick={() => navigate("/dashboard")} className="flex items-center gap-1.5 cursor-pointer">
-            <div className="w-7.5 h-7.5 rounded-lg bg-primary flex items-center justify-center shadow-md">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-md">
               <BookOpen className="h-4 w-4 text-primary-foreground" />
             </div>
             <span className="text-md font-bold text-gradient">Aprendify</span>

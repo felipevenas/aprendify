@@ -2,6 +2,28 @@
 
 Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.4.0] - 15-07-2026
+
+### Alterações
+
+#### 🚀 Adicionado
+- **Sistema de Responsividade para Monitores Ultrawide e Grandes (27+")**:
+  - Criado o componente `Navbar.tsx` que adapta automaticamente a interface conforme o tamanho da tela:
+    - **Desktop (≥1024px)**: Renderiza a Sidebar Fixa à esquerda e a Topbar minimalista acima do conteúdo principal.
+    - **Mobile (≤1023px)**: Oculta a Sidebar e exibe apenas a Topbar com o menu hambúrguer.
+  - Ajustado o layout da Sidebar para não colidir com a Topbar no desktop.
+  - Centralizado o conteúdo principal da aplicação para ocupar a área útil restante da tela.
+  
+#### 🔧 Modificado
+- **Correção de Layout no Dashboard**:
+  - Adicionada a classe `app-layout-container` em `CreatorDashboard.tsx` para garantir que o painel ocupe a altura total da tela, centralizando o conteúdo acima da barra de navegação inferior.
+- **Ajustes de Margens**:
+  - Ajustadas as margens do conteúdo principal em `CreatorDashboard.tsx` para `py-6 lg:py-10` para melhorar o espaçamento.
+
+#### 🐛 Corrigido
+- **Remoção de Notificações Duplicadas**:
+  - Corrigido o problema de duplicação de notificações de "Resposta registrada!" em `Questions.tsx`.
+
 ## [0.3.0] - 28-06-2026
 
 ### Alterações
