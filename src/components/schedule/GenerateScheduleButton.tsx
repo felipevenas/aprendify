@@ -145,7 +145,9 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
           <Button className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all relative">
             <Sparkles className="h-4 w-4" />
             Gerar Plano com IA
-            <Lock className="h-3 w-3 absolute -top-1 -right-1 text-primary" />
+            <div className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white rounded-full p-0.5 shadow-sm border border-background">
+              <Lock className="h-2.5 w-2.5" />
+            </div>
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-md">
