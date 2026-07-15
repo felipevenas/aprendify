@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import {
   Play, Pause, RotateCcw, Timer, BookOpen, Trophy, ArrowRight, Brain, Upload, Users, Settings2,
-  Calendar, CheckSquare, Clock, GraduationCap, Flame, Target, Sparkles, MessageSquare, AlertCircle
+  Calendar, CheckSquare, Clock, GraduationCap, Flame, Target, Sparkles, MessageSquare, AlertCircle, Maximize2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
@@ -20,7 +20,8 @@ import WeeklyChallenges from "@/components/dashboard/WeeklyChallenges";
 import AchievementBadges from "@/components/dashboard/AchievementBadges";
 import { PageLoader } from "@/components/ui/page-loader";
 import { useHelpTooltips } from "@/contexts/HelpTooltipsContext";
-import { toast } from "sonner";
+import { usePomodoro } from "@/contexts/PomodoroContext";
+import { getSubjectByDiscipline } from "@/lib/subjects";
 
 // Tooltips de ajuda do novo Dashboard ENEM
 const dashboardTooltips = [
@@ -90,11 +91,17 @@ const Dashboard = () => {
   const [daysToEnem, setDaysToEnem] = useState(0);
   const [enemProgress, setEnemProgress] = useState(0);
 
-  // Estados do Pomodoro Timer
-  const [pomodoroMode, setPomodoroMode] = useState<"focus" | "shortBreak" | "longBreak">("focus");
-  const [timeLeft, setTimeLeft] = useState(25 * 60);
-  const [timerActive, setTimerActive] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  // Consome o Timer Pomodoro Global
+  const {
+    timeLeft,
+    timerActive,
+    pomodoroMode,
+    toggleTimer,
+    resetTimer,
+    changePomodoroMode,
+    formatTime,
+    setIsExpanded,
+  } = usePomodoro();
 
   // Estados de Desempenho do Aluno por Área
   const [areaStats, setAreaStats] = useState<AreaPerformance[]>([
@@ -132,7 +139,7 @@ const Dashboard = () => {
       try {
         const { data: attempts } = await supabase
           .from("question_attempts")
-          .select("is_correct, subject_id")
+          .select("is_correct, discipline")
           .eq("user_id", session.user.id);
 
         if (attempts && attempts.length > 0) {
@@ -145,7 +152,8 @@ const Dashboard = () => {
           };
 
           attempts.forEach((attempt) => {
-            const subjectId = attempt.subject_id;
+            const subject = getSubjectByDiscipline(attempt.discipline);
+            const subjectId = subject?.id;
             if (subjectId && statsMap[subjectId as keyof typeof statsMap]) {
               statsMap[subjectId as keyof typeof statsMap].totalAttempts += 1;
               if (attempt.is_correct) {
@@ -202,90 +210,7 @@ const Dashboard = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  // Efeito e lógica do Pomodoro Timer
-  useEffect(() => {
-    if (timerActive) {
-      timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            handleTimerComplete();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
 
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [timerActive]);
-
-  const handleTimerComplete = () => {
-    setTimerActive(false);
-    playAlertSound();
-
-    if (pomodoroMode === "focus") {
-      toast.success("Parabéns! Sessão de Foco concluída. Hora de descansar!", {
-        duration: 5000,
-      });
-      setPomodoroMode("shortBreak");
-      setTimeLeft(5 * 60);
-    } else {
-      toast.success("Descanso finalizado. Vamos voltar aos estudos?", {
-        duration: 5000,
-      });
-      setPomodoroMode("focus");
-      setTimeLeft(25 * 60);
-    }
-  };
-
-  const playAlertSound = () => {
-    try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // Tom A5
-      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-
-      oscillator.start();
-      oscillator.stop(audioCtx.currentTime + 0.3); // Bipe de 300ms
-    } catch (e) {
-      console.warn("AudioContext não suportado no navegador", e);
-    }
-  };
-
-  const toggleTimer = () => {
-    setTimerActive(!timerActive);
-  };
-
-  const resetTimer = () => {
-    setTimerActive(false);
-    if (pomodoroMode === "focus") setTimeLeft(25 * 60);
-    else if (pomodoroMode === "shortBreak") setTimeLeft(5 * 60);
-    else setTimeLeft(15 * 60);
-  };
-
-  const changePomodoroMode = (mode: "focus" | "shortBreak" | "longBreak") => {
-    setTimerActive(false);
-    setPomodoroMode(mode);
-    if (mode === "focus") setTimeLeft(25 * 60);
-    else if (mode === "shortBreak") setTimeLeft(5 * 60);
-    else setTimeLeft(15 * 60);
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
 
 
 
@@ -345,9 +270,20 @@ const Dashboard = () => {
               <div data-tour="pomodoro-timer">
                 <Card className="border-border/50 shadow-md">
                   <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-primary animate-pulse" />
-                      <CardTitle className="text-lg">Foco ENEM | Timer Pomodoro</CardTitle>
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-primary animate-pulse" />
+                        <CardTitle className="text-lg">Foco ENEM | Timer Pomodoro</CardTitle>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setIsExpanded(true)}
+                        className="h-8 w-8 rounded-full hover:bg-muted/60"
+                        title="Maximizar Cronômetro"
+                      >
+                        <Maximize2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
                     </div>
                     <CardDescription>Configure sessões de foco alternadas com descansos curtos</CardDescription>
                   </CardHeader>
