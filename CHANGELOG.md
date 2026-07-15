@@ -13,16 +13,31 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
     - **Mobile (≤1023px)**: Oculta a Sidebar e exibe apenas a Topbar com o menu hambúrguer.
   - Ajustado o layout da Sidebar para não colidir com a Topbar no desktop.
   - Centralizado o conteúdo principal da aplicação para ocupar a área útil restante da tela.
+- **Cronômetro Pomodoro Global & Widget Flutuante Expansível**:
+  - Implementado o gerenciamento de estado global para o timer Pomodoro, sincronizado em todas as telas da aplicação.
+  - Desenvolvido o widget flutuante `FloatingPomodoro` que acompanha o usuário nas páginas fora do Dashboard.
+  - Adicionada opacidade dinâmica reativa baseada no progresso do tempo e interação do mouse.
+  - Criado o modo de foco em Tela Cheia (fullscreen) com controles completos de pomodoro e opção de Foco Extremo (fundo 100% preto para menor distração).
+  - Adicionado botão de maximizar o cronômetro diretamente a partir do card do painel de estudos (Dashboard).
+  - Persistência sob F5 integrada com o `localStorage` do navegador.
+- **Melhoria no Menu de Ajuda**:
+  - Removido o botão flutuante de ajuda (?) do canto inferior direito e integrado ao dropdown de menu do perfil da Navbar, aparecendo dinamicamente nas páginas com suporte a tutoriais.
   
 #### 🔧 Modificado
 - **Correção de Layout no Dashboard**:
   - Adicionada a classe `app-layout-container` em `CreatorDashboard.tsx` para garantir que o painel ocupe a altura total da tela, centralizando o conteúdo acima da barra de navegação inferior.
 - **Ajustes de Margens**:
   - Ajustadas as margens do conteúdo principal em `CreatorDashboard.tsx` para `py-6 lg:py-10` para melhorar o espaçamento.
+- **Responsividade na Revisão de Erros**:
+  - Adicionada a classe `app-layout-container` no contêiner principal da página `ReviewErrors.tsx`, corrigindo a colisão de layout com a Sidebar fixa de desktop e melhorando a diagramação em dispositivos móveis.
+  - Refatorados o cabeçalho, filtros e itens do card para empilhamento flexível e botões em largura completa no mobile.
+  - Adicionado o componente padrão de **Paginação** (shadcn/ui) configurado para exibir 5 erros por página com reset dinâmico no filtro de disciplina.
 
 #### 🐛 Corrigido
 - **Remoção de Notificações Duplicadas**:
   - Corrigido o problema de duplicação de notificações de "Resposta registrada!" em `Questions.tsx`.
+- **Estatísticas e Desempenho por Área no Dashboard**:
+  - Corrigido o bug da coluna inexistente `subject_id` na tabela `question_attempts` alterando a consulta e mapeamento de dados do Dashboard para usar `discipline` e a utilidade `getSubjectByDiscipline`.
 
 ## [0.3.0] - 28-06-2026
 
