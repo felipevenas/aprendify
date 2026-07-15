@@ -3,9 +3,10 @@ import { Routes, Route } from "react-router-dom";
 import { StreakProvider } from "@/contexts/StreakContext";
 import { PremiumProvider } from "@/contexts/PremiumContext";
 import { HelpTooltipsProvider } from "@/contexts/HelpTooltipsContext";
+import { PomodoroProvider } from "@/contexts/PomodoroContext";
 import { useBackgroundPreloader } from "@/hooks/useBackgroundPreloader";
-import HelpButton from "@/components/help/HelpButton";
 import TourOverlay from "@/components/help/TourOverlay";
+import { FloatingPomodoro } from "@/components/dashboard/FloatingPomodoro";
 
 const SuspenseFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -53,37 +54,39 @@ const AppLayout = () => (
   <StreakProvider>
     <PremiumProvider>
       <HelpTooltipsProvider>
-        <BackgroundPreloaderInit />
-        <Suspense fallback={<SuspenseFallback />}>
-          <Routes>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/schedule" element={<Schedule />} />
-            <Route path="/tasks" element={<Tasks />} />
-            <Route path="/notes" element={<Notes />} />
-            <Route path="/questions" element={<Questions />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/statistics" element={<Statistics />} />
-            <Route path="/flashcards" element={<Flashcards />} />
-            <Route path="/essays" element={<Essays />} />
-            <Route path="/subscription" element={<Subscription />} />
-            <Route path="/subscription/success" element={<SubscriptionSuccess />} />
-            <Route path="/admin/import" element={<AdminImport />} />
-            <Route path="/admin/users" element={<AdminUsers />} />
-            <Route path="/admin/questions" element={<AdminQuestions />} />
-            <Route path="/simulados" element={<Simulados />} />
-            <Route path="/simulados/:id" element={<SimuladoActive />} />
-            <Route path="/simulados/:id/resultado" element={<SimuladoResults />} />
-            <Route path="/creator" element={<CreatorDashboard />} />
-            <Route path="/achievements" element={<Achievements />} />
-            <Route path="/admin/notifications" element={<AdminNotifications />} />
-            <Route path="/feedback" element={<Feedback />} />
-            <Route path="/admin/feedback" element={<AdminFeedback />} />
-            <Route path="/review-errors" element={<ReviewErrors />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-        <HelpButton />
-        <TourOverlay />
+        <PomodoroProvider>
+          <BackgroundPreloaderInit />
+          <Suspense fallback={<SuspenseFallback />}>
+            <Routes>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/schedule" element={<Schedule />} />
+              <Route path="/tasks" element={<Tasks />} />
+              <Route path="/notes" element={<Notes />} />
+              <Route path="/questions" element={<Questions />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/statistics" element={<Statistics />} />
+              <Route path="/flashcards" element={<Flashcards />} />
+              <Route path="/essays" element={<Essays />} />
+              <Route path="/subscription" element={<Subscription />} />
+              <Route path="/subscription/success" element={<SubscriptionSuccess />} />
+              <Route path="/admin/import" element={<AdminImport />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/questions" element={<AdminQuestions />} />
+              <Route path="/simulados" element={<Simulados />} />
+              <Route path="/simulados/:id" element={<SimuladoActive />} />
+              <Route path="/simulados/:id/resultado" element={<SimuladoResults />} />
+              <Route path="/creator" element={<CreatorDashboard />} />
+              <Route path="/achievements" element={<Achievements />} />
+              <Route path="/admin/notifications" element={<AdminNotifications />} />
+              <Route path="/feedback" element={<Feedback />} />
+              <Route path="/admin/feedback" element={<AdminFeedback />} />
+              <Route path="/review-errors" element={<ReviewErrors />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+          <TourOverlay />
+          <FloatingPomodoro />
+        </PomodoroProvider>
       </HelpTooltipsProvider>
     </PremiumProvider>
   </StreakProvider>
