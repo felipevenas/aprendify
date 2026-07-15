@@ -13,7 +13,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   Settings, LogOut, Moon, Sun, BookOpen, Crown, CreditCard, Sparkles, Trophy, Shield, Menu, MessageSquarePlus,
-  LayoutDashboard, Calendar, CheckSquare, FileText, BarChart3, FileSpreadsheet, Layers, PenTool, Upload, Users, Settings2
+  LayoutDashboard, Calendar, CheckSquare, FileText, BarChart3, FileSpreadsheet, Layers, PenTool, Upload, Users, Settings2,
+  HelpCircle
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { usePremiumContext } from "@/contexts/PremiumContext";
@@ -24,6 +25,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
+import { useHelpTooltips } from "@/contexts/HelpTooltipsContext";
 
 /**
  * Navbar adaptativa que renderiza a Sidebar Fixa (Desktop),
@@ -33,6 +35,7 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, setTheme } = useTheme();
+  const { startTour, tooltips } = useHelpTooltips();
   const [user, setUser] = useState<User | null>(null);
   const [userName, setUserName] = useState<string>("");
   const [showPremiumModal, setShowPremiumModal] = useState(false);
@@ -435,6 +438,12 @@ const Navbar = () => {
                 <MessageSquarePlus className="h-4 w-4 mr-3 text-foreground/70" />
                 Enviar Feedback
               </DropdownMenuItem>
+              {tooltips && tooltips.length > 0 && (
+                <DropdownMenuItem onClick={() => startTour()} className="cursor-pointer rounded-lg py-2.5 px-3">
+                  <HelpCircle className="h-4 w-4 mr-3 text-foreground/70" />
+                  Ajuda
+                </DropdownMenuItem>
+              )}
               {isAdmin && (
                 <>
                   <DropdownMenuSeparator className="my-2" />

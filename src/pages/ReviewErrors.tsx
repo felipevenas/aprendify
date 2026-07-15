@@ -27,6 +27,15 @@ import PremiumLockScreen from "@/components/PremiumLockScreen";
 import { getSubjectByDiscipline, getSubjectColor, FIXED_SUBJECTS } from "@/lib/subjects";
 import ReviewStatistics from "@/components/review/ReviewStatistics";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious
+} from "@/components/ui/pagination";
+import { cn } from "@/lib/utils";
 
 interface ErrorQuestion {
   id: string;
@@ -40,6 +49,7 @@ interface ErrorQuestion {
 
 // Intervalos de repetição espaçada (em dias)
 const SPACED_INTERVALS = [1, 3, 7, 14, 30];
+const ITEMS_PER_PAGE = 5;
 
 /**
  * Página de Revisão de Erros com algoritmo de repetição espaçada
@@ -55,6 +65,11 @@ const ReviewErrors = () => {
   const [disciplines, setDisciplines] = useState<string[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [statsRefreshTrigger, setStatsRefreshTrigger] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [disciplineFilter]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -314,6 +329,12 @@ const ReviewErrors = () => {
     ? errors 
     : errors.filter(e => e.discipline === disciplineFilter);
 
+  const totalPages = Math.ceil(filteredErrors.length / ITEMS_PER_PAGE);
+  const paginatedErrors = filteredErrors.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   const highPriorityCount = errors.filter(e => e.review_priority === 'high').length;
   const mediumPriorityCount = errors.filter(e => e.review_priority === 'medium').length;
 
@@ -361,7 +382,7 @@ const ReviewErrors = () => {
 
   if (!isPremium) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background app-layout-container">
         <Navbar />
         <main className="max-w-4xl mx-auto px-4 py-12">
           <PremiumLockScreen
@@ -377,7 +398,7 @@ const ReviewErrors = () => {
   // Se está revisando uma questão específica
   if (selectedError && selectedError.question_data) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background app-layout-container">
         <Navbar />
         <main className="max-w-4xl mx-auto px-4 py-8">
           <Button
@@ -412,7 +433,7 @@ const ReviewErrors = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background app-layout-container">
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 py-8">
         <motion.div
@@ -420,13 +441,13 @@ const ReviewErrors = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                <RotateCcw className="h-8 w-8 text-primary" />
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-3">
+                <RotateCcw className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
                 Revisão de Erros
               </h1>
-              <p className="text-muted-foreground mt-1">
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                 Revise questões erradas com repetição espaçada para fixar o conteúdo
               </p>
             </div>
@@ -434,7 +455,7 @@ const ReviewErrors = () => {
             <Button
               variant="outline"
               onClick={() => userId && fetchErrors(userId)}
-              className="gap-2"
+              className="gap-2 w-full sm:w-auto justify-center"
             >
               <RefreshCw className="h-4 w-4" />
               Atualizar
@@ -502,13 +523,13 @@ const ReviewErrors = () => {
             </div>
 
         {/* Filtros */}
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Filtrar por:</span>
           </div>
           <Select value={disciplineFilter} onValueChange={setDisciplineFilter}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-full sm:w-48">
               <SelectValue placeholder="Disciplina" />
             </SelectTrigger>
             <SelectContent>
@@ -549,8 +570,8 @@ const ReviewErrors = () => {
           </Card>
         ) : (
           <div className="space-y-3">
-            <AnimatePresence>
-              {filteredErrors.map((error, index) => (
+            <AnimatePresence mode="popLayout">
+              {paginatedErrors.map((error, index) => (
                 <motion.div
                   key={error.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -563,11 +584,11 @@ const ReviewErrors = () => {
                     onClick={() => handleStartReview(error)}
                   >
                     <CardContent className="py-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-start gap-3 sm:gap-4">
                           {/* Ícone de disciplina com cor */}
                           <div 
-                            className="p-2.5 rounded-xl transition-transform group-hover:scale-105"
+                            className="p-2.5 rounded-xl transition-transform group-hover:scale-105 shrink-0 mt-0.5"
                             style={{ 
                               backgroundColor: `${getSubjectColor(error.discipline)}20`,
                             }}
@@ -578,8 +599,8 @@ const ReviewErrors = () => {
                             />
                           </div>
                           <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-foreground">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-semibold text-foreground text-sm sm:text-base">
                                 {getSubjectByDiscipline(error.discipline)?.name || error.discipline}
                               </p>
                               <Badge 
@@ -589,13 +610,13 @@ const ReviewErrors = () => {
                                 {getPriorityLabel(error.review_priority)}
                               </Badge>
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                              <Calendar className="h-3 w-3" />
+                            <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground mt-1.5">
+                              <Calendar className="h-3.5 w-3.5" />
                               <span>Errou há {error.days_since_error} dia(s)</span>
                             </div>
                           </div>
                         </div>
-                        <Button size="sm" className="gap-2">
+                        <Button size="sm" className="gap-2 w-full sm:w-auto justify-center">
                           <RotateCcw className="h-4 w-4" />
                           Revisar
                         </Button>
@@ -605,6 +626,43 @@ const ReviewErrors = () => {
                 </motion.div>
               ))}
             </AnimatePresence>
+
+            {totalPages > 1 && (
+              <div className="mt-6 flex justify-center">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        className={cn("cursor-pointer select-none", currentPage === 1 && "pointer-events-none opacity-50")}
+                      />
+                    </PaginationItem>
+                    
+                    {Array.from({ length: totalPages }).map((_, i) => {
+                      const page = i + 1;
+                      return (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            onClick={() => setCurrentPage(page)}
+                            isActive={currentPage === page}
+                            className="cursor-pointer select-none"
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                    })}
+
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        className={cn("cursor-pointer select-none", currentPage === totalPages && "pointer-events-none opacity-50")}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
           </div>
         )}
           </TabsContent>
