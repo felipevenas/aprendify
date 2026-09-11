@@ -233,7 +233,7 @@ serve(async (req) => {
           weaknesses
         };
 
-        const aiResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        let aiResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${groqApiKey}`,
@@ -275,11 +275,41 @@ Pontos fracos: ${promptData.weaknesses.length > 0 ? promptData.weaknesses.map(w 
           }),
         });
 
-        if (aiResponse.ok) {
+        if (!aiResponse.ok) {
+          console.warn("[analyze-simulado] Falha no 70b, tentando fallback com llama-3.1-8b-instant...");
+          try {
+            aiResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${groqApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "llama-3.1-8b-instant",
+                messages: [
+                  {
+                    role: "system",
+                    content: "Você é um orientador pedagógico especialista no ENEM. Seja claro, empático e prático."
+                  },
+                  {
+                    role: "user",
+                    content: `Analise este resultado de simulado e dê dicas objetivas:\nAcertos: ${promptData.totalCorrect}/${promptData.totalQuestions}`
+                  }
+                ],
+                max_tokens: 600,
+                temperature: 0.6,
+              }),
+            });
+          } catch (fbErr) {
+            console.warn("[analyze-simulado] Erro no fallback:", fbErr);
+          }
+        }
+
+        if (aiResponse && aiResponse.ok) {
           const aiData = await aiResponse.json();
           tips = aiData.choices?.[0]?.message?.content || "";
         } else {
-          console.error("Groq API error:", await aiResponse.text());
+          console.error("Groq API error:", aiResponse ? await aiResponse.text() : "Sem resposta");
         }
       } catch (aiError) {
         console.error("AI tips generation error:", aiError);

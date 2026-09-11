@@ -84,7 +84,7 @@ serve(async (req) => {
 
     console.log("[generate-essay-topic] Generating ENEM-style essay topic using Groq...");
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    let response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${groqApiKey}`,
@@ -123,8 +123,38 @@ Retorne no seguinte formato JSON:
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[generate-essay-topic] Groq API error:", response.status, errorText);
+      console.warn("[generate-essay-topic] Falha no 70b, tentando fallback com llama-3.1-8b-instant...");
+      try {
+        response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${groqApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "llama-3.1-8b-instant",
+            messages: [
+              {
+                role: "system",
+                content: "Gere um tema de redação estilo ENEM com titulo, textos_motivadores e instrucao em JSON."
+              },
+              {
+                role: "user",
+                content: "Gere um tema de redação ENEM original e atual."
+              }
+            ],
+            max_tokens: 1500,
+            temperature: 0.7,
+          }),
+        });
+      } catch (fbErr) {
+        console.warn("[generate-essay-topic] Erro no fallback:", fbErr);
+      }
+    }
+
+    if (!response || !response.ok) {
+      const errorText = response ? await response.text() : "Sem conexão";
+      console.error("[generate-essay-topic] Groq API error:", response?.status, errorText);
       throw new Error("Erro ao gerar tema de redação");
     }
 

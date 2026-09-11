@@ -1,0 +1,15 @@
+export * from "./hooks/useSimulados";
+export * from "./hooks/useSimuladoPreparation";
+export * from "./services/calculateTRI";
+export * from "./services/generateSimuladoPDF";
+export { NewSimuladoDialog } from "./components/NewSimuladoDialog";
+export { ShareResultsButton } from "./components/ShareResultsButton";
+export { SimuladoHistoryCard } from "./components/SimuladoHistoryCard";
+export { SimuladoPreparationModal } from "./components/SimuladoPreparationModal";
+export { SimuladoProgress } from "./components/SimuladoProgress";
+export { SimuladoQuestion } from "./components/SimuladoQuestion";
+export { SimuladoTimer } from "./components/SimuladoTimer";
+export { default as TRIScoreDisplay } from "./components/TRIScoreDisplay";
+export { SimuladosPage, default as Simulados } from "./pages/SimuladosPage";
+export { SimuladoActivePage, default as SimuladoActive } from "./pages/SimuladoActivePage";
+export { SimuladoResultsPage, default as SimuladoResults } from "./pages/SimuladoResultsPage";

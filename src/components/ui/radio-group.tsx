@@ -22,7 +22,7 @@ const RadioGroupItem = React.forwardRef<
       className={cn(
         "aspect-square h-5 w-5 rounded-full border-2 border-input text-primary ring-offset-background",
         "transition-all duration-200 ease-out",
-        "hover:border-primary/70 hover:bg-accent/30",
+        "hover:border-primary/70 hover:bg-muted/30",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-0 focus-visible:border-primary",
         "data-[state=checked]:border-primary data-[state=checked]:bg-primary/10",
         "disabled:cursor-not-allowed disabled:opacity-50",

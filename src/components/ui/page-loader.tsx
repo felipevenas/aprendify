@@ -1,58 +1,75 @@
+import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { Skeleton } from "./skeleton";
+import { DashboardSkeleton, CardGridSkeleton, ListSkeleton } from "./page-skeletons";
 
 interface PageLoaderProps {
   loading: boolean;
   children: React.ReactNode;
   message?: string;
+  variant?: "dashboard" | "cards" | "list" | "default";
 }
 
 /**
- * PageLoader suave e moderno (estilo YouTube/GitHub).
- * Não cobre a tela inteira com fundo opaco, permitindo que a estrutura (como a Sidebar e Topbar)
- * permaneça estática na tela sem piscar ao alternar de página.
+ * PageLoader profissional baseado 100% em Skeleton Loading.
+ * Elimina completamente os spinners giratórios intrusivos.
+ * Exibe transições suaves com shimmer e preserva a estrutura da página.
  */
-export const PageLoader = ({ loading, children, message = "Carregando..." }: PageLoaderProps) => {
+export const PageLoader = ({ 
+  loading, 
+  children, 
+  variant = "default" 
+}: PageLoaderProps) => {
   return (
-    <div className="relative min-h-screen">
-      {/* Linha de progresso no topo da tela */}
-      <AnimatePresence>
-        {loading && (
-          <motion.div
-            key="top-loading-bar"
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: "100%", opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5, ease: "easeInOut" }}
-            className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary-dark to-accent z-[9999]"
-          />
-        )}
-      </AnimatePresence>
+    <div className="relative w-full">
 
-      {/* Conteúdo principal com fade suave ao carregar */}
-      <motion.div
-        animate={{ opacity: loading ? 0.6 : 1 }}
-        transition={{ duration: 0.3 }}
-        className={loading ? "pointer-events-none select-none" : ""}
-      >
-        {children}
-      </motion.div>
 
-      {/* Overlay central flutuante e translúcido */}
-      <AnimatePresence>
-        {loading && (
+      <AnimatePresence mode="wait">
+        {loading ? (
           <motion.div
-            key="loader-overlay"
+            key="skeleton-view"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 flex items-center justify-center bg-background/30 backdrop-blur-[1px] z-[9998] pointer-events-none"
+            className="w-full"
           >
-            <div className="flex flex-col items-center gap-3 bg-card/95 border border-border/50 px-6 py-4 rounded-2xl shadow-xl pointer-events-auto">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <p className="text-muted-foreground text-xs font-semibold">{message}</p>
-            </div>
+            {variant === "dashboard" ? (
+              <DashboardSkeleton />
+            ) : variant === "cards" ? (
+              <CardGridSkeleton />
+            ) : variant === "list" ? (
+              <ListSkeleton />
+            ) : (
+              /* Skeleton genérico padrão para páginas */
+              <div className="space-y-6 w-full animate-fade-in">
+                <div className="flex items-center justify-between gap-4 pb-4 border-b border-border/40">
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-56 rounded-xl" />
+                    <Skeleton className="h-4 w-80 max-w-full rounded-md" />
+                  </div>
+                  <Skeleton className="h-10 w-28 rounded-xl" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <Skeleton className="h-32 rounded-2xl md:col-span-2" />
+                  <Skeleton className="h-32 rounded-2xl" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Skeleton className="h-64 rounded-2xl" />
+                  <Skeleton className="h-64 rounded-2xl" />
+                </div>
+              </div>
+            )}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="content-view"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.25 }}
+            className="w-full"
+          >
+            {children}
           </motion.div>
         )}
       </AnimatePresence>
@@ -61,31 +78,40 @@ export const PageLoader = ({ loading, children, message = "Carregando..." }: Pag
 };
 
 /**
- * Inline content loader para seções específicas de uma página
+ * ContentLoader para carregar seções internas sem spinners
  */
-export const ContentLoader = ({ loading, children, className = "" }: { 
+export const ContentLoader = ({ 
+  loading, 
+  children, 
+  className = "",
+  rows = 3
+}: { 
   loading: boolean; 
-  children: React.ReactNode;
+  children: React.ReactNode; 
   className?: string;
+  rows?: number;
 }) => {
   return (
     <AnimatePresence mode="wait">
       {loading ? (
         <motion.div
-          key="loader"
+          key="content-skeleton"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className={`flex items-center justify-center py-8 ${className}`}
+          className={`space-y-3 py-4 w-full ${className}`}
         >
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          {Array.from({ length: rows }).map((_, i) => (
+            <Skeleton key={i} className="h-14 w-full rounded-xl" />
+          ))}
         </motion.div>
       ) : (
         <motion.div
-          key="content"
-          initial={{ opacity: 0, y: 10 }}
+          key="content-loaded"
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
+          className="w-full"
         >
           {children}
         </motion.div>
@@ -93,3 +119,5 @@ export const ContentLoader = ({ loading, children, className = "" }: {
     </AnimatePresence>
   );
 };
+
+export default PageLoader;

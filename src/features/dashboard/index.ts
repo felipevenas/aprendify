@@ -1,0 +1,13 @@
+export { default as ContextualCTA } from "./components/ContextualCTA";
+export { default as DailyGoalProgress } from "./components/DailyGoalProgress";
+export { default as DynamicStudyPlan } from "./components/DynamicStudyPlan";
+export { default as ErrorReviewCard } from "./components/ErrorReviewCard";
+export { default as GamificationTabs } from "./components/GamificationTabs";
+export { default as ModulesGrid } from "./components/ModulesGrid";
+export { default as ProgressTabs } from "./components/ProgressTabs";
+export { default as QuestionStatsChart } from "./components/QuestionStatsChart";
+export { default as QuickSessionButton } from "./components/QuickSessionButton";
+export { default as QuickStats } from "./components/QuickStats";
+export { default as StudyHeatmap } from "./components/StudyHeatmap";
+export { default as WelcomeBanner } from "./components/WelcomeBanner";
+export { DashboardPage, default as Dashboard } from "./pages/DashboardPage";

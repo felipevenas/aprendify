@@ -90,7 +90,7 @@ Regras adicionais:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-4-scout-17b-16e-instruct",
+        model: "llama-3.1-8b-instant",
         messages: [
           { role: "system", content: "Você é um classificador educacional. Responda apenas com JSON válido." },
           { role: "user", content: prompt }

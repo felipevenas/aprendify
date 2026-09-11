@@ -31,9 +31,9 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    // Extrai priceId e código do cupom (opcional) do body da requisição
-    const { priceId, couponCode } = await req.json();
-    logStep("Received request", { priceId, couponCode: couponCode || "none" });
+    // Extrai priceId, orderBumpPriceId, items, cupom e URLs customizadas do body
+    const { priceId, orderBumpPriceId, items, couponCode, successUrl, cancelUrl } = await req.json();
+    logStep("Received request", { priceId, orderBumpPriceId, itemsCount: items?.length, couponCode: couponCode || "none" });
 
     const authHeader = req.headers.get("Authorization")!;
     if (!authHeader) {
@@ -83,8 +83,33 @@ serve(async (req) => {
       logStep("Found existing customer", { customerId });
     }
 
-    const origin = req.headers.get("origin") || "https://lvhfwbpivankwzzwvdjj.lovable.app";
+    const rawOrigin = req.headers.get("origin") || "";
+    // Se a requisição veio de um subdomínio de vendas ou página externa, direciona o retorno para a plataforma principal
+    const defaultAppUrl = "https://www.aprendify.cloud";
+    const resolvedOrigin = rawOrigin.includes("aprendify.cloud") ? defaultAppUrl : (rawOrigin || defaultAppUrl);
     
+    // Montagem dinâmica dos line_items
+    let checkoutLineItems: Array<{ price: string; quantity: number }> = [];
+    if (Array.isArray(items) && items.length > 0) {
+      checkoutLineItems = items.map((it: any) => ({
+        price: it.price || it.priceId,
+        quantity: it.quantity || 1,
+      }));
+    } else if (priceId) {
+      checkoutLineItems.push({
+        price: priceId,
+        quantity: 1,
+      });
+      if (orderBumpPriceId) {
+        checkoutLineItems.push({
+          price: orderBumpPriceId,
+          quantity: 1,
+        });
+      }
+    } else {
+      throw new Error("Nenhum item ou priceId especificado para o checkout");
+    }
+
     // Variável para guardar o código do cupom de criador validado
     let validatedCreatorCouponCode: string | null = null;
     let creatorCouponId: string | null = null;
@@ -93,15 +118,10 @@ serve(async (req) => {
     const sessionConfig: any = {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
+      line_items: checkoutLineItems,
       mode: "subscription",
-      success_url: `${origin}/subscription/success`,
-      cancel_url: `${origin}/dashboard?payment=cancelled`,
+      success_url: successUrl || `${resolvedOrigin}/subscription/success`,
+      cancel_url: cancelUrl || `${resolvedOrigin}/dashboard?payment=cancelled`,
       metadata: {
         user_id: user.id,
       },

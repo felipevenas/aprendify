@@ -135,11 +135,45 @@ Responda APENAS com JSON válido (sem markdown), seguindo EXATAMENTE esta estrut
   "score_competency_3": <0|40|80|120|160|200>,
   "score_competency_4": <0|40|80|120|160|200>,
   "score_competency_5": <0|40|80|120|160|200>,
-  "feedback_competency_1": "<análise específica: cite exemplos do texto>",
-  "feedback_competency_2": "<análise do repertório: liste as referências usadas>",
-  "feedback_competency_3": "<avalie estrutura e progressão argumentativa>",
-  "feedback_competency_4": "<liste conectivos usados e avalie variedade>",
-  "feedback_competency_5": "<identifique CADA um dos 5 elementos: ação, agente, modo, efeito, detalhamento>",
+  "feedback_competency_1": "<análise específica de C1>",
+  "feedback_competency_2": "<análise de C2>",
+  "feedback_competency_3": "<análise de C3>",
+  "feedback_competency_4": "<análise de C4>",
+  "feedback_competency_5": "<análise de C5>",
+  "intervention_checklist": {
+    "agent": { "present": true, "snippet": "<trecho do agente citado>", "feedback": "<avaliação do agente>" },
+    "action": { "present": true, "snippet": "<trecho da ação proposta>", "feedback": "<avaliação da ação>" },
+    "mode": { "present": true, "snippet": "<trecho do meio/modo>", "feedback": "<avaliação do meio>" },
+    "effect": { "present": true, "snippet": "<trecho do efeito/finalidade>", "feedback": "<avaliação do efeito>" },
+    "detail": { "present": true, "snippet": "<trecho do detalhamento>", "feedback": "<avaliação do detalhamento>" }
+  },
+  "annotated_snippets": [
+    {
+      "competency": 1,
+      "type": "grammar_error",
+      "snippet": "<trecho exato presente na redação com desvio ou destaque>",
+      "suggestion": "<sugestão de correção se aplicável>",
+      "explanation": "<explicação pedagógica pontual do corretor>"
+    },
+    {
+      "competency": 2,
+      "type": "repertoire",
+      "snippet": "<trecho exato com citação ou repertório sociocultural>",
+      "explanation": "<comentário sobre a legitimidade e produtividade do repertório>"
+    },
+    {
+      "competency": 4,
+      "type": "connective",
+      "snippet": "<trecho exato com conectivo inter ou intraparágrafo>",
+      "explanation": "<avaliação da coesão e variedade conectiva>"
+    },
+    {
+      "competency": 5,
+      "type": "intervention",
+      "snippet": "<trecho exato da proposta de intervenção social>",
+      "explanation": "<destaque do elemento de intervenção identificado>"
+    }
+  ],
   "strengths": "<2-3 pontos fortes da redação>",
   "weaknesses": "<2-3 pontos a melhorar, SE houver>",
   "tips": "<3 dicas práticas para melhorar>"
@@ -266,8 +300,8 @@ ${content}
 Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade quando presente. Analise cada competência cuidadosamente antes de atribuir a nota.`;
 
     // Chamar API da Groq
-    console.log("[correct-essay] Chamando Groq API para correção...");
-    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    console.log("[correct-essay] Chamando Groq API (llama-3.3-70b-versatile) para correção...");
+    let groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${groqApiKey}`,
@@ -287,11 +321,39 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
       }),
     });
 
+    // Fallback de contingência caso o modelo 70b sofra rate limit (429) ou indisponibilidade
     if (!groqResponse.ok) {
-      const errorText = await groqResponse.text();
-      console.error("[correct-essay] Erro na API Groq:", groqResponse.status, errorText);
+      console.warn("[correct-essay] Falha no llama-3.3-70b-versatile, tentando fallback com llama-3.1-8b-instant...");
+      try {
+        groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${groqApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "llama-3.1-8b-instant",
+            messages: [
+              {
+                role: "system",
+                content: ENEM_RUBRIC_PROMPT
+              },
+              { role: "user", content: userPrompt }
+            ],
+            max_tokens: 2500,
+            temperature: 0.15,
+          }),
+        });
+      } catch (err) {
+        console.error("[correct-essay] Erro no fallback:", err);
+      }
+    }
+
+    if (!groqResponse || !groqResponse.ok) {
+      const errorText = groqResponse ? await groqResponse.text() : "Falha na requisição";
+      console.error("[correct-essay] Erro na API Groq:", groqResponse?.status, errorText);
       return new Response(
-        JSON.stringify({ error: "Erro ao corrigir redação" }),
+        JSON.stringify({ error: "Erro ao corrigir redação com IA. Tente novamente em instantes." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -347,6 +409,8 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
       },
       strengths: correction.strengths || "Pontos fortes não identificados",
       weaknesses: correction.weaknesses || "Pontos a melhorar não identificados",
+      intervention_checklist: correction.intervention_checklist || null,
+      annotated_snippets: correction.annotated_snippets || [],
     });
 
     // Salvar redação no banco de dados

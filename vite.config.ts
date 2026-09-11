@@ -13,17 +13,31 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@features": path.resolve(__dirname, "./src/features"),
+      "@shared": path.resolve(__dirname, "./src/shared"),
     },
   },
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-popover', '@radix-ui/react-select', '@radix-ui/react-tabs', '@radix-ui/react-tooltip', '@radix-ui/react-dropdown-menu'],
-          'vendor-charts': ['recharts'],
-          'vendor-motion': ['framer-motion'],
-          'vendor-supabase': ['@supabase/supabase-js'],
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("react") || id.includes("react-dom") || id.includes("react-router-dom")) {
+              return "vendor-react";
+            }
+            if (id.includes("@radix-ui")) {
+              return "vendor-ui";
+            }
+            if (id.includes("recharts")) {
+              return "vendor-charts";
+            }
+            if (id.includes("framer-motion")) {
+              return "vendor-motion";
+            }
+            if (id.includes("@supabase")) {
+              return "vendor-supabase";
+            }
+          }
         },
       },
     },

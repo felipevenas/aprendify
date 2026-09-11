@@ -121,7 +121,7 @@ REGRAS DE FORMATAÇÃO OBRIGATÓRIAS:
 
 Responda em português brasileiro de forma organizada e concisa.`;
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    let response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${groqApiKey}`,
@@ -138,8 +138,31 @@ Responda em português brasileiro de forma organizada e concisa.`;
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[ai-study-suggestion] Erro na API Groq:", response.status, errorText);
+      console.warn("[ai-study-suggestion] Falha no 70b, tentando fallback com llama-3.1-8b-instant...");
+      try {
+        response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${groqApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "llama-3.1-8b-instant",
+            messages: [
+              { role: "user", content: prompt }
+            ],
+            max_tokens: 1000,
+            temperature: 0.7,
+          }),
+        });
+      } catch (fbErr) {
+        console.warn("[ai-study-suggestion] Erro no fallback:", fbErr);
+      }
+    }
+
+    if (!response || !response.ok) {
+      const errorText = response ? await response.text() : "Sem conexão";
+      console.error("[ai-study-suggestion] Erro na API Groq:", response?.status, errorText);
       return new Response(
         JSON.stringify({ error: "Erro ao gerar sugestões" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
