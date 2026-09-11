@@ -372,7 +372,6 @@ const Questions = () => {
               </AlertDescription>
             </Alert>
           )}
-        </motion.div>
 
         {/* Painel de Filtros */}
         {showFilters && (
