@@ -6,19 +6,20 @@ Destino: landing `https://aprendify.cloud` (projeto `C:\Codes\landing-aprendify`
 
 - DNS autoritativo: `ns1.dns-parking.com` e `ns2.dns-parking.com` (Hostinger).
 - O domínio raiz responde na Vercel e redireciona 308 para `www.aprendify.cloud`.
-- Não foi encontrado CNAME para `app.aprendify.cloud`.
-- Os painéis Vercel e Hostinger exigem login na sessão disponível. Nenhuma alteração de DNS ou publicação foi realizada nesta etapa.
+- `app.aprendify.cloud` está associado ao projeto Vercel do aplicativo.
+- `aprendify.cloud` e `www.aprendify.cloud` estão associados ao projeto Vercel `landing-aprendify`; o apex é o canônico e `www` redireciona com 308.
+- O CNAME `app → aa1315d621ff2d28.vercel-dns-017.com` foi criado na zona DNS da Hostinger.
 
 ## Ordem de publicação
 
-1. Publicar e validar as correções da aplicação na Vercel, no projeto existente. Não remover o domínio antigo ainda.
-2. Em Settings > Domains do projeto da aplicação, adicionar `app.aprendify.cloud`. Copiar o destino DNS **exato** apresentado pela Vercel (pode ser específico do projeto).
-3. No editor DNS da Hostinger, criar CNAME com nome `app`, destino retornado pela Vercel. Verificar se já há A/AAAA/CNAME conflitante para esse mesmo nome. Não mudar nameservers, MX, TXT de e-mail ou outros serviços.
-4. Aguardar validação DNS e emissão TLS na Vercel. Testar acesso direto a `/auth`, `/dashboard` e recarga de rotas no subdomínio.
+1. Aplicação publicada e validada na Vercel no projeto existente.
+2. `app.aprendify.cloud` adicionado ao projeto da aplicação, com TLS emitido e acesso a `/auth` validado.
+3. CNAME `app` criado na Hostinger, sem alteração de nameservers, MX ou TXT existentes.
+4. Landing publicada no projeto Vercel `landing-aprendify`; `aprendify.cloud` é o domínio principal e `www` redireciona para ele.
 5. Supabase Auth: configurar Site URL para `https://app.aprendify.cloud`; incluir os retornos exatos usados pelo cliente (`/dashboard`, `/auth?reset=true` e `/`) em Redirect URLs. Conferir templates de e-mail e preservação de token/código. Manter URLs antigas apenas durante a transição necessária para links já enviados.
 6. Conferir no console Google OAuth o fluxo utilizado. No fluxo Supabase, o callback OAuth continua sendo o endpoint `/auth/v1/callback` do Supabase, não deve ser substituído pelo endereço da landing. Atualizar origens autorizadas se usadas. Adicionar o novo hostname nas configurações do reCAPTCHA se esse recurso estiver ativo.
 7. Publicar as Edge Functions alteradas e aplicar a migração SQL após validação em ambiente de teste; verificar permissões, limites e pagamento. Checkout e portal passam a retornar para o subdomínio do aplicativo.
-8. Criar/publicar projeto Vercel separado para a landing; validar seu preview e build. Associar `aprendify.cloud` e `www.aprendify.cloud` a esse projeto. Remover a regra antiga raiz → www e configurar www → raiz. Aplicar o A/CNAME indicado pelo painel somente se necessário.
+8. Projeto Vercel separado da landing criado, publicado e associado aos dois domínios. A regra apex → www foi removida e `www → apex` configurado.
 9. Manter redirecionamentos de rotas legadas do app na landing, preservando caminhos e query strings (especialmente recuperação de senha e pagamento). Sessões em localStorage não atravessam domínios: usuários precisarão entrar novamente.
 10. Testar HTTPS, login Google, login/senha, recuperação, checkout/portal e links compartilhados. Não concluir a migração antes desses testes.
 
