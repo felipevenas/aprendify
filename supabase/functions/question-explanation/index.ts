@@ -35,10 +35,26 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Método não permitido" }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const contentLength = Number(req.headers.get("content-length") ?? "0");
+  if (contentLength > 128 * 1024) {
+    return new Response(JSON.stringify({ error: "Requisição muito grande" }), {
+      status: 413,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     // Verificar autenticação do usuário
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    const token = authHeader?.match(/^Bearer\s+(\S+)$/i)?.[1];
+    if (!token) {
       return new Response(
         JSON.stringify({ error: "Não autorizado" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -51,7 +67,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } }
+      global: { headers: { Authorization: `Bearer ${token}` } }
     });
 
     // Obter usuário atual
@@ -93,7 +109,10 @@ serve(async (req) => {
 
     if (rateLimitError) {
       console.error("[question-explanation] Rate limit check error:", rateLimitError);
-      // Continue anyway if rate limit check fails
+      return new Response(
+        JSON.stringify({ error: "Controle de uso temporariamente indisponível" }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     } else if (!rateLimitAllowed) {
       console.log("[question-explanation] Rate limit exceeded for user:", user.id);
       return new Response(

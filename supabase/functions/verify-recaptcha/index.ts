@@ -12,9 +12,10 @@ serve(async (req) => {
   }
 
   try {
-    const { token } = await req.json();
+    const body = await req.json();
+    const token = typeof body?.token === 'string' ? body.token.trim() : '';
     
-    if (!token) {
+    if (!token || token.length > 4096) {
       console.error("Token reCAPTCHA não fornecido");
       return new Response(
         JSON.stringify({ success: false, error: "Token não fornecido" }),
@@ -49,7 +50,9 @@ serve(async (req) => {
       challenge_ts: result.challenge_ts
     });
 
-    if (!result.success) {
+    const allowedHostnames = new Set(['app.aprendify.cloud', 'aprendify.cloud', 'www.aprendify.cloud', 'localhost']);
+    const hostname = typeof result.hostname === 'string' ? result.hostname.toLowerCase() : '';
+    if (!result.success || !allowedHostnames.has(hostname)) {
       return new Response(
         JSON.stringify({ 
           success: false, 
