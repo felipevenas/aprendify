@@ -6,6 +6,51 @@ BEGIN;
 REVOKE ALL ON FUNCTION public.check_rate_limit(uuid, text, integer, integer) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.check_rate_limit(uuid, text, integer, integer) TO service_role;
 
+-- Keep the SECURITY DEFINER limiter bounded even if a trusted caller passes
+-- malformed values. This also avoids unbounded intervals and arbitrary keys.
+CREATE OR REPLACE FUNCTION public.check_rate_limit(
+  _user_id uuid,
+  _function_name text,
+  _max_calls integer DEFAULT 10,
+  _window_minutes integer DEFAULT 60
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  _window_start timestamptz;
+  _current_count integer;
+BEGIN
+  IF _user_id IS NULL OR _function_name IS NULL OR
+     _function_name !~ '^[a-z0-9][a-z0-9-]{0,63}$' OR
+     _max_calls < 1 OR _max_calls > 1000 OR
+     _window_minutes < 1 OR _window_minutes > 1440 THEN
+    RAISE EXCEPTION 'Invalid rate limit parameters' USING ERRCODE = '22023';
+  END IF;
+
+  _window_start := now() - make_interval(mins => _window_minutes);
+  SELECT calls_count INTO _current_count
+  FROM public.ai_rate_limits
+  WHERE user_id = _user_id AND function_name = _function_name
+    AND window_start > _window_start
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    INSERT INTO public.ai_rate_limits (user_id, function_name, calls_count, window_start)
+    VALUES (_user_id, _function_name, 1, now())
+    ON CONFLICT (user_id, function_name) DO UPDATE SET
+      calls_count = 1, window_start = now(), updated_at = now();
+    RETURN TRUE;
+  END IF;
+  IF _current_count >= _max_calls THEN RETURN FALSE; END IF;
+  UPDATE public.ai_rate_limits SET calls_count = calls_count + 1, updated_at = now()
+  WHERE user_id = _user_id AND function_name = _function_name;
+  RETURN TRUE;
+END;
+$$;
+
 -- Anonymous auth.uid() is NULL: older IF user_id != auth.uid() checks do not
 -- reject that case. Remove anonymous execution, retaining authenticated APIs.
 REVOKE ALL ON FUNCTION public.unlock_achievement(uuid, text) FROM PUBLIC, anon;
@@ -40,6 +85,7 @@ BEGIN
 END;
 $$;
 REVOKE ALL ON FUNCTION public.protect_creator_coupon_fields() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS protect_creator_coupon_fields ON public.creator_coupons;
 CREATE TRIGGER protect_creator_coupon_fields
 BEFORE UPDATE ON public.creator_coupons
 FOR EACH ROW EXECUTE FUNCTION public.protect_creator_coupon_fields();
