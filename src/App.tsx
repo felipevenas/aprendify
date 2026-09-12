@@ -6,12 +6,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { AppSkeleton } from "@/components/ui/page-skeletons";
+import { pageLoaders } from "@/lib/pageLoaders";
 
 const SuspenseFallback = () => <AppSkeleton />;
 
 // Light pages that don't need heavy providers
-const Auth = lazy(() => import("./pages/Auth"));
-const SalesPage = lazy(() => import("./pages/SalesPage"));
+const Auth = lazy(pageLoaders.Auth);
+const SalesPage = lazy(pageLoaders.SalesPage);
 
 // Heavy app layout with providers - only loaded when navigating to app routes
 const AppLayout = lazy(() => import("./components/AppLayout"));
@@ -33,7 +34,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_startTransition: true }}>
           <Suspense fallback={<SuspenseFallback />}>
             <Routes>
               {/* Light routes - no heavy providers loaded */}
