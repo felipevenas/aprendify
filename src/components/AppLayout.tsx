@@ -10,6 +10,10 @@ import { FloatingPomodoro } from "@/components/dashboard/FloatingPomodoro";
 import { PageContentSkeleton } from "@/components/ui/page-skeletons";
 import Navbar, { NavbarLayoutContext } from "@/shared/components/layout/Navbar";
 
+import { pageLoaders } from "@/lib/pageLoaders";
+import { RouteContent } from "@/components/RouteContent";
+import { MotionConfig } from "framer-motion";
+
 const SuspenseFallback = () => <PageContentSkeleton />;
 
 const BackgroundPreloaderInit = () => {
@@ -18,32 +22,32 @@ const BackgroundPreloaderInit = () => {
 };
 
 // Lazy-loaded page components
-const Dashboard = lazy(() => import("@/pages/Dashboard"));
-const Schedule = lazy(() => import("@/pages/Schedule"));
-const Tasks = lazy(() => import("@/pages/Tasks"));
-const Notes = lazy(() => import("@/pages/Notes"));
-const Questions = lazy(() => import("@/pages/Questions"));
-const Settings = lazy(() => import("@/pages/Settings"));
-const Statistics = lazy(() => import("@/pages/Statistics"));
-const AdminImport = lazy(() => import("@/pages/AdminImport"));
-const AdminUsers = lazy(() => import("@/pages/AdminUsers"));
-const AdminQuestions = lazy(() => import("@/pages/AdminQuestions"));
-const Flashcards = lazy(() => import("@/pages/Flashcards"));
-const Essays = lazy(() => import("@/pages/Essays"));
-const SubscriptionSuccess = lazy(() => import("@/pages/SubscriptionSuccess"));
-const Subscription = lazy(() => import("@/pages/Subscription"));
-const Simulados = lazy(() => import("@/pages/Simulados"));
-const SimuladoActive = lazy(() => import("@/pages/SimuladoActive"));
-const SimuladoResults = lazy(() => import("@/pages/SimuladoResults"));
-const CreatorDashboard = lazy(() => import("@/pages/CreatorDashboard"));
-const Achievements = lazy(() => import("@/pages/Achievements"));
-const AdminNotifications = lazy(() => import("@/pages/AdminNotifications"));
-const Feedback = lazy(() => import("@/pages/Feedback"));
-const AdminFeedback = lazy(() => import("@/pages/AdminFeedback"));
-const ReviewErrors = lazy(() => import("@/pages/ReviewErrors"));
-const TRICalculator = lazy(() => import("@/pages/TRICalculator"));
-const SalesPage = lazy(() => import("@/pages/SalesPage"));
-const NotFound = lazy(() => import("@/pages/NotFound"));
+const Dashboard = lazy(pageLoaders.Dashboard);
+const Schedule = lazy(pageLoaders.Schedule);
+const Tasks = lazy(pageLoaders.Tasks);
+const Notes = lazy(pageLoaders.Notes);
+const Questions = lazy(pageLoaders.Questions);
+const Settings = lazy(pageLoaders.Settings);
+const Statistics = lazy(pageLoaders.Statistics);
+const AdminImport = lazy(pageLoaders.AdminImport);
+const AdminUsers = lazy(pageLoaders.AdminUsers);
+const AdminQuestions = lazy(pageLoaders.AdminQuestions);
+const Flashcards = lazy(pageLoaders.Flashcards);
+const Essays = lazy(pageLoaders.Essays);
+const SubscriptionSuccess = lazy(pageLoaders.SubscriptionSuccess);
+const Subscription = lazy(pageLoaders.Subscription);
+const Simulados = lazy(pageLoaders.Simulados);
+const SimuladoActive = lazy(pageLoaders.SimuladoActive);
+const SimuladoResults = lazy(pageLoaders.SimuladoResults);
+const CreatorDashboard = lazy(pageLoaders.CreatorDashboard);
+const Achievements = lazy(pageLoaders.Achievements);
+const AdminNotifications = lazy(pageLoaders.AdminNotifications);
+const Feedback = lazy(pageLoaders.Feedback);
+const AdminFeedback = lazy(pageLoaders.AdminFeedback);
+const ReviewErrors = lazy(pageLoaders.ReviewErrors);
+const TRICalculator = lazy(pageLoaders.TRICalculator);
+const SalesPage = lazy(pageLoaders.SalesPage);
+const NotFound = lazy(pageLoaders.NotFound);
 
 /**
  * AppLayout wraps authenticated/app routes with heavy providers
@@ -60,6 +64,7 @@ const AppLayout = () => {
   const showNavbar = !isSimuladoRunning && !isSalesRoute;
 
   return (
+    <MotionConfig reducedMotion="user">
     <StreakProvider>
       <PremiumProvider>
         <HelpTooltipsProvider>
@@ -67,6 +72,7 @@ const AppLayout = () => {
             <BackgroundPreloaderInit />
             <NavbarLayoutContext.Provider value={true}>
               {showNavbar && <Navbar isLayoutRoot />}
+              <RouteContent>
               <Suspense fallback={<SuspenseFallback />}>
                 <Routes>
                   <Route path="/dashboard" element={<Dashboard />} />
@@ -98,6 +104,7 @@ const AppLayout = () => {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
+              </RouteContent>
             </NavbarLayoutContext.Provider>
             <TourOverlay />
             <FloatingPomodoro />
@@ -105,6 +112,7 @@ const AppLayout = () => {
         </HelpTooltipsProvider>
       </PremiumProvider>
     </StreakProvider>
+    </MotionConfig>
   );
 };
 

@@ -1,3 +1,4 @@
+import { authorizeAI } from "../_shared/authorize.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -20,6 +21,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const authorization = await authorizeAI(req, corsHeaders, "analyze-question-difficulty", false);
+  if (authorization.response) return authorization.response;
 
   try {
     const { 
@@ -115,7 +119,7 @@ Nada mais, apenas a classificação.`;
 
     // Salva no banco apenas se a flag estiver ativa (questões do banco local)
     let saved = false;
-    if (saveToDatabase && questionId && !questionId.startsWith("api_")) {
+    if (authorization.isAdmin && saveToDatabase && questionId && !questionId.startsWith("api_")) {
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseServiceKey);

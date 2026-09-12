@@ -43,44 +43,58 @@ const TourOverlay = () => {
     if (element) {
       const rect = element.getBoundingClientRect();
       
-      setElementRect({
+      const nextRect = {
         top: rect.top,
         left: rect.left,
         width: rect.width,
         height: rect.height,
         bottom: rect.bottom,
         right: rect.right,
-      });
-
-      // Scroll suave para o elemento se não estiver visível
-      const isInView = rect.top >= 0 && rect.bottom <= window.innerHeight;
-      if (!isInView) {
-        element.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
+      };
+      setElementRect(previous => previous &&
+        previous.top === nextRect.top && previous.left === nextRect.left &&
+        previous.width === nextRect.width && previous.height === nextRect.height
+        ? previous : nextRect);
     } else {
       setElementRect(null);
     }
   }, [currentTooltip]);
 
-  // Atualiza posição continuamente enquanto o tour está ativo
+  // Measure on actual layout/scroll changes, not on every animation frame.
   useEffect(() => {
     if (!showTooltips || !currentTooltip) return;
 
-    const animate = () => {
-      updatePosition();
-      rafRef.current = requestAnimationFrame(animate);
+    const schedulePosition = () => {
+      if (rafRef.current !== null) return;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        updatePosition();
+      });
     };
-
-    // Pequeno delay inicial para garantir que elementos estão renderizados
-    const timer = setTimeout(() => {
-      updatePosition();
-      rafRef.current = requestAnimationFrame(animate);
-    }, 150);
+    const element = document.querySelector(currentTooltip.target);
+    if (element) {
+      const rect = element.getBoundingClientRect();
+      if (rect.top < 64 || rect.bottom > window.innerHeight) {
+        element.scrollIntoView({
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+          block: "center",
+        });
+      }
+    }
+    schedulePosition();
+    const observer = new ResizeObserver(schedulePosition);
+    observer.observe(document.body);
+    if (element) observer.observe(element);
+    window.addEventListener("resize", schedulePosition);
+    window.addEventListener("scroll", schedulePosition, { passive: true, capture: true });
 
     return () => {
-      clearTimeout(timer);
-      if (rafRef.current) {
+      observer.disconnect();
+      window.removeEventListener("resize", schedulePosition);
+      window.removeEventListener("scroll", schedulePosition, true);
+      if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
       }
     };
   }, [showTooltips, currentTooltip, currentTooltipIndex, updatePosition]);

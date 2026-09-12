@@ -1,14 +1,4 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
+# Crawling is allowed so search engines can read the noindex directive.
+# Public, indexable content and its sitemap live on aprendify.cloud.
 User-agent: *
 Allow: /

@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
@@ -24,8 +24,10 @@ import { StreakIndicator } from "@/components/streak/StreakIndicator";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
-import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useHelpTooltips } from "@/contexts/HelpTooltipsContext";
+
+import { preloadRoute } from "@/lib/pageLoaders";
 
 export const NavbarLayoutContext = createContext<boolean>(false);
 
@@ -37,11 +39,7 @@ interface NavbarProps {
  * Navbar adaptativa que renderiza a Sidebar Fixa (Desktop),
  * o Header Superior Minimalista (Topbar) e a gaveta responsiva (Mobile).
  */
-const Navbar = ({ isLayoutRoot = false }: NavbarProps) => {
-  const isInsideLayout = useContext(NavbarLayoutContext);
-  if (!isLayoutRoot && isInsideLayout) {
-    return null;
-  }
+const NavbarContent = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, setTheme } = useTheme();
@@ -92,6 +90,10 @@ const Navbar = ({ isLayoutRoot = false }: NavbarProps) => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -157,9 +159,8 @@ const Navbar = ({ isLayoutRoot = false }: NavbarProps) => {
       {/* ─── SIDEBAR FIXA (DESKTOP) ────────────────────────────────────────── */}
       <aside className="hidden lg:flex flex-col w-64 fixed left-0 top-0 bottom-0 bg-card border-r border-border/50 z-40 sidebar-desktop shadow-sm">
         {/* Topo da Sidebar - Logo */}
-        <div 
+        <Link to="/dashboard"
           className="flex items-center gap-2.5 px-6 h-16 border-b border-border/50 cursor-pointer flex-shrink-0"
-          onClick={() => navigate("/dashboard")}
         >
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center shadow-md">
             <BookOpen className="h-5 w-5 text-primary-foreground" />
@@ -167,7 +168,7 @@ const Navbar = ({ isLayoutRoot = false }: NavbarProps) => {
           <span className="text-xl font-bold text-gradient">
             Aprendify
           </span>
-        </div>
+        </Link>
 
         {/* Links da Sidebar */}
         <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
@@ -178,16 +179,19 @@ const Navbar = ({ isLayoutRoot = false }: NavbarProps) => {
                 {group.items.map((item) => {
                   const isActive = location.pathname === item.path;
                   return (
-                    <button
+                    <Link
                       key={item.path}
-                      onClick={() => navigate(item.path)}
-                      className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
+                      to={item.path}
+                      onPointerEnter={() => preloadRoute(item.path)}
+                      onFocus={() => preloadRoute(item.path)}
+                      aria-current={location.pathname === item.path ? "page" : undefined}
+                      className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm transition-colors duration-200 ${
                         isActive ? "sidebar-link-active" : "sidebar-link-inactive"
                       }`}
                     >
                       <item.icon className={`h-5 w-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
                       <span className="font-medium">{item.name}</span>
-                    </button>
+                    </Link>
                   );
                 })}
               </div>
@@ -202,16 +206,19 @@ const Navbar = ({ isLayoutRoot = false }: NavbarProps) => {
                 {adminGroup.items.map((item) => {
                   const isActive = location.pathname === item.path;
                   return (
-                    <button
+                    <Link
                       key={item.path}
-                      onClick={() => navigate(item.path)}
-                      className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
+                      to={item.path}
+                      onPointerEnter={() => preloadRoute(item.path)}
+                      onFocus={() => preloadRoute(item.path)}
+                      aria-current={location.pathname === item.path ? "page" : undefined}
+                      className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm transition-colors duration-200 ${
                         isActive ? "sidebar-link-active" : "sidebar-link-inactive"
                       }`}
                     >
                       <item.icon className={`h-5 w-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
                       <span className="font-medium">{item.name}</span>
-                    </button>
+                    </Link>
                   );
                 })}
               </div>
@@ -228,11 +235,13 @@ const Navbar = ({ isLayoutRoot = false }: NavbarProps) => {
         <div className="flex items-center gap-2 lg:hidden">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+              <Button aria-label="Abrir menu" variant="ghost" size="icon" className="h-9 w-9 rounded-full">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-[280px] p-0 overflow-hidden flex flex-col">
+              <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
+              <SheetDescription className="sr-only">Acesse seus estudos e configurações.</SheetDescription>
               {/* Header do Menu Mobile */}
               <div className="p-4 border-b border-border/50 bg-muted/30 flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
@@ -249,15 +258,18 @@ const Navbar = ({ isLayoutRoot = false }: NavbarProps) => {
                     <div className="space-y-0.5">
                       {group.items.map((item) => (
                         <SheetClose asChild key={item.path}>
-                          <button
-                            onClick={() => navigate(item.path)}
-                            className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
+                          <Link
+                            to={item.path}
+                      onPointerEnter={() => preloadRoute(item.path)}
+                      onFocus={() => preloadRoute(item.path)}
+                      aria-current={location.pathname === item.path ? "page" : undefined}
+                            className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm transition-colors duration-200 ${
                               location.pathname === item.path ? "sidebar-link-active" : "sidebar-link-inactive"
                             }`}
                           >
                             <item.icon className="h-4 w-4" />
                             <span className="font-medium">{item.name}</span>
-                          </button>
+                          </Link>
                         </SheetClose>
                       ))}
                     </div>
@@ -271,15 +283,18 @@ const Navbar = ({ isLayoutRoot = false }: NavbarProps) => {
                     <div className="space-y-0.5">
                       {adminGroup.items.map((item) => (
                         <SheetClose asChild key={item.path}>
-                          <button
-                            onClick={() => navigate(item.path)}
-                            className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
+                          <Link
+                            to={item.path}
+                      onPointerEnter={() => preloadRoute(item.path)}
+                      onFocus={() => preloadRoute(item.path)}
+                      aria-current={location.pathname === item.path ? "page" : undefined}
+                            className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm transition-colors duration-200 ${
                               location.pathname === item.path ? "sidebar-link-active" : "sidebar-link-inactive"
                             }`}
                           >
                             <item.icon className="h-4 w-4" />
                             <span className="font-medium">{item.name}</span>
-                          </button>
+                          </Link>
                         </SheetClose>
                       ))}
                     </div>
@@ -290,12 +305,12 @@ const Navbar = ({ isLayoutRoot = false }: NavbarProps) => {
           </Sheet>
           
           {/* Logo Mobile */}
-          <div onClick={() => navigate("/dashboard")} className="flex items-center gap-1.5 cursor-pointer">
+          <Link to="/dashboard" className="flex items-center gap-1.5 cursor-pointer">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-md">
               <BookOpen className="h-4 w-4 text-primary-foreground" />
             </div>
             <span className="text-md font-bold text-gradient">Aprendify</span>
-          </div>
+          </Link>
         </div>
 
         {/* Lado Direito - Widgets Globais */}
@@ -319,7 +334,7 @@ const Navbar = ({ isLayoutRoot = false }: NavbarProps) => {
                     variant="ghost"
                     size="icon"
                     onClick={() => isCreator ? navigate("/creator") : isPremium ? setShowPremiumModal(true) : navigate("/subscription")}
-                    className="rounded-full h-9 w-9 sm:h-10 sm:w-10 transition-all duration-300 hover:scale-105"
+                    className="rounded-full h-9 w-9 sm:h-10 sm:w-10 transition-colors duration-300"
                   >
                     {isCreator ? (
                       <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
@@ -345,7 +360,7 @@ const Navbar = ({ isLayoutRoot = false }: NavbarProps) => {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="flex items-center gap-1.5 sm:gap-2 hover:bg-primary/10 rounded-full pr-2.5 sm:pr-3 md:pr-4 pl-1 sm:pl-1.5 md:pl-2 h-9 sm:h-10 transition-all duration-300"
+                className="flex items-center gap-1.5 sm:gap-2 hover:bg-primary/10 rounded-full pr-2.5 sm:pr-3 md:pr-4 pl-1 sm:pl-1.5 md:pl-2 h-9 sm:h-10 transition-colors duration-300"
               >
                 <Avatar className="h-7 w-7 sm:h-8 sm:w-8 ring-2 ring-primary/20 ring-offset-1 sm:ring-offset-2 ring-offset-background">
                   <AvatarImage src={user.user_metadata?.avatar_url} />
@@ -365,7 +380,6 @@ const Navbar = ({ isLayoutRoot = false }: NavbarProps) => {
               {/* Toggle de Tema */}
               <div 
                 className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-accent cursor-pointer"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               >
                 <div className="flex items-center">
                   {theme === "dark" ? (
@@ -375,7 +389,7 @@ const Navbar = ({ isLayoutRoot = false }: NavbarProps) => {
                   )}
                   <span className="text-sm">Tema Escuro</span>
                 </div>
-                <Switch 
+                <Switch aria-label="Tema escuro"
                   checked={theme === "dark"} 
                   onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
                 />
@@ -437,6 +451,11 @@ const Navbar = ({ isLayoutRoot = false }: NavbarProps) => {
       <PremiumModal open={showPremiumModal} onOpenChange={setShowPremiumModal} isPremium={isPremium} />
     </>
   );
+};
+
+const Navbar = ({ isLayoutRoot = false }: NavbarProps) => {
+  const isInsideLayout = useContext(NavbarLayoutContext);
+  return !isLayoutRoot && isInsideLayout ? null : <NavbarContent />;
 };
 
 export default Navbar;

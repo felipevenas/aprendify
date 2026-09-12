@@ -224,6 +224,8 @@ export const HelpTooltipsProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Redireciona os tooltips reativamente com base na rota ativa
   useEffect(() => {
+    setShowTooltips(false);
+    setCurrentTooltipIndex(0);
     const path = location.pathname;
     if (path === "/dashboard") {
       setTooltips(dashboardTooltips);

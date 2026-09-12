@@ -1,3 +1,4 @@
+import { paymentReturnUrl } from "../_shared/redirects.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
@@ -83,11 +84,6 @@ serve(async (req) => {
       logStep("Found existing customer", { customerId });
     }
 
-    const rawOrigin = req.headers.get("origin") || "";
-    // Se a requisição veio de um subdomínio de vendas ou página externa, direciona o retorno para a plataforma principal
-    const defaultAppUrl = "https://www.aprendify.cloud";
-    const resolvedOrigin = rawOrigin.includes("aprendify.cloud") ? defaultAppUrl : (rawOrigin || defaultAppUrl);
-    
     // Montagem dinâmica dos line_items
     let checkoutLineItems: Array<{ price: string; quantity: number }> = [];
     if (Array.isArray(items) && items.length > 0) {
@@ -120,8 +116,8 @@ serve(async (req) => {
       customer_email: customerId ? undefined : user.email,
       line_items: checkoutLineItems,
       mode: "subscription",
-      success_url: successUrl || `${resolvedOrigin}/subscription/success`,
-      cancel_url: cancelUrl || `${resolvedOrigin}/dashboard?payment=cancelled`,
+      success_url: paymentReturnUrl(successUrl, "/subscription/success"),
+      cancel_url: paymentReturnUrl(cancelUrl, "/dashboard?payment=cancelled"),
       metadata: {
         user_id: user.id,
       },

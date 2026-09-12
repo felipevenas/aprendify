@@ -1,5 +1,4 @@
 import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "./skeleton";
 import { DashboardSkeleton, CardGridSkeleton, ListSkeleton } from "./page-skeletons";
 
@@ -24,15 +23,12 @@ export const PageLoader = ({
     <div className="relative w-full">
 
 
-      <AnimatePresence mode="wait">
         {loading ? (
-          <motion.div
+          <div
             key="skeleton-view"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
             className="w-full"
+            role="status"
+            aria-label="Carregando conteúdo"
           >
             {variant === "dashboard" ? (
               <DashboardSkeleton />
@@ -60,19 +56,15 @@ export const PageLoader = ({
                 </div>
               </div>
             )}
-          </motion.div>
+          </div>
         ) : (
-          <motion.div
+          <div
             key="content-view"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.25 }}
-            className="w-full"
+            className="w-full content-enter"
           >
             {children}
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 };
@@ -92,31 +84,27 @@ export const ContentLoader = ({
   rows?: number;
 }) => {
   return (
-    <AnimatePresence mode="wait">
+    <div aria-busy={loading}>
       {loading ? (
-        <motion.div
+        <div
           key="content-skeleton"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          role="status"
+          aria-label="Carregando conteúdo"
           className={`space-y-3 py-4 w-full ${className}`}
         >
           {Array.from({ length: rows }).map((_, i) => (
             <Skeleton key={i} className="h-14 w-full rounded-xl" />
           ))}
-        </motion.div>
+        </div>
       ) : (
-        <motion.div
+        <div
           key="content-loaded"
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2 }}
-          className="w-full"
+          className="w-full content-enter"
         >
           {children}
-        </motion.div>
+        </div>
       )}
-    </AnimatePresence>
+    </div>
   );
 };
 

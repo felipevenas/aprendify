@@ -184,12 +184,12 @@ export const ShareResultsButton = ({
 
   const handleTwitterShare = () => {
     const text = encodeURIComponent(getShareText());
-    const url = encodeURIComponent("https://aprendify.lovable.app");
+    const url = encodeURIComponent("https://aprendify.cloud");
     window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, "_blank");
   };
 
   const handleFacebookShare = () => {
-    const url = encodeURIComponent("https://aprendify.lovable.app");
+    const url = encodeURIComponent("https://aprendify.cloud");
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, "_blank");
   };
 
@@ -224,7 +224,7 @@ export const ShareResultsButton = ({
         await navigator.share({
           title: "Meu Resultado no Simulado ENEM",
           text: getShareText(),
-          url: "https://aprendify.lovable.app"
+          url: "https://aprendify.cloud"
         });
       }
     } catch (error) {
