@@ -41,7 +41,11 @@ export function RouteContent({ children }: { children: ReactNode }) {
 
   return (
     <div ref={container} tabIndex={-1} className="outline-none" aria-label="Conteúdo da página">
-      <PageErrorBoundary key={pathname}>{children}</PageErrorBoundary>
+      <div key={pathname} className="content-enter">
+        <PageErrorBoundary>
+          {children}
+        </PageErrorBoundary>
+      </div>
     </div>
   );
 }

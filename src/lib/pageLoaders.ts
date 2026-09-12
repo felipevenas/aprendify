@@ -1,5 +1,7 @@
 // Shared loaders let keyboard focus and pointer intent warm the same lazy chunks.
 export const pageLoaders = {
+  Auth: () => import("@/pages/Auth"),
+  SalesPage: () => import("@/pages/SalesPage"),
   Dashboard: () => import("@/pages/Dashboard"),
   Schedule: () => import("@/pages/Schedule"),
   Tasks: () => import("@/pages/Tasks"),
@@ -24,9 +26,10 @@ export const pageLoaders = {
   AdminFeedback: () => import("@/pages/AdminFeedback"),
   ReviewErrors: () => import("@/pages/ReviewErrors"),
   TRICalculator: () => import("@/pages/TRICalculator"),
-  SalesPage: () => import("@/pages/SalesPage"),
   NotFound: () => import("@/pages/NotFound"),
 };
+
+const preloadedRoutes = new Map<string, Promise<unknown>>();
 
 const routeLoaders: Record<string, () => Promise<unknown>> = {
   "/dashboard": pageLoaders.Dashboard,
@@ -58,6 +61,16 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
 export function preloadRoute(pathname: string) {
   const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
   if (connection?.saveData || /(^|-)2g$/.test(connection?.effectiveType ?? "")) return;
-  // Failed speculation must not create an unhandled rejection. Navigation can retry.
-  void routeLoaders[pathname]?.().catch(() => undefined);
+  const loader = routeLoaders[pathname];
+  if (!loader || preloadedRoutes.has(pathname)) return;
+
+  // Keep one promise per route so repeated pointer/focus events never start
+  // duplicate work. A failed speculation is discarded so a later navigation
+  // can retry the chunk normally.
+  const promise = loader().catch((error) => {
+    preloadedRoutes.delete(pathname);
+    throw error;
+  });
+  preloadedRoutes.set(pathname, promise);
+  void promise.catch(() => undefined);
 }
