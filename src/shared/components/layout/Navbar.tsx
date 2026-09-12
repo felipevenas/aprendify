@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   Settings, LogOut, Moon, Sun, BookOpen, Crown, CreditCard, Sparkles, Trophy, Shield, Menu, MessageSquarePlus,
   LayoutDashboard, Calendar, CheckSquare, FileText, BarChart3, FileSpreadsheet, Layers, PenTool, Upload, Users, Settings2,
-  HelpCircle, RotateCcw, Calculator
+  HelpCircle, RotateCcw, Calculator, ChevronDown
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { usePremiumContext } from "@/contexts/PremiumContext";
@@ -30,6 +30,40 @@ import { useHelpTooltips } from "@/contexts/HelpTooltipsContext";
 import { preloadRoute } from "@/lib/pageLoaders";
 
 export const NavbarLayoutContext = createContext<boolean>(false);
+
+const MENU_GROUPS = [
+  { title: "Estudos", items: [
+    { name: "Painel Geral", path: "/dashboard", icon: LayoutDashboard },
+    { name: "Cronograma", path: "/schedule", icon: Calendar },
+    { name: "Minhas Tarefas", path: "/tasks", icon: CheckSquare },
+    { name: "Minhas Anotações", path: "/notes", icon: FileText },
+    { name: "Estatísticas", path: "/statistics", icon: BarChart3 },
+  ] },
+  { title: "Prática", items: [
+    { name: "Banco de Questões", path: "/questions", icon: BookOpen },
+    { name: "Simulados ENEM", path: "/simulados", icon: Trophy },
+    { name: "Caderno de Erros", path: "/review-errors", icon: RotateCcw },
+    { name: "Redações", path: "/essays", icon: PenTool },
+    { name: "Flashcards", path: "/flashcards", icon: Layers },
+    { name: "Simulador SISU & TRI", path: "/calculadora-tri", icon: Calculator },
+  ] },
+  { title: "Conta & Ajuda", items: [
+    { name: "Configurações", path: "/settings", icon: Settings },
+    { name: "Minha Assinatura", path: "/subscription", icon: CreditCard },
+    { name: "Enviar Feedback", path: "/feedback", icon: MessageSquarePlus },
+  ] },
+] as const;
+
+const ADMIN_GROUP = {
+  title: "Administração",
+  items: [
+    { name: "Notificações", path: "/admin/notifications", icon: Shield },
+    { name: "Gerenciar Feedbacks", path: "/admin/feedback", icon: MessageSquarePlus },
+    { name: "Gerenciar Questões", path: "/admin/questions", icon: Settings2 },
+    { name: "Importar Questões", path: "/admin/import", icon: Upload },
+    { name: "Gerenciar Usuários", path: "/admin/users", icon: Users },
+  ],
+} as const;
 
 interface NavbarProps {
   isLayoutRoot?: boolean;
@@ -49,6 +83,12 @@ const NavbarContent = () => {
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    Estudos: true,
+    Prática: true,
+    "Conta & Ajuda": false,
+    Administração: false,
+  });
   const { isPremium, isLoading, planType } = usePremiumContext();
   const { streakData, loading: streakLoading } = useStreakContext();
   const isCreator = planType === "creator";
@@ -95,6 +135,16 @@ const NavbarContent = () => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
+  useEffect(() => {
+    const activeGroup = [...MENU_GROUPS, ADMIN_GROUP].find((group) =>
+      group.items.some((item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)),
+    );
+
+    if (activeGroup) {
+      setExpandedGroups((current) => ({ ...current, [activeGroup.title]: true }));
+    }
+  }, [location.pathname]);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/auth");
@@ -110,54 +160,61 @@ const NavbarContent = () => {
 
   if (!user) return null;
 
-  // Definição dos links e categorias da Sidebar
-  const menuGroups = [
-    {
-      title: "Estudos",
-      items: [
-        { name: "Painel Geral", path: "/dashboard", icon: LayoutDashboard },
-        { name: "Cronograma", path: "/schedule", icon: Calendar },
-        { name: "Minhas Tarefas", path: "/tasks", icon: CheckSquare },
-        { name: "Minhas Anotações", path: "/notes", icon: FileText },
-        { name: "Estatísticas", path: "/statistics", icon: BarChart3 },
-      ]
-    },
-    {
-      title: "Prática",
-      items: [
-        { name: "Banco de Questões", path: "/questions", icon: BookOpen },
-        { name: "Simulados ENEM", path: "/simulados", icon: Trophy },
-        { name: "Caderno de Erros", path: "/review-errors", icon: RotateCcw },
-        { name: "Redações", path: "/essays", icon: PenTool },
-        { name: "Flashcards", path: "/flashcards", icon: Layers },
-        { name: "Simulador SISU & TRI", path: "/calculadora-tri", icon: Calculator },
-      ]
-    },
-    {
-      title: "Conta & Ajuda",
-      items: [
-        { name: "Configurações", path: "/settings", icon: Settings },
-        { name: "Minha Assinatura", path: "/subscription", icon: CreditCard },
-        { name: "Enviar Feedback", path: "/feedback", icon: MessageSquarePlus },
-      ]
-    }
-  ];
+  const isPathActive = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`);
 
-  const adminGroup = {
-    title: "Administração",
-    items: [
-      { name: "Notificações", path: "/admin/notifications", icon: Shield },
-      { name: "Gerenciar Feedbacks", path: "/admin/feedback", icon: MessageSquarePlus },
-      { name: "Gerenciar Questões", path: "/admin/questions", icon: Settings2 },
-      { name: "Importar Questões", path: "/admin/import", icon: Upload },
-      { name: "Gerenciar Usuários", path: "/admin/users", icon: Users },
-    ]
+  const renderGroup = (group: typeof MENU_GROUPS[number] | typeof ADMIN_GROUP, mobile = false) => {
+    const isExpanded = expandedGroups[group.title] ?? true;
+
+    return (
+      <div key={group.title} className="space-y-1">
+        <button
+          type="button"
+          aria-expanded={isExpanded}
+          onClick={() => setExpandedGroups((current) => ({ ...current, [group.title]: !isExpanded }))}
+          className="group flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+        >
+          <span>{group.title}</span>
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 motion-reduce:transition-none ${isExpanded ? "rotate-0" : "-rotate-90"}`} aria-hidden="true" />
+        </button>
+        {isExpanded && (
+          <div className="space-y-0.5">
+            {group.items.map((item) => {
+              const isActive = isPathActive(item.path);
+              const link = (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onPointerEnter={() => preloadRoute(item.path)}
+                  onFocus={() => preloadRoute(item.path)}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors duration-200 motion-reduce:transition-none ${isActive ? "sidebar-link-active" : "sidebar-link-inactive"}`}
+                >
+                  <item.icon className={`h-5 w-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} aria-hidden="true" />
+                  <span className="font-medium">{item.name}</span>
+                </Link>
+              );
+
+              return mobile ? <SheetClose asChild key={item.path}>{link}</SheetClose> : link;
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderAdminGroup = (mobile = false) => {
+    if (!isAdmin) return null;
+    return (
+      <div className="space-y-1 border-t border-border/50 pt-3">
+        {renderGroup(ADMIN_GROUP, mobile)}
+      </div>
+    );
   };
 
   return (
     <>
       {/* ─── SIDEBAR FIXA (DESKTOP) ────────────────────────────────────────── */}
-      <aside className="hidden lg:flex flex-col w-64 fixed left-0 top-0 bottom-0 bg-card border-r border-border/50 z-40 sidebar-desktop shadow-sm">
+      <aside aria-label="Navegação principal" className="hidden lg:flex flex-col w-64 fixed left-0 top-0 bottom-0 bg-card border-r border-border/50 z-40 sidebar-desktop shadow-sm">
         {/* Topo da Sidebar - Logo */}
         <Link to="/dashboard"
           className="flex items-center gap-2.5 px-6 h-16 border-b border-border/50 cursor-pointer flex-shrink-0"
@@ -171,60 +228,10 @@ const NavbarContent = () => {
         </Link>
 
         {/* Links da Sidebar */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
-          {menuGroups.map((group, groupIdx) => (
-            <div key={groupIdx} className="space-y-1.5">
-              <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{group.title}</p>
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const isActive = location.pathname === item.path;
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onPointerEnter={() => preloadRoute(item.path)}
-                      onFocus={() => preloadRoute(item.path)}
-                      aria-current={location.pathname === item.path ? "page" : undefined}
-                      className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm transition-colors duration-200 ${
-                        isActive ? "sidebar-link-active" : "sidebar-link-inactive"
-                      }`}
-                    >
-                      <item.icon className={`h-5 w-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
-                      <span className="font-medium">{item.name}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-          
-          {/* Seção de Admin na Sidebar */}
-          {isAdmin && (
-            <div className="space-y-1.5 pt-4 border-t border-border/50">
-              <p className="px-3 text-[10px] font-bold text-primary dark:text-primary-light uppercase tracking-wider">{adminGroup.title}</p>
-              <div className="space-y-0.5">
-                {adminGroup.items.map((item) => {
-                  const isActive = location.pathname === item.path;
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onPointerEnter={() => preloadRoute(item.path)}
-                      onFocus={() => preloadRoute(item.path)}
-                      aria-current={location.pathname === item.path ? "page" : undefined}
-                      className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm transition-colors duration-200 ${
-                        isActive ? "sidebar-link-active" : "sidebar-link-inactive"
-                      }`}
-                    >
-                      <item.icon className={`h-5 w-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
-                      <span className="font-medium">{item.name}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
+        <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+          {MENU_GROUPS.map((group) => renderGroup(group))}
+          {renderAdminGroup()}
+          </nav>
       </aside>
 
       {/* ─── HEADER / TOPBAR MINIMALISTA (DESKTOP & MOBILE) ───────────────── */}
@@ -251,56 +258,10 @@ const NavbarContent = () => {
               </div>
               
               {/* Links da Sidebar Mobile */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                {menuGroups.map((group, groupIdx) => (
-                  <div key={groupIdx} className="space-y-1.5">
-                    <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{group.title}</p>
-                    <div className="space-y-0.5">
-                      {group.items.map((item) => (
-                        <SheetClose asChild key={item.path}>
-                          <Link
-                            to={item.path}
-                      onPointerEnter={() => preloadRoute(item.path)}
-                      onFocus={() => preloadRoute(item.path)}
-                      aria-current={location.pathname === item.path ? "page" : undefined}
-                            className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm transition-colors duration-200 ${
-                              location.pathname === item.path ? "sidebar-link-active" : "sidebar-link-inactive"
-                            }`}
-                          >
-                            <item.icon className="h-4 w-4" />
-                            <span className="font-medium">{item.name}</span>
-                          </Link>
-                        </SheetClose>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                
-                {/* Seção de Admin no Mobile */}
-                {isAdmin && (
-                  <div className="space-y-1.5 pt-4 border-t border-border/50">
-                    <p className="px-3 text-[10px] font-bold text-primary uppercase tracking-wider">{adminGroup.title}</p>
-                    <div className="space-y-0.5">
-                      {adminGroup.items.map((item) => (
-                        <SheetClose asChild key={item.path}>
-                          <Link
-                            to={item.path}
-                      onPointerEnter={() => preloadRoute(item.path)}
-                      onFocus={() => preloadRoute(item.path)}
-                      aria-current={location.pathname === item.path ? "page" : undefined}
-                            className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm transition-colors duration-200 ${
-                              location.pathname === item.path ? "sidebar-link-active" : "sidebar-link-inactive"
-                            }`}
-                          >
-                            <item.icon className="h-4 w-4" />
-                            <span className="font-medium">{item.name}</span>
-                          </Link>
-                        </SheetClose>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <nav aria-label="Navegação mobile" className="flex-1 overflow-y-auto p-4 space-y-3">
+                {MENU_GROUPS.map((group) => renderGroup(group, true))}
+                {renderAdminGroup(true)}
+              </nav>
             </SheetContent>
           </Sheet>
           
