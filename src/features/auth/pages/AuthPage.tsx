@@ -169,6 +169,16 @@ const Auth = () => {
 
   // Verificar se há parâmetro de sucesso na URL (após cadastro)
   const registrationSuccess = searchParams.get("registered") === "true";
+  const requestedPlan = searchParams.get("plano");
+  const requestedBump = searchParams.get("bump");
+  const requestedCoupon = searchParams.get("cupom");
+  const checkoutParams = new URLSearchParams();
+  if (requestedPlan === "starter" || requestedPlan === "annual") checkoutParams.set("plano", requestedPlan);
+  if (requestedBump === "redacao") checkoutParams.set("bump", "redacao");
+  if (requestedCoupon) checkoutParams.set("cupom", requestedCoupon);
+  const checkoutRedirect = searchParams.get("redirect") === "/planos" && (requestedPlan === "starter" || requestedPlan === "annual")
+    ? `/planos?${checkoutParams.toString()}`
+    : "/dashboard";
 
   // Validação de senha
   const passwordValidation = useMemo(() => validatePassword(password), [password]);
@@ -232,7 +242,7 @@ const Auth = () => {
 
         if (error) throw error;
         toast.success("Login realizado com sucesso!");
-        navigate("/dashboard");
+        navigate(checkoutRedirect);
       } else {
         // Validação do reCAPTCHA V2 antes do cadastro (apenas se a chave estiver configurada)
         if (RECAPTCHA_SITE_KEY) {
@@ -347,7 +357,7 @@ const Auth = () => {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
+            emailRedirectTo: `${window.location.origin}${checkoutRedirect}`,
             data: {
               full_name: fullName,
               username: username,
@@ -376,7 +386,14 @@ const Auth = () => {
         // Aguardar a animação e redirecionar para login com mensagem
         setTimeout(() => {
           setShowSuccessAnimation(false);
-          navigate("/auth?registered=true");
+          const returnParams = new URLSearchParams({ registered: "true" });
+          if (checkoutRedirect !== "/dashboard") {
+            returnParams.set("redirect", "/planos");
+            returnParams.set("plano", requestedPlan as string);
+            if (requestedBump === "redacao") returnParams.set("bump", "redacao");
+            if (requestedCoupon) returnParams.set("cupom", requestedCoupon);
+          }
+          navigate(`/auth?${returnParams.toString()}`);
           setIsLogin(true);
           // Limpar campos do formulário
           setEmail("");
@@ -421,7 +438,7 @@ const Auth = () => {
         provider: "google",
         options: {
           // Usa a URL de callback padrão do Supabase que redireciona para o site após autenticação
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: `${window.location.origin}${checkoutRedirect}`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
