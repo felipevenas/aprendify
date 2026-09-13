@@ -250,7 +250,7 @@ REGRAS:
         method: "POST",
         headers: { "Authorization": `Bearer ${groqApiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
+          model: "openai/gpt-oss-120b",
           messages: [{ role: "system", content: systemInstruction }, { role: "user", content: prompt }],
           max_tokens: 500,
           temperature: 0.3,
@@ -266,7 +266,7 @@ REGRAS:
         method: "POST",
         headers: { "Authorization": `Bearer ${groqApiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "llama-3.1-8b-instant",
+          model: "openai/gpt-oss-20b",
           messages: [{ role: "system", content: systemInstruction }, { role: "user", content: prompt }],
           max_tokens: 500,
           temperature: 0.3,
