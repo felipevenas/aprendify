@@ -23,6 +23,7 @@ interface QuestionExplanationRequest {
     context?: string;
     alternatives: Array<{ letter: string; text: string }>;
     correctAlternative: string;
+    selectedAlternative?: string;
     discipline: string;
     year: string;
     files?: string[];
@@ -196,6 +197,7 @@ serve(async (req) => {
 
 ${safeQuestion.context ? `Contexto / Texto-base: ${safeQuestion.context}\n` : ""}Enunciado: ${safeQuestion.title || ""}
 ${safeQuestion.alternativesIntroduction ? `Comando da questão: ${safeQuestion.alternativesIntroduction}\n` : ""}
+${safeQuestion.selectedAlternative ? `Resposta escolhida pelo estudante: ${safeQuestion.selectedAlternative.toUpperCase()}\n` : ""}
 
 Alternativas:
 ${alternativesText}
@@ -204,17 +206,20 @@ Gabarito Oficial: ${safeQuestion.correctAlternative.toUpperCase()}
 ${targetImageUrl ? "\n[Esta questão contém imagem/gráfico em anexo: considere a leitura visual na sua explicação didática]" : ""}
 
 Explique exatamente esta questão, como um professor que acabou de corrigir a resposta do estudante.
+Responda como se o estudante tivesse perguntado: "Professor, por que a alternativa correta é essa?".
+Organize a aula curta nesta ordem: (1) dê a resposta direta; (2) defina o conceito específico cobrado; (3) mostre a evidência do texto-base ou do comando; (4) conecte essa evidência ao gabarito.
+${safeQuestion.selectedAlternative && safeQuestion.selectedAlternative.toUpperCase() !== safeQuestion.correctAlternative.toUpperCase() ? `O estudante marcou ${safeQuestion.selectedAlternative.toUpperCase()}; explique também, sem constrangê-lo, onde essa alternativa se distancia do que o enunciado pede.` : "Se a resposta escolhida estiver correta, confirme o acerto e aprofunde o motivo."}
 Seja direto, literal e específico ao texto-base, ao comando e à alternativa correta.
-Mencione pelo menos uma evidência concreta do texto-base ou do comando e explique o mecanismo que liga essa evidência ao gabarito.
+Mencione pelo menos uma evidência concreta do texto-base ou do comando e explique o mecanismo que liga essa evidência ao gabarito. Não apenas repita o texto da alternativa: explique o porquê conceitual da relação.
 Nunca responda apenas que a alternativa é "coerente" ou "responde ao comando": diga qual conceito, qual relação e por que ela é correta.
 Não dê dicas genéricas de prova, macetes, estratégias de eliminação ou conselhos que poderiam servir para qualquer questão.
 Não invente informações que não estejam no enunciado ou no conteúdo necessário para justificar o gabarito.
 
 Responda APENAS com JSON no seguinte formato (sem blocos markdown, apenas o JSON puro):
 {
-  "concept_summary": "Em 2 ou 3 frases, explique o conceito específico presente no texto-base, usando os termos e relações desta questão.",
-  "resolution_steps": "Em 2 ou 3 frases, mostre a cadeia lógica entre uma evidência do texto-base, o comando e a alternativa correta.",
-  "correct_explanation": "Em 3 ou 4 frases, cite a evidência relevante, nomeie o mecanismo/conceito e explique por que a alternativa ${safeQuestion.correctAlternative.toUpperCase()} é correta. Não use justificativas genéricas.",
+  "concept_summary": "Em 2 ou 3 frases, defina o conceito específico cobrado e explique o mecanismo ou relação causal envolvida nesta questão.",
+  "resolution_steps": "Em 2 ou 3 frases, mostre a cadeia lógica entre uma evidência concreta do texto-base, o comando, o conceito e a alternativa correta.",
+  "correct_explanation": "Em 3 ou 4 frases, responda como um professor: cite a evidência relevante, nomeie e explique o conceito, e mostre por que a alternativa ${safeQuestion.correctAlternative.toUpperCase()} é correta. Não use justificativas genéricas.",
   "distractors": [
     {
       "letter": "A",

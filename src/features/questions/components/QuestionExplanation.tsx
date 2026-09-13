@@ -19,6 +19,7 @@ interface QuestionExplanationProps {
   question: any;
   isPremium: boolean;
   showResult: boolean;
+  selectedAlternative?: string | null;
 }
 
 interface Distractor {
@@ -63,7 +64,7 @@ const formatExplanationText = (text: string): JSX.Element[] => {
   });
 };
 
-const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplanationProps) => {
+const QuestionExplanation = ({ question, isPremium, showResult, selectedAlternative }: QuestionExplanationProps) => {
   const [explanation, setExplanation] = useState<string | null>(null);
   const [structured, setStructured] = useState<StructuredExplanation | null>(null);
   const [loading, setLoading] = useState(false);
@@ -138,6 +139,7 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
               context: question.context || "",
               alternatives: question.alternatives || [],
               correctAlternative: correctAlt,
+              selectedAlternative: selectedAlternative || "",
               discipline: question.discipline || "",
               year: question.year || "",
               files: (question as any).files || [],
@@ -184,7 +186,7 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
         <div className="flex items-center gap-2">
           <MessageCircle className="h-5 w-5 text-primary" />
           <span className="font-semibold text-foreground text-sm sm:text-base">
-            {isPremium ? "Explicação da questão" : "Explicação da questão"}
+            {isPremium ? "Pergunte ao professor" : "Explicação da questão"}
           </span>
           {isPremium && (
             <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
@@ -207,7 +209,7 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
           ) : (
             <Lock className="h-4 w-4" />
           )}
-          {loading ? "Preparando explicação..." : showExplanation && (explanation || structured) ? "Ocultar Explicação" : "Tirar Dúvida com Didática"}
+          {loading ? "Preparando explicação..." : showExplanation && (explanation || structured) ? "Ocultar Explicação" : "Por que essa é a resposta?"}
           {!isPremium && <Crown className="h-3.5 w-3.5 ml-1 text-yellow-500" />}
         </Button>
       </div>
@@ -242,20 +244,20 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
               ) : structured ? (
                 <div className="space-y-4">
                   <div className="rounded-lg border-l-4 border-primary bg-primary/5 px-4 py-3">
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">Explicação</p>
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">Resposta do professor</p>
                     <div className="text-sm leading-relaxed text-foreground">
                       {formatExplanationText(structured.correct_explanation || explanation || "A alternativa correta é a que responde ao comando da questão.")}
                     </div>
                   </div>
                   {structured.concept_summary && (
                     <div>
-                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">O que o enunciado cobra</p>
+                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Conceito envolvido</p>
                       {formatExplanationText(structured.concept_summary)}
                     </div>
                   )}
                   {structured.resolution_steps && (
                     <div>
-                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Relação com o enunciado</p>
+                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Como isso se aplica à questão</p>
                       {formatExplanationText(structured.resolution_steps)}
                     </div>
                   )}

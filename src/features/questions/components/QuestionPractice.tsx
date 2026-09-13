@@ -536,7 +536,12 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
         )}
 
         {/* Botão de Explicação - apenas após responder */}
-        <QuestionExplanation question={question} isPremium={isPremium} showResult={showResult} />
+        <QuestionExplanation
+          question={question}
+          isPremium={isPremium}
+          showResult={showResult}
+          selectedAlternative={selectedAlternative}
+        />
 
         {/* Botões de ação */}
         <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
