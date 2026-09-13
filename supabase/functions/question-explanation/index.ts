@@ -258,6 +258,22 @@ REGRAS:
       });
     }
 
+    // Mantém a resiliência da implementação original quando o modelo principal
+    // estiver indisponível ou atingir limite de cota.
+    if (!groqResponse.ok) {
+      console.warn("[question-explanation] Modelo principal indisponível; usando fallback 8B.");
+      groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${groqApiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "llama-3.1-8b-instant",
+          messages: [{ role: "system", content: systemInstruction }, { role: "user", content: prompt }],
+          max_tokens: 500,
+          temperature: 0.3,
+        }),
+      });
+    }
+
     if (!groqResponse.ok) {
       const errorText = await groqResponse.text();
       console.error("[question-explanation] Erro na API Groq:", groqResponse.status, errorText);
