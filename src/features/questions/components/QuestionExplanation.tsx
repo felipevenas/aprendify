@@ -134,6 +134,7 @@ const QuestionExplanation = ({ question, isPremium, showResult }: QuestionExplan
           body: JSON.stringify({
             question: {
               title: question.title || question.alternativesIntroduction || "",
+              alternativesIntroduction: question.alternativesIntroduction || "",
               context: question.context || "",
               alternatives: question.alternatives || [],
               correctAlternative: correctAlt,

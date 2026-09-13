@@ -19,6 +19,7 @@ const RATE_LIMIT_WINDOW_MINUTES = 60;
 interface QuestionExplanationRequest {
   question: {
     title: string;
+    alternativesIntroduction?: string;
     context?: string;
     alternatives: Array<{ letter: string; text: string }>;
     correctAlternative: string;
@@ -125,14 +126,34 @@ serve(async (req) => {
     }
 
     // Parse do body da requisição
-    const { question }: QuestionExplanationRequest = await req.json();
+    const payload = await req.json();
+    const question = payload?.question as QuestionExplanationRequest["question"] | undefined;
 
-    if (!question) {
+    if (
+      !question ||
+      typeof question !== "object" ||
+      typeof question.title !== "string" ||
+      !Array.isArray(question.alternatives) ||
+      typeof question.correctAlternative !== "string"
+    ) {
       return new Response(
         JSON.stringify({ error: "Dados da questão são obrigatórios" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const safeQuestion = {
+      ...question,
+      discipline: typeof question.discipline === "string" ? question.discipline : "ENEM",
+      year: typeof question.year === "string" ? question.year : "",
+      context: typeof question.context === "string" ? question.context.slice(0, 10000) : "",
+      alternativesIntroduction: typeof question.alternativesIntroduction === "string"
+        ? question.alternativesIntroduction.slice(0, 4000)
+        : "",
+      alternatives: question.alternatives
+        .filter((alt) => alt && typeof alt.letter === "string" && typeof alt.text === "string")
+        .slice(0, 5),
+    };
 
     // Obter chave da Groq
     const groqApiKey = Deno.env.get("GROQ_API_KEY");
@@ -167,18 +188,19 @@ serve(async (req) => {
     const targetImageUrl = imageCandidates.length > 0 ? imageCandidates[0] : null;
 
     // Montar prompt para uma explicação literal, curta e diretamente ligada à questão
-    const alternativesText = question.alternatives
+    const alternativesText = safeQuestion.alternatives
       .map((alt) => `${alt.letter.toUpperCase()}) ${alt.text}`)
       .join("\n");
 
-    const prompt = `Questão de ${question.discipline} - ENEM ${question.year}
+    const prompt = `Questão de ${safeQuestion.discipline} - ENEM ${safeQuestion.year}
 
-${question.context ? `Contexto / Texto-base: ${question.context}\n` : ""}Enunciado: ${question.title || ""}
+${safeQuestion.context ? `Contexto / Texto-base: ${safeQuestion.context}\n` : ""}Enunciado: ${safeQuestion.title || ""}
+${safeQuestion.alternativesIntroduction ? `Comando da questão: ${safeQuestion.alternativesIntroduction}\n` : ""}
 
 Alternativas:
 ${alternativesText}
 
-Gabarito Oficial: ${question.correctAlternative.toUpperCase()}
+Gabarito Oficial: ${safeQuestion.correctAlternative.toUpperCase()}
 ${targetImageUrl ? "\n[Esta questão contém imagem/gráfico em anexo: considere a leitura visual na sua explicação didática]" : ""}
 
 Explique exatamente esta questão, como um professor que acabou de corrigir a resposta do estudante.
@@ -190,7 +212,7 @@ Responda APENAS com JSON no seguinte formato (sem blocos markdown, apenas o JSON
 {
   "concept_summary": "Em 2 ou 3 frases, explique o conceito necessário para entender o texto-base e o comando desta questão.",
   "resolution_steps": "Em 2 ou 3 frases, conecte o texto-base e o comando à resposta, sem listar dicas gerais de prova.",
-  "correct_explanation": "Explique literalmente por que a alternativa ${question.correctAlternative.toUpperCase()} responde ao comando e, se necessário, aponte o erro central das demais.",
+  "correct_explanation": "Explique literalmente por que a alternativa ${safeQuestion.correctAlternative.toUpperCase()} responde ao comando e, se necessário, aponte o erro central das demais.",
   "distractors": [
     {
       "letter": "A",
@@ -331,19 +353,32 @@ Responda APENAS com JSON no seguinte formato (sem blocos markdown, apenas o JSON
       };
       fallbackText = `${structuredExplanation.correct_explanation}\n\n${structuredExplanation.golden_tip}`;
     } else {
-      const groqData = await groqResponse.json();
-      const rawContent = groqData.choices?.[0]?.message?.content || "";
-      
-      fallbackText = rawContent;
-
       try {
+        const groqData = await groqResponse.json();
+        const rawContent = typeof groqData.choices?.[0]?.message?.content === "string"
+          ? groqData.choices[0].message.content
+          : "";
+
+        fallbackText = rawContent;
+
         const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           structuredExplanation = JSON.parse(jsonMatch[0]);
-          fallbackText = `${structuredExplanation.correct_explanation || ""}\n\n${structuredExplanation.golden_tip || ""}`;
+          fallbackText = `${structuredExplanation.correct_explanation || ""}`;
         }
       } catch (parseErr) {
-        console.warn("[question-explanation] Não foi possível parsear como JSON, usando texto puro:", parseErr);
+        console.warn("[question-explanation] Resposta inválida do provedor; usando fallback literal:", parseErr);
+        const correctLetter = safeQuestion.correctAlternative.toUpperCase();
+        const correctObj = safeQuestion.alternatives.find((alt) => alt.letter.toUpperCase() === correctLetter);
+        const correctText = correctObj?.text || "a alternativa indicada no gabarito oficial";
+        structuredExplanation = {
+          concept_summary: `A questão avalia ${safeQuestion.discipline} a partir do texto apresentado.`,
+          resolution_steps: `O enunciado deve ser relacionado diretamente ao conceito cobrado. A alternativa ${correctLetter} é a que responde ao comando.`,
+          correct_explanation: `A alternativa (${correctLetter}) é a correta porque "${correctText}" responde diretamente ao que a questão pergunta.`,
+          distractors: [],
+          golden_tip: "",
+        };
+        fallbackText = structuredExplanation.correct_explanation;
       }
     }
 
