@@ -1,6 +1,8 @@
 // Shared loaders let keyboard focus and pointer intent warm the same lazy chunks.
 export const pageLoaders = {
   Auth: () => import("@/pages/Auth"),
+  PrivacyPolicy: () => import("@/pages/PrivacyPolicy"),
+  TermsOfService: () => import("@/pages/TermsOfService"),
   SalesPage: () => import("@/pages/SalesPage"),
   Dashboard: () => import("@/pages/Dashboard"),
   Schedule: () => import("@/pages/Schedule"),

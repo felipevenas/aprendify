@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -227,16 +227,14 @@ const Auth = () => {
         let loginEmail = loginIdentifier;
 
         if (!isEmail) {
-          // Username login is kept compatible with the existing profile lookup.
-          // Its result is never exposed to the user, preventing account enumeration.
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("email")
-            .ilike("username", loginIdentifier.trim())
-            .maybeSingle();
+          const normalizedUsername = loginIdentifier.trim();
+          const { data: resolvedEmail, error: resolveError } = await supabase.rpc(
+            "resolve_login_email",
+            { _username: normalizedUsername },
+          );
 
-          if (!profile?.email) throw new Error("Authentication failed");
-          loginEmail = profile.email;
+          if (resolveError || !resolvedEmail) throw new Error("Authentication failed");
+          loginEmail = resolvedEmail;
         }
 
         const { error } = await supabase.auth.signInWithPassword({
@@ -1076,7 +1074,7 @@ const Auth = () => {
             </Button>
 
             {/* Link para alternar entre login/cadastro */}
-            <div className="text-center pt-2">
+          <div className="text-center pt-2">
               <button
                 type="button"
                 onClick={() => setIsLogin(!isLogin)}
@@ -1086,6 +1084,10 @@ const Auth = () => {
                 {isLogin ? "Não tem conta? Cadastre-se gratuitamente" : "Já tem conta? Faça login"}
               </button>
             </div>
+
+            <p className="pt-2 text-center text-xs leading-5 text-muted-foreground">
+              Ao continuar, você concorda com os <Link className="text-primary hover:underline" to="/termos-de-servico">Termos de Serviço</Link> e a <Link className="text-primary hover:underline" to="/politica-de-privacidade">Política de Privacidade</Link>.
+            </p>
           </motion.form>
         </div>
       </motion.div>

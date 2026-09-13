@@ -710,6 +710,10 @@ export default function SalesPage() {
       <footer className="border-t border-border/40 py-8 px-4 text-center text-xs text-muted-foreground">
         <p>© {new Date().getFullYear()} Aprendify. Todos os direitos reservados.</p>
         <p className="mt-1">Preparação de alta performance focada na aprovação do ENEM.</p>
+        <div className="mt-3 flex justify-center gap-4 text-sm">
+          <Link className="hover:text-foreground" to="/politica-de-privacidade">Política de Privacidade</Link>
+          <Link className="hover:text-foreground" to="/termos-de-servico">Termos de Serviço</Link>
+        </div>
       </footer>
 
       {/* Modal de Autenticação Rápida caso o usuário não esteja logado */}

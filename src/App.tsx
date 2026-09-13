@@ -12,6 +12,8 @@ const SuspenseFallback = () => <AppSkeleton />;
 
 // Light pages that don't need heavy providers
 const Auth = lazy(pageLoaders.Auth);
+const PrivacyPolicy = lazy(pageLoaders.PrivacyPolicy);
+const TermsOfService = lazy(pageLoaders.TermsOfService);
 const SalesPage = lazy(pageLoaders.SalesPage);
 
 // Heavy app layout with providers - only loaded when navigating to app routes
@@ -40,6 +42,8 @@ const App = () => (
               {/* Light routes - no heavy providers loaded */}
               <Route path="/" element={<Navigate to="/auth" replace />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
+              <Route path="/termos-de-servico" element={<TermsOfService />} />
               <Route path="/planos" element={<SalesPage />} />
               <Route path="/oferta" element={<SalesPage />} />
               {/* All other routes go through AppLayout which loads providers */}
