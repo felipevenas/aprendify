@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, Mail, Lock, User, ArrowRight, Eye, EyeOff, Check, X, ShieldCheck, PartyPopper } from "lucide-react";
+import { BookOpen, Mail, Lock, User, ArrowRight, Eye, EyeOff, Check, X, ShieldCheck, PartyPopper, Moon, Sun } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { z } from "zod";
 import ReCAPTCHA from "react-google-recaptcha";
