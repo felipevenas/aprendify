@@ -154,9 +154,9 @@ const QuestionExplanation = ({ question, isPremium, showResult, selectedAlternat
         throw requestError instanceof RemoteFailure ? requestError : normalizeRemoteFailure(requestError, { operation: "explanation" });
       }
 
-      if (data?.structuredExplanation) {
-        setExplanation(data.explanation || "");
-        setStructured(data.structuredExplanation);
+      if (typeof data?.explanation === "string" && data.explanation.trim()) {
+        setExplanation(data.explanation.trim());
+        setStructured(data.structuredExplanation || null);
       } else {
         throw new RemoteFailure(502, "A explicação ainda não está disponível. Tente novamente.", "unavailable");
       }
@@ -241,31 +241,13 @@ const QuestionExplanation = ({ question, isPremium, showResult, selectedAlternat
                     </Button>
                   </AlertDescription>
                 </Alert>
-              ) : structured ? (
-                <div className="space-y-4">
-                  <div className="rounded-lg border-l-4 border-primary bg-primary/5 px-4 py-3">
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">Resposta do professor</p>
-                    <div className="text-sm leading-relaxed text-foreground">
-                      {formatExplanationText(structured.correct_explanation || explanation || "A alternativa correta é a que responde ao comando da questão.")}
-                    </div>
-                  </div>
-                  {structured.concept_summary && (
-                    <div>
-                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Conceito envolvido</p>
-                      {formatExplanationText(structured.concept_summary)}
-                    </div>
-                  )}
-                  {structured.resolution_steps && (
-                    <div>
-                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Como isso se aplica à questão</p>
-                      {formatExplanationText(structured.resolution_steps)}
-                    </div>
-                  )}
-                </div>
               ) : explanation ? (
-                /* Fallback para explicações em texto simples */
                 <div className="space-y-2">
                   {formatExplanationText(explanation)}
+                </div>
+              ) : structured ? (
+                <div className="space-y-2">
+                  {formatExplanationText(structured.correct_explanation || "A alternativa correta é a que responde ao comando da questão.")}
                 </div>
               ) : null}
             </div>

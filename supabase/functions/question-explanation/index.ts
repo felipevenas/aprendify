@@ -188,212 +188,92 @@ serve(async (req) => {
     }
     const targetImageUrl = imageCandidates.length > 0 ? imageCandidates[0] : null;
 
-    // Montar prompt para uma explicação literal, curta e diretamente ligada à questão
     const alternativesText = safeQuestion.alternatives
       .map((alt) => `${alt.letter.toUpperCase()}) ${alt.text}`)
       .join("\n");
 
     const prompt = `Questão de ${safeQuestion.discipline} - ENEM ${safeQuestion.year}
 
-${safeQuestion.context ? `Contexto / Texto-base: ${safeQuestion.context}\n` : ""}Enunciado: ${safeQuestion.title || ""}
-${safeQuestion.alternativesIntroduction ? `Comando da questão: ${safeQuestion.alternativesIntroduction}\n` : ""}
-${safeQuestion.selectedAlternative ? `Resposta escolhida pelo estudante: ${safeQuestion.selectedAlternative.toUpperCase()}\n` : ""}
+${safeQuestion.context ? `Contexto / texto-base: ${safeQuestion.context}\n` : ""}Enunciado: ${safeQuestion.title || ""}
+${safeQuestion.alternativesIntroduction ? `Comando: ${safeQuestion.alternativesIntroduction}\n` : ""}
 
 Alternativas:
 ${alternativesText}
 
-Gabarito Oficial: ${safeQuestion.correctAlternative.toUpperCase()}
-${targetImageUrl ? "\n[Esta questão contém imagem/gráfico em anexo: considere a leitura visual na sua explicação didática]" : ""}
+Gabarito: ${safeQuestion.correctAlternative.toUpperCase()}
 
-Explique exatamente esta questão, como um professor que acabou de corrigir a resposta do estudante.
-Responda como se o estudante tivesse perguntado: "Professor, por que a alternativa correta é essa?".
-Organize a aula curta nesta ordem: (1) dê a resposta direta; (2) defina o conceito específico cobrado; (3) mostre a evidência do texto-base ou do comando; (4) conecte essa evidência ao gabarito.
-${safeQuestion.selectedAlternative && safeQuestion.selectedAlternative.toUpperCase() !== safeQuestion.correctAlternative.toUpperCase() ? `O estudante marcou ${safeQuestion.selectedAlternative.toUpperCase()}; explique também, sem constrangê-lo, onde essa alternativa se distancia do que o enunciado pede.` : "Se a resposta escolhida estiver correta, confirme o acerto e aprofunde o motivo."}
-Seja direto, literal e específico ao texto-base, ao comando e à alternativa correta.
-Mencione pelo menos uma evidência concreta do texto-base ou do comando e explique o mecanismo que liga essa evidência ao gabarito. Não apenas repita o texto da alternativa: explique o porquê conceitual da relação.
-Nunca responda apenas que a alternativa é "coerente" ou "responde ao comando": diga qual conceito, qual relação e por que ela é correta.
-Não dê dicas genéricas de prova, macetes, estratégias de eliminação ou conselhos que poderiam servir para qualquer questão.
-Não invente informações que não estejam no enunciado ou no conteúdo necessário para justificar o gabarito.
+Explique como um professor ou aluno experiente escreveria um comentário de resolução para outra pessoa aprender.
+O objetivo principal é ensinar POR QUE a alternativa ${safeQuestion.correctAlternative.toUpperCase()} é correta, usando o conhecimento necessário para resolver a questão.
+Primeiro identifique o conceito, regra, definição, fórmula, cálculo, evidência histórica, mecanismo biológico, fenômeno físico ou relação causal que determina a resposta. Depois aplique esse conhecimento passo a passo à questão e conclua mostrando por que ele leva à alternativa ${safeQuestion.correctAlternative.toUpperCase()}.
+Não apenas diga que a alternativa "se relaciona com o enunciado", "atende ao comando", "é coerente" ou "responde à pergunta". Isso é insuficiente. Explique o conteúdo que torna a alternativa verdadeira.
+Por exemplo, em "Quanto é 2 + 2?", explique que o sinal + representa adição e que adicionar duas unidades a outras duas unidades resulta em 4; não diga apenas que a alternativa 4 corresponde ao enunciado.
+Se houver um texto-base, use-o como evidência complementar, mas não substitua a explicação do conteúdo pelo texto-base. Se a questão exigir cálculo, faça o cálculo; se exigir uma definição, dê a definição; se exigir causa e consequência, explique o mecanismo; se exigir interpretação, explique o sentido da passagem que sustenta a resposta.
+Seja conciso, claro e didático, em no máximo 4 ou 5 frases. Não analise as alternativas erradas, não dê macetes e não inclua estratégias genéricas de prova.${targetImageUrl ? " Considere também a imagem ou gráfico anexado, se necessário para explicar o conceito." : ""}`;
 
-Responda APENAS com JSON no seguinte formato (sem blocos markdown, apenas o JSON puro):
-{
-  "concept_summary": "Em 2 ou 3 frases, defina o conceito específico cobrado e explique o mecanismo ou relação causal envolvida nesta questão.",
-  "resolution_steps": "Em 2 ou 3 frases, mostre a cadeia lógica entre uma evidência concreta do texto-base, o comando, o conceito e a alternativa correta.",
-  "correct_explanation": "Em 3 ou 4 frases, responda como um professor: cite a evidência relevante, nomeie e explique o conceito, e mostre por que a alternativa ${safeQuestion.correctAlternative.toUpperCase()} é correta. Não use justificativas genéricas.",
-  "distractors": [
-    {
-      "letter": "A",
-      "trap_explanation": "Explique objetivamente o erro desta alternativa em relação ao enunciado e ao conteúdo da questão."
-    }
-  ],
-  "golden_tip": "Se houver uma observação final, limite-a a uma frase específica sobre esta questão; não escreva um macete genérico."
-}`;
+    const systemInstruction = `Você é um professor experiente de ENEM e concursos, conhecido por escrever comentários de resolução que realmente ensinam o conteúdo.
 
-    const systemInstruction = "Você é um professor experiente e muito didático de preparação para o ENEM. Sua missão é explicar conceitos com clareza, sanar dúvidas instantaneamente e ensinar a matéria de forma leve, direta e memorável. Responda estritamente com JSON válido.";
+REGRAS:
+- Ensine o conceito, regra, definição, fórmula ou mecanismo que torna a alternativa correta verdadeira.
+- Resolva mentalmente a questão e explique o raciocínio essencial passo a passo.
+- Diga explicitamente o significado dos símbolos, termos e relações usados quando isso for necessário para entender a resposta.
+- Uma justificativa circular é proibida: nunca diga apenas que a alternativa é coerente, se relaciona com o texto ou atende ao comando.
+- O texto-base é evidência, não a explicação em si. Não substitua o conteúdo cobrado por um resumo do texto-base.
+- Use no máximo 4 ou 5 frases curtas, em linguagem simples e didática.
+- Não analise distratores, não dê macetes e não inclua dicas genéricas de prova.
+- Responda somente com o texto da explicação, sem JSON, títulos ou preâmbulos.`;
 
-    // Estratégia de chamada à Groq com resiliência:
-    // 1. Se tem imagem: tenta llama-3.2-11b-vision-preview
-    // 2. Fallback / texto puro: llama-3.3-70b-versatile (128k contexto, alta didática)
-    // 3. Fallback de cota: llama-3.1-8b-instant (128k contexto, ultra-rápido)
     let groqResponse: Response | null = null;
-
-    // Tentativa 1: Visão se houver imagem
     if (targetImageUrl) {
       try {
-        console.log("[question-explanation] Tentando modelo de visão Groq (llama-3.2-11b-vision-preview)...");
         groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           method: "POST",
-          headers: {
-            "Authorization": `Bearer ${groqApiKey}`,
-            "Content-Type": "application/json",
-          },
+          headers: { "Authorization": `Bearer ${groqApiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             model: "llama-3.2-11b-vision-preview",
             messages: [
               { role: "system", content: systemInstruction },
-              {
-                role: "user",
-                content: [
-                  { type: "text", text: prompt },
-                  { type: "image_url", image_url: { url: targetImageUrl } }
-                ]
-              }
+              { role: "user", content: [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: targetImageUrl } }] }
             ],
-            max_tokens: 1400,
+            max_tokens: 500,
             temperature: 0.3,
           }),
         });
-
-        if (!groqResponse.ok) {
-          console.warn("[question-explanation] Modelo de visão falhou, tentando modelo de texto.");
-          groqResponse = null;
-        }
+        if (!groqResponse.ok) groqResponse = null;
       } catch (visionErr) {
-        console.warn("[question-explanation] Erro na requisição de visão:", visionErr);
+        console.warn("[question-explanation] Modelo de visão indisponível:", visionErr);
         groqResponse = null;
       }
     }
 
-    // Tentativa 2: llama-3.3-70b-versatile
-    if (!groqResponse || !groqResponse.ok) {
-      try {
-        console.log("[question-explanation] Chamando llama-3.3-70b-versatile...");
-        groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${groqApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "llama-3.3-70b-versatile",
-            messages: [
-              { role: "system", content: systemInstruction },
-              { role: "user", content: prompt }
-            ],
-            max_tokens: 1400,
-            temperature: 0.3,
-          }),
-        });
-      } catch (e) {
-        console.warn("[question-explanation] Erro ao chamar llama-3.3-70b-versatile:", e);
-      }
+    if (!groqResponse) {
+      groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${groqApiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [{ role: "system", content: systemInstruction }, { role: "user", content: prompt }],
+          max_tokens: 500,
+          temperature: 0.3,
+        }),
+      });
     }
 
-    // Tentativa 3: Se 70b der erro ou rate limit (429), tenta llama-3.1-8b-instant
-    if (!groqResponse || !groqResponse.ok) {
-      try {
-        console.log("[question-explanation] Acionando fallback para llama-3.1-8b-instant...");
-        groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${groqApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "llama-3.1-8b-instant",
-            messages: [
-              { role: "system", content: systemInstruction },
-              { role: "user", content: prompt }
-            ],
-            max_tokens: 1200,
-            temperature: 0.3,
-          }),
-        });
-      } catch (e) {
-        console.warn("[question-explanation] Erro no fallback llama-3.1-8b-instant:", e);
-      }
+    if (!groqResponse.ok) {
+      const errorText = await groqResponse.text();
+      console.error("[question-explanation] Erro na API Groq:", groqResponse.status, errorText);
+      return new Response(
+        JSON.stringify({ error: "Erro ao gerar explicação" }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
-    let structuredExplanation = null;
-    let fallbackText = "";
-
-    if (!groqResponse || !groqResponse.ok) {
-      const errorText = groqResponse ? await groqResponse.text() : "Falha geral de rede";
-      console.warn("[question-explanation] Groq retornou status não-ok:", groqResponse?.status, errorText, "- ativando fallback pedagógico do ENEM.");
-      
-      const correctLetter = (question.correctAlternative || "A").toUpperCase();
-      const alternatives = question.alternatives || [];
-      const correctObj = alternatives.find((a: any) => (a.letter || "").toUpperCase() === correctLetter);
-      const correctText = correctObj?.text || "Alternativa correta conforme gabarito oficial.";
-
-      const distractors = alternatives
-        .filter((a: any) => (a.letter || "").toUpperCase() !== correctLetter)
-        .map((alt: any) => ({
-          letter: (alt.letter || "").toUpperCase(),
-          trap_explanation: `Esta alternativa afirma "${alt.text?.slice(0, 100)}${alt.text?.length > 100 ? "..." : ""}", mas não explica corretamente o que o comando pergunta.`
-        }));
-
-      const contextExcerpt = safeQuestion.context.replace(/\s+/g, " ").trim().slice(0, 220);
-      const command = safeQuestion.alternativesIntroduction.replace(/\s+/g, " ").trim();
-      structuredExplanation = {
-        concept_summary: contextExcerpt
-          ? `O texto-base apresenta: "${contextExcerpt}${contextExcerpt.length >= 220 ? "..." : ""}". A questão cobra a relação entre essa situação e o conceito específico indicado nas alternativas.`
-          : `A questão cobra ${question.discipline || "o conteúdo"} a partir do comando: "${command}".`,
-        resolution_steps: command
-          ? `O comando pede: "${command}". Relacionando esse pedido ao texto-base, a alternativa ${correctLetter} é a que apresenta o mecanismo necessário para explicar a situação descrita.`
-          : `A alternativa ${correctLetter} é a que apresenta o mecanismo necessário para explicar a situação descrita no texto-base.`,
-        correct_explanation: `A alternativa (${correctLetter}) é a correta porque "${correctText}". Essa formulação atende diretamente ao comando${command ? ` "${command}"` : ""} e se relaciona com a situação apresentada no texto-base${contextExcerpt ? `, que descreve "${contextExcerpt.slice(0, 140)}${contextExcerpt.length > 140 ? "..." : ""}"` : ""}.`,
-        distractors,
-        golden_tip: ""
-      };
-      fallbackText = structuredExplanation.correct_explanation;
-    } else {
-      try {
-        const groqData = await groqResponse.json();
-        const rawContent = typeof groqData.choices?.[0]?.message?.content === "string"
-          ? groqData.choices[0].message.content
-          : "";
-
-        fallbackText = rawContent;
-
-        const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          structuredExplanation = JSON.parse(jsonMatch[0]);
-          fallbackText = `${structuredExplanation.correct_explanation || ""}`;
-        }
-      } catch (parseErr) {
-        console.warn("[question-explanation] Resposta inválida do provedor; usando fallback literal:", parseErr);
-        const correctLetter = safeQuestion.correctAlternative.toUpperCase();
-        const correctObj = safeQuestion.alternatives.find((alt) => alt.letter.toUpperCase() === correctLetter);
-        const correctText = correctObj?.text || "a alternativa indicada no gabarito oficial";
-        structuredExplanation = {
-          concept_summary: `A questão avalia ${safeQuestion.discipline} a partir do texto apresentado.`,
-          resolution_steps: `O enunciado deve ser relacionado diretamente ao conceito cobrado. A alternativa ${correctLetter} é a que responde ao comando.`,
-          correct_explanation: `A alternativa (${correctLetter}) é a correta porque "${correctText}" responde diretamente ao que a questão pergunta.`,
-          distractors: [],
-          golden_tip: "",
-        };
-        fallbackText = structuredExplanation.correct_explanation;
-      }
-    }
+    const groqData = await groqResponse.json();
+    const explanation = groqData.choices?.[0]?.message?.content?.trim() || "Não foi possível gerar a explicação.";
 
     console.log("[question-explanation] Explicação gerada com sucesso para questão:", `${question.year}-${question.discipline}`);
 
     return new Response(
-      JSON.stringify({ 
-        explanation: fallbackText,
-        structuredExplanation 
-      }),
+      JSON.stringify({ explanation }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
