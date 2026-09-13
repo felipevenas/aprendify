@@ -21,6 +21,41 @@ interface AnnotatedEssayContentProps {
   snippets?: AnnotatedSnippet[];
 }
 
+interface MatchSegment {
+  start: number;
+  end: number;
+  snippet: AnnotatedSnippet;
+}
+
+const getMatchedSegments = (content: string, snippets: AnnotatedSnippet[] = []): MatchSegment[] => {
+  const segments: MatchSegment[] = [];
+
+  snippets.forEach((ann) => {
+    const target = ann.snippet?.trim();
+    if (!target) return;
+
+    let startIndex = 0;
+    let pos = content.indexOf(target, startIndex);
+    while (pos !== -1) {
+      const end = pos + target.length;
+      const overlaps = segments.some((segment) => pos < segment.end && end > segment.start);
+      if (!overlaps) {
+        segments.push({ start: pos, end, snippet: ann });
+        break;
+      }
+      startIndex = pos + 1;
+      pos = content.indexOf(target, startIndex);
+    }
+  });
+
+  return segments.sort((a, b) => a.start - b.start);
+};
+
+export const getRenderableAnnotatedSnippetCount = (
+  content: string,
+  snippets: AnnotatedSnippet[] = [],
+) => getMatchedSegments(content, snippets).length;
+
 const COMPETENCY_CONFIG = {
   1: {
     label: "C1: Norma Culta",
@@ -60,12 +95,13 @@ export const AnnotatedEssayContent: React.FC<AnnotatedEssayContentProps> = ({
 }) => {
   const [selectedComp, setSelectedComp] = useState<number | "all">("all");
 
+  const matchedSegments = useMemo(() => getMatchedSegments(content, snippets), [content, snippets]);
+
   // Filtra snippets com base na seleção
   const activeSnippets = useMemo(() => {
-    if (!snippets || snippets.length === 0) return [];
-    if (selectedComp === "all") return snippets;
-    return snippets.filter(s => s.competency === selectedComp);
-  }, [snippets, selectedComp]);
+    if (selectedComp === "all") return matchedSegments;
+    return matchedSegments.filter((segment) => segment.snippet.competency === selectedComp);
+  }, [matchedSegments, selectedComp]);
 
   // Renderiza o texto intercalando os snippets anotados encontrados
   const renderedText = useMemo(() => {
@@ -78,37 +114,7 @@ export const AnnotatedEssayContent: React.FC<AnnotatedEssayContentProps> = ({
       );
     }
 
-    // Mapeia posições dos trechos no conteúdo
-    interface MatchSegment {
-      start: number;
-      end: number;
-      snippet: AnnotatedSnippet;
-    }
-
-    const segments: MatchSegment[] = [];
-
-    activeSnippets.forEach((ann) => {
-      if (!ann.snippet) return;
-      const target = ann.snippet.trim();
-      if (!target) return;
-
-      let startIndex = 0;
-      let pos = content.indexOf(target, startIndex);
-      // Evita loops infinitos ou duplicatas sobrepostas
-      while (pos !== -1) {
-        const end = pos + target.length;
-        const overlaps = segments.some(s => (pos < s.end && end > s.start));
-        if (!overlaps) {
-          segments.push({ start: pos, end, snippet: ann });
-          break; // pega a primeira ocorrência compatível
-        }
-        startIndex = pos + 1;
-        pos = content.indexOf(target, startIndex);
-      }
-    });
-
-    // Ordena os segmentos cronologicamente pelo texto
-    segments.sort((a, b) => a.start - b.start);
+    const segments = activeSnippets;
 
     if (segments.length === 0) {
       return <span className="whitespace-pre-wrap leading-relaxed">{content}</span>;
@@ -210,11 +216,11 @@ export const AnnotatedEssayContent: React.FC<AnnotatedEssayContentProps> = ({
                   : "bg-background/80 hover:bg-accent text-muted-foreground"
               }`}
             >
-              Todos ({snippets.length})
+              Todos ({matchedSegments.length})
             </button>
 
             {([1, 2, 3, 4, 5] as const).map((cNum) => {
-              const count = snippets.filter(s => s.competency === cNum).length;
+              const count = matchedSegments.filter((segment) => segment.snippet.competency === cNum).length;
               if (count === 0) return null;
               const conf = COMPETENCY_CONFIG[cNum];
 

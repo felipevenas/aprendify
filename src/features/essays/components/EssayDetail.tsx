@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useMemo } from "react";
-import { AnnotatedEssayContent, AnnotatedSnippet } from "./AnnotatedEssayContent";
+import { AnnotatedEssayContent, AnnotatedSnippet, getRenderableAnnotatedSnippetCount } from "./AnnotatedEssayContent";
 import { InterventionChecklist, InterventionChecklistData } from "./InterventionChecklist";
 
 /**
@@ -262,9 +262,9 @@ const EssayDetail = ({ essay, onBack }: EssayDetailProps) => {
             <PenTool className="h-5 w-5 text-primary" />
             Sua Redação Anotada pelo Corretor
           </h3>
-          {structuredFeedback?.annotated_snippets?.length ? (
+          {structuredFeedback?.annotated_snippets?.length && getRenderableAnnotatedSnippetCount(essay.content, structuredFeedback.annotated_snippets) > 0 ? (
             <Badge variant="outline" className="text-xs border-primary/30 text-primary">
-              {structuredFeedback.annotated_snippets.length} destaques pedagógicos
+              {getRenderableAnnotatedSnippetCount(essay.content, structuredFeedback.annotated_snippets)} destaques pedagógicos
             </Badge>
           ) : null}
         </div>
