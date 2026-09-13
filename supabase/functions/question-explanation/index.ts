@@ -205,14 +205,16 @@ ${targetImageUrl ? "\n[Esta questão contém imagem/gráfico em anexo: considere
 
 Explique exatamente esta questão, como um professor que acabou de corrigir a resposta do estudante.
 Seja direto, literal e específico ao texto-base, ao comando e à alternativa correta.
+Mencione pelo menos uma evidência concreta do texto-base ou do comando e explique o mecanismo que liga essa evidência ao gabarito.
+Nunca responda apenas que a alternativa é "coerente" ou "responde ao comando": diga qual conceito, qual relação e por que ela é correta.
 Não dê dicas genéricas de prova, macetes, estratégias de eliminação ou conselhos que poderiam servir para qualquer questão.
 Não invente informações que não estejam no enunciado ou no conteúdo necessário para justificar o gabarito.
 
 Responda APENAS com JSON no seguinte formato (sem blocos markdown, apenas o JSON puro):
 {
-  "concept_summary": "Em 2 ou 3 frases, explique o conceito necessário para entender o texto-base e o comando desta questão.",
-  "resolution_steps": "Em 2 ou 3 frases, conecte o texto-base e o comando à resposta, sem listar dicas gerais de prova.",
-  "correct_explanation": "Explique literalmente por que a alternativa ${safeQuestion.correctAlternative.toUpperCase()} responde ao comando e, se necessário, aponte o erro central das demais.",
+  "concept_summary": "Em 2 ou 3 frases, explique o conceito específico presente no texto-base, usando os termos e relações desta questão.",
+  "resolution_steps": "Em 2 ou 3 frases, mostre a cadeia lógica entre uma evidência do texto-base, o comando e a alternativa correta.",
+  "correct_explanation": "Em 3 ou 4 frases, cite a evidência relevante, nomeie o mecanismo/conceito e explique por que a alternativa ${safeQuestion.correctAlternative.toUpperCase()} é correta. Não use justificativas genéricas.",
   "distractors": [
     {
       "letter": "A",
@@ -329,29 +331,27 @@ Responda APENAS com JSON no seguinte formato (sem blocos markdown, apenas o JSON
       const correctObj = alternatives.find((a: any) => (a.letter || "").toUpperCase() === correctLetter);
       const correctText = correctObj?.text || "Alternativa correta conforme gabarito oficial.";
 
-      const trapTypes = [
-        "Cuidado com a extrapolação: essa opção acrescenta ideias que não estão no texto nem na teoria.",
-        "Atenção ao detalhe irrelevante: cita um detalhe que até existe, mas ignora o que a pergunta realmente pediu.",
-        "Inversão de causa e efeito: troca a ordem dos fatores ou diz o oposto do conceito científico.",
-        "Pegadinha do senso comum: parece uma verdade do dia a dia, mas cientificamente ou historicamente está errada.",
-        "Generalização perigosa: usa palavras radicais como 'sempre', 'nunca' ou 'totalmente' que anulam a resposta."
-      ];
-
       const distractors = alternatives
         .filter((a: any) => (a.letter || "").toUpperCase() !== correctLetter)
-        .map((alt: any, idx: number) => ({
+        .map((alt: any) => ({
           letter: (alt.letter || "").toUpperCase(),
-          trap_explanation: `${trapTypes[idx % trapTypes.length]} Ao afirmar que "${alt.text?.slice(0, 75)}${alt.text?.length > 75 ? "..." : ""}", ela se desvia da resposta que o comando exigia.`
+          trap_explanation: `Esta alternativa afirma "${alt.text?.slice(0, 100)}${alt.text?.length > 100 ? "..." : ""}", mas não explica corretamente o que o comando pergunta.`
         }));
 
+      const contextExcerpt = safeQuestion.context.replace(/\s+/g, " ").trim().slice(0, 220);
+      const command = safeQuestion.alternativesIntroduction.replace(/\s+/g, " ").trim();
       structuredExplanation = {
-        concept_summary: `Essa questão de ${question.discipline || "ENEM"} (${question.year || "Edição Oficial"}) testa a sua capacidade de relacionar a teoria diretamente com a situação prática apresentada, sem se perder em detalhes secundários.`,
-        resolution_steps: `1. Entenda o que a pergunta pede: foque exatamente no verbo de comando do enunciado.\n2. Localize no texto ou na imagem a evidência que responde a essa pergunta.\n3. Elimine as opções que fogem do tema ou que generalizam demais.`,
-        correct_explanation: `A alternativa (${correctLetter}) é a correta! Ela se conecta perfeitamente ao conceito porque "${correctText}" responde com exatidão ao que o enunciado solicitou.`,
+        concept_summary: contextExcerpt
+          ? `O texto-base apresenta: "${contextExcerpt}${contextExcerpt.length >= 220 ? "..." : ""}". A questão cobra a relação entre essa situação e o conceito específico indicado nas alternativas.`
+          : `A questão cobra ${question.discipline || "o conteúdo"} a partir do comando: "${command}".`,
+        resolution_steps: command
+          ? `O comando pede: "${command}". Relacionando esse pedido ao texto-base, a alternativa ${correctLetter} é a que apresenta o mecanismo necessário para explicar a situação descrita.`
+          : `A alternativa ${correctLetter} é a que apresenta o mecanismo necessário para explicar a situação descrita no texto-base.`,
+        correct_explanation: `A alternativa (${correctLetter}) é a correta porque "${correctText}". Essa formulação atende diretamente ao comando${command ? ` "${command}"` : ""} e se relaciona com a situação apresentada no texto-base${contextExcerpt ? `, que descreve "${contextExcerpt.slice(0, 140)}${contextExcerpt.length > 140 ? "..." : ""}"` : ""}.`,
         distractors,
-        golden_tip: `Macete de ouro para o ENEM: Sempre leia primeiro a última frase do enunciado (o comando da pergunta). Assim você já lê o texto-base sabendo exatamente o que procurar!`
+        golden_tip: ""
       };
-      fallbackText = `${structuredExplanation.correct_explanation}\n\n${structuredExplanation.golden_tip}`;
+      fallbackText = structuredExplanation.correct_explanation;
     } else {
       try {
         const groqData = await groqResponse.json();
