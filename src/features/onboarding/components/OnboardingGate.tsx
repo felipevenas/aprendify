@@ -48,7 +48,13 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
       if (!session) { setStatus("complete"); return; }
       const { data: profile, error: profileError } = await supabase.from("profiles").select("primeiro_acesso").eq("id", session.user.id).single();
       if (!active) return;
-      if (profileError) { setError("Não conseguimos carregar seu perfil. Tente novamente."); setStatus("error"); return; }
+      if (profileError) {
+        // Permite que usuários existentes continuem acessando enquanto a
+        // migração do onboarding ainda não foi aplicada no banco remoto.
+        // Assim, uma coluna ausente não transforma um login válido em erro.
+        if (profileError.code === "42703") { setStatus("complete"); return; }
+        setError("Não conseguimos carregar seu perfil. Tente novamente."); setStatus("error"); return;
+      }
       setStatus(profile?.primeiro_acesso ? "required" : "complete");
     };
     void load();
