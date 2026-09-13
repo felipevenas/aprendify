@@ -271,9 +271,9 @@ export const HelpTooltipsProvider: React.FC<{ children: React.ReactNode }> = ({ 
     getUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
+      if ((event === "SIGNED_IN" || event === "USER_UPDATED") && session?.user) {
         setUserId(session.user.id);
-      } else {
+      } else if (event === "SIGNED_OUT") {
         setUserId(null);
       }
     });

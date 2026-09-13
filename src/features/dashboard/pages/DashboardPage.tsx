@@ -209,7 +209,7 @@ const Dashboard = () => {
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") {
         navigate("/auth");
-      } else if (session) {
+      } else if ((event === "SIGNED_IN" || event === "USER_UPDATED") && session) {
         setUser(session.user);
       }
     });

@@ -120,10 +120,10 @@ const NavbarContent = () => {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === "SIGNED_IN" || event === "USER_UPDATED") && session?.user) {
         setUser(session.user);
-      } else {
+      } else if (event === "SIGNED_OUT") {
         setUser(null);
       }
     });

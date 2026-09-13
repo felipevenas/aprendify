@@ -58,7 +58,9 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
       setStatus(profile?.primeiro_acesso ? "required" : "complete");
     };
     void load();
-    const { data: listener } = supabase.auth.onAuthStateChange(() => { void load(); });
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") void load();
+    });
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
 

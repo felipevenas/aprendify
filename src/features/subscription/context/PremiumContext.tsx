@@ -174,14 +174,16 @@ export const PremiumProvider = ({ children }: PremiumProviderProps) => {
     };
 
     void initialize();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session?.user) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
         setUserId(null);
         clearEntitlement();
         setEntitlementStatus("ready");
         setIsLoading(false);
         return;
       }
+      if (event !== "SIGNED_IN" && event !== "USER_UPDATED") return;
+      if (!session?.user) return;
       setUserId(session.user.id);
       void checkPremiumStatus(session.user.id, true);
     });
