@@ -311,21 +311,32 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
     }
 
     const groqData = await groqResponse.json();
-    const responseContent = groqData.choices?.[0]?.message?.content || "";
+    const rawContent = groqData.choices?.[0]?.message?.content;
+    const responseContent = typeof rawContent === "string"
+      ? rawContent.trim()
+      : rawContent && typeof rawContent === "object"
+        ? JSON.stringify(rawContent)
+        : "";
     console.log("[correct-essay] AI response received");
 
     // Parse do JSON da resposta
     let correction;
     try {
-      // Tentar extrair JSON do response
-      const jsonMatch = responseContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        correction = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("JSON não encontrado na resposta");
+      // Primeiro tenta o conteúdo inteiro; depois tolera markdown/preâmbulos.
+      try {
+        correction = JSON.parse(responseContent);
+      } catch {
+        const start = responseContent.indexOf("{");
+        const end = responseContent.lastIndexOf("}");
+        if (start < 0 || end <= start) throw new Error("JSON não encontrado na resposta");
+        correction = JSON.parse(responseContent.slice(start, end + 1));
       }
     } catch (parseError) {
-      console.error("[correct-essay] Erro ao parsear resposta da IA", parseError instanceof Error ? parseError.message : "parse_failed");
+      console.error(
+        "[correct-essay] Erro ao parsear resposta da IA",
+        parseError instanceof Error ? parseError.message : "parse_failed",
+        "content_length:", responseContent.length,
+      );
       throw new ApiError(502, "AI_INVALID_RESPONSE", "Erro ao processar correção");
     }
 
