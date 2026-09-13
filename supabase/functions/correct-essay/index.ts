@@ -258,14 +258,14 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
     console.log("[correct-essay] requesting AI correction");
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 45_000);
-    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    let groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${groqApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages: [
           {
             role: "system",
@@ -281,7 +281,27 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
 
     clearTimeout(timeout);
 
-    if (!groqResponse || !groqResponse.ok) {
+    if (!groqResponse.ok) {
+      console.warn("[correct-essay] Primary model failed; trying GPT-OSS 20B fallback", groqResponse.status);
+      groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${groqApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-oss-20b",
+          messages: [
+            { role: "system", content: ENEM_RUBRIC_PROMPT },
+            { role: "user", content: userPrompt }
+          ],
+          max_tokens: 2500,
+          temperature: 0.15,
+        }),
+      });
+    }
+
+    if (!groqResponse.ok) {
       console.error("[correct-essay] Groq request failed", groqResponse?.status);
       throw new ApiError(502, "AI_REQUEST_FAILED", "Erro ao corrigir redação com IA. Tente novamente em instantes.");
     }
