@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
-import { usePremium } from "@/hooks/usePremium";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -68,8 +67,6 @@ const ORDER_BUMP = {
 export default function SalesPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { isPremium, planType } = usePremium();
-
   const [selectedPlan, setSelectedPlan] = useState<"starter" | "annual">(
     searchParams.get("plano") === "starter" ? "starter" : "annual"
   );
