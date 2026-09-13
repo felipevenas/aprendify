@@ -13,6 +13,7 @@ import Navbar, { NavbarLayoutContext } from "@/shared/components/layout/Navbar";
 import { pageLoaders } from "@/lib/pageLoaders";
 import { RouteContent } from "@/components/RouteContent";
 import { MotionConfig } from "framer-motion";
+import { OnboardingGate } from "@/features/onboarding/components/OnboardingGate";
 
 const SuspenseFallback = () => <PageContentSkeleton />;
 
@@ -65,6 +66,7 @@ const AppLayout = () => {
 
   return (
     <MotionConfig reducedMotion="user">
+    <OnboardingGate>
     <StreakProvider>
       <PremiumProvider>
         <HelpTooltipsProvider>
@@ -112,6 +114,7 @@ const AppLayout = () => {
         </HelpTooltipsProvider>
       </PremiumProvider>
     </StreakProvider>
+    </OnboardingGate>
     </MotionConfig>
   );
 };

@@ -8,7 +8,6 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, Mail, Lock, User, ArrowRight, Eye, EyeOff, Check, X, ShieldCheck, PartyPopper } from "lucide-react";
-import authHero from "@/assets/auth-hero.jpg";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { z } from "zod";
 import ReCAPTCHA from "react-google-recaptcha";
@@ -16,6 +15,7 @@ import Confetti from "react-confetti";
 import { useWindowSize } from "@/hooks/useWindowSize";
 import { MotionConfig } from "framer-motion";
 import { getSafeAuthMessage } from "../services/authMessages";
+import { useTheme } from "next-themes";
 
 /**
  * Chave pública do reCAPTCHA V2 (site key)
@@ -70,9 +70,23 @@ const birthdateSchema = z
   .refine((date) => {
     const birthDate = new Date(date);
     const today = new Date();
-    const age = today.getFullYear() - birthDate.getFullYear();
+    if (Number.isNaN(birthDate.getTime()) || birthDate > today) return false;
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const birthdayHasNotHappened = today.getMonth() < birthDate.getMonth() ||
+      (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate());
+    if (birthdayHasNotHappened) age -= 1;
     return age >= 10 && age <= 100;
   }, "Idade deve estar entre 10 e 100 anos");
+
+const getAgeFromBirthdate = (date: string) => {
+  if (!date) return null;
+  const birthDate = new Date(`${date}T00:00:00`);
+  const today = new Date();
+  if (Number.isNaN(birthDate.getTime()) || birthDate > today) return null;
+  let age = today.getFullYear() - birthDate.getFullYear();
+  if (today.getMonth() < birthDate.getMonth() || (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate())) age -= 1;
+  return age;
+};
 
 /**
  * Conteúdos dinâmicos que mudam na tela de login
@@ -145,6 +159,14 @@ const Auth = () => {
   const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
   const [birthdate, setBirthdate] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [currentSituation, setCurrentSituation] = useState("");
+  const [mainGoal, setMainGoal] = useState("");
+  const [examYear, setExamYear] = useState("");
+  const [studyPreference, setStudyPreference] = useState("");
+  const [signupSource, setSignupSource] = useState("");
+  const [acceptsMarketing, setAcceptsMarketing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [contentIndex, setContentIndex] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
@@ -168,6 +190,7 @@ const Auth = () => {
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
   const [searchParams] = useSearchParams();
   const { width, height } = useWindowSize();
 
@@ -188,6 +211,7 @@ const Auth = () => {
   const passwordValidation = useMemo(() => validatePassword(password), [password]);
   const isPasswordStrong = Object.values(passwordValidation).every(Boolean);
   const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
+  const calculatedAge = getAgeFromBirthdate(birthdate);
 
   // Efeito para trocar o conteúdo dinâmico a cada 5 segundos
   useEffect(() => {
@@ -352,6 +376,14 @@ const Auth = () => {
               username: username,
               phone: phone,
               birthdate: birthdate || null,
+              city: city || null,
+              state: state || null,
+              current_situation: currentSituation || null,
+              main_goal: mainGoal || null,
+              target_exam_year: examYear || null,
+              study_preference: studyPreference || null,
+              signup_source: signupSource || null,
+              accepts_marketing: acceptsMarketing,
             },
           },
         });
@@ -455,7 +487,7 @@ const Auth = () => {
 
   return (
     <MotionConfig reducedMotion="user">
-    <div className="min-h-screen flex flex-col lg:flex-row relative">
+    <div className="relative flex min-h-screen flex-col gap-0 bg-muted/50 p-0 lg:h-screen lg:flex-row lg:gap-4 lg:overflow-hidden lg:p-4 xl:p-6">
       {/* Animação de confetti ao cadastrar com sucesso */}
       <AnimatePresence>
         {showSuccessAnimation && (
@@ -501,20 +533,22 @@ const Auth = () => {
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}
-        className="hidden lg:flex lg:w-1/2 relative bg-primary overflow-hidden"
+        className="relative hidden min-h-0 overflow-hidden rounded-[2rem] bg-primary shadow-xl lg:flex lg:h-full lg:w-[52%] xl:min-h-0"
       >
-        {/* Imagem de fundo */}
-        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${authHero})` }}>
-          {/* Overlay gradiente */}
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary/70 to-primary-dark/90" />
-        </div>
+        {/* Campo visual construído apenas com os fades da paleta Aprendify */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-dark via-primary to-sky-500" />
+        <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-sky-300/25 blur-3xl" />
+        <div className="absolute -bottom-32 -left-20 h-96 w-96 rounded-full bg-indigo-950/35 blur-3xl" />
+        <div className="absolute inset-0 opacity-20 [background-image:linear-gradient(hsl(var(--primary-foreground)/0.16)_1px,transparent_1px),linear-gradient(90deg,hsl(var(--primary-foreground)/0.16)_1px,transparent_1px)] [background-size:44px_44px]" />
 
         {/* Conteúdo dinâmico sobre a imagem */}
-        <div className="relative z-10 flex flex-col justify-center px-12 lg:px-16 xl:px-24 text-white">
+        <div className="relative z-10 flex w-full flex-col justify-between px-8 py-8 text-white lg:px-10 xl:px-14 xl:py-10">
           {/* Logo fixo */}
-          <div className="flex items-center gap-3 mb-6">
-            <BookOpen className="h-12 w-12 text-white" />
-            <h1 className="text-5xl font-bold text-white">Aprendify</h1>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/25 bg-white/15 backdrop-blur-sm">
+              <BookOpen className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-2xl font-bold tracking-tight text-white">Aprendify</span>
           </div>
 
           {/* Conteúdo que muda com animação */}
@@ -526,21 +560,22 @@ const Auth = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.5 }}
             >
-              <h2 className="text-3xl font-semibold mb-4 text-white">{currentContent.title}</h2>
-              <p className="text-xl text-white mb-8 leading-relaxed">{currentContent.description}</p>
+              <div className="mb-4 inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm">Sua jornada começa aqui</div>
+              <h2 className="max-w-xl text-4xl font-semibold leading-tight text-white xl:text-5xl">{currentContent.title}</h2>
+              <p className="mb-8 mt-4 max-w-xl text-base leading-relaxed text-white/80 xl:text-lg">{currentContent.description}</p>
 
               {/* Features dinâmicas */}
-              <div className="space-y-4">
+              <div className="grid max-w-xl gap-3 sm:grid-cols-2">
                 {currentContent.features.map((feature, idx) => (
                   <motion.div
                     key={feature}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.4, delay: idx * 0.1 }}
-                    className="flex items-center gap-3"
+                    className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-3 py-3 backdrop-blur-sm"
                   >
-                    <div className="w-2 h-2 rounded-full bg-white" />
-                    <span className="text-lg text-white">{feature}</span>
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20"><Check className="h-3.5 w-3.5 text-white" /></div>
+                    <span className="text-sm text-white/90">{feature}</span>
                   </motion.div>
                 ))}
               </div>
@@ -567,13 +602,39 @@ const Auth = () => {
         initial={{ opacity: 0, x: 50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}
-        className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-background"
+        className="flex min-h-0 flex-1 items-center justify-center bg-card p-5 sm:p-8 lg:h-full lg:overflow-y-auto lg:rounded-[2rem] lg:p-10 xl:p-14"
       >
-        <div className="w-full max-w-md">
-          {/* Logo mobile */}
-          <div className="flex lg:hidden items-center justify-center mb-8">
-            <BookOpen className="h-10 w-10 text-primary mr-3" />
-            <h1 className="text-3xl font-bold text-primary">Aprendify</h1>
+        <div className="w-full max-w-lg">
+          <div className="mb-6 flex items-center justify-between lg:hidden">
+            <div className="flex items-center">
+              <BookOpen className="mr-3 h-10 w-10 text-primary" />
+              <h1 className="text-3xl font-bold text-primary">Aprendify</h1>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label={theme === "dark" ? "Ativar tema claro" : "Ativar tema escuro"}
+              title={theme === "dark" ? "Ativar tema claro" : "Ativar tema escuro"}
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="ml-auto h-10 w-10 rounded-full"
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          <div className="mb-6 hidden justify-end lg:flex">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label={theme === "dark" ? "Ativar tema claro" : "Ativar tema escuro"}
+              title={theme === "dark" ? "Ativar tema claro" : "Ativar tema escuro"}
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="h-10 w-10 rounded-full"
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
           </div>
 
           {/* Header do formulário */}
@@ -581,9 +642,9 @@ const Auth = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="mb-8"
+            className="mb-7"
           >
-            <h2 className="text-3xl font-bold text-foreground mb-2">
+            <h2 className="text-3xl font-bold tracking-tight text-foreground mb-2 sm:text-4xl">
               {isLogin ? "Bem-vindo de volta" : "Criar sua conta"}
             </h2>
             <p className="text-muted-foreground text-lg">
@@ -863,6 +924,25 @@ const Auth = () => {
                     />
                   </div>
                 </motion.div>
+
+                {/* Idade calculada e dados opcionais de personalização */}
+                <div className="space-y-4 rounded-xl border border-primary/15 bg-primary/[0.03] p-4 sm:p-5">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Personalize sua experiência <span className="font-normal text-muted-foreground">(opcional)</span></p>
+                    <p className="mt-1 text-xs text-muted-foreground">Essas respostas ajudam a melhorar recomendações e comunicações.</p>
+                  </div>
+                  {calculatedAge !== null && <p className="rounded-lg bg-background px-3 py-2 text-sm text-muted-foreground" role="status">Você tem <span className="font-semibold text-foreground">{calculatedAge} anos</span>.</p>}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2"><Label htmlFor="state">Estado</Label><select id="state" value={state} onChange={(e) => setState(e.target.value)} disabled={loading} className="flex h-12 w-full rounded-lg border border-input bg-background px-3 text-base outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30 md:text-sm"><option value="">Selecione</option>{["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"].map((uf) => <option key={uf} value={uf}>{uf}</option>)}</select></div>
+                    <div className="space-y-2"><Label htmlFor="city">Cidade</Label><Input id="city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Sua cidade" maxLength={80} disabled={loading} className="h-12 text-base" /></div>
+                    <div className="space-y-2"><Label htmlFor="currentSituation">Situação atual</Label><select id="currentSituation" value={currentSituation} onChange={(e) => setCurrentSituation(e.target.value)} disabled={loading} className="flex h-12 w-full rounded-lg border border-input bg-background px-3 text-base outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30 md:text-sm"><option value="">Selecione</option><option>Ensino médio</option><option>Concluí o ensino médio</option><option>Estou no cursinho</option><option>Faculdade</option><option>Já trabalho</option></select></div>
+                    <div className="space-y-2"><Label htmlFor="mainGoal">Objetivo principal</Label><select id="mainGoal" value={mainGoal} onChange={(e) => setMainGoal(e.target.value)} disabled={loading} className="flex h-12 w-full rounded-lg border border-input bg-background px-3 text-base outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30 md:text-sm"><option value="">Selecione</option><option>Passar no ENEM</option><option>Entrar em uma faculdade específica</option><option>Melhorar minha nota</option><option>Conseguir bolsa</option></select></div>
+                    <div className="space-y-2"><Label htmlFor="examYear">Ano da prova pretendida</Label><select id="examYear" value={examYear} onChange={(e) => setExamYear(e.target.value)} disabled={loading} className="flex h-12 w-full rounded-lg border border-input bg-background px-3 text-base outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30 md:text-sm"><option value="">Selecione</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028 ou depois</option></select></div>
+                    <div className="space-y-2"><Label htmlFor="studyPreference">Preferência de estudo</Label><select id="studyPreference" value={studyPreference} onChange={(e) => setStudyPreference(e.target.value)} disabled={loading} className="flex h-12 w-full rounded-lg border border-input bg-background px-3 text-base outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30 md:text-sm"><option value="">Selecione</option><option>Manhã</option><option>Tarde</option><option>Noite</option><option>Madrugada</option></select></div>
+                  </div>
+                  <div className="space-y-2"><Label htmlFor="signupSource">Como conheceu o Aprendify?</Label><select id="signupSource" value={signupSource} onChange={(e) => setSignupSource(e.target.value)} disabled={loading} className="flex h-12 w-full rounded-lg border border-input bg-background px-3 text-base outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30 md:text-sm"><option value="">Selecione</option><option>Instagram</option><option>TikTok</option><option>YouTube</option><option>Indicação</option><option>Google</option><option>Outro</option></select></div>
+                  <label className="flex cursor-pointer items-start gap-3 text-sm text-muted-foreground"><input type="checkbox" checked={acceptsMarketing} onChange={(e) => setAcceptsMarketing(e.target.checked)} disabled={loading} className="mt-0.5 h-4 w-4 rounded border-input accent-primary" /> <span>Quero receber novidades, dicas de estudo e ofertas do Aprendify.</span></label>
+                </div>
 
                 {/* Celular - com efeito visual de foco */}
                 <motion.div 

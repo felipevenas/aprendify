@@ -482,6 +482,19 @@ export type Database = {
           full_name: string | null
           id: string
           onboarding_completed: boolean | null
+          primeiro_acesso: boolean
+          tempo_estudo: string | null
+          media_atual: string | null
+          curso_pretendido: string | null
+          faculdade_desejada: string | null
+          maiores_dificuldades: string[] | null
+          city: string | null
+          state: string | null
+          current_situation: string | null
+          main_goal: string | null
+          study_preference: string | null
+          signup_source: string | null
+          accepts_marketing: boolean
           phone: string | null
           target_exam_year: string | null
           updated_at: string
@@ -496,6 +509,19 @@ export type Database = {
           full_name?: string | null
           id: string
           onboarding_completed?: boolean | null
+          primeiro_acesso?: boolean
+          tempo_estudo?: string | null
+          media_atual?: string | null
+          curso_pretendido?: string | null
+          faculdade_desejada?: string | null
+          maiores_dificuldades?: string[] | null
+          city?: string | null
+          state?: string | null
+          current_situation?: string | null
+          main_goal?: string | null
+          study_preference?: string | null
+          signup_source?: string | null
+          accepts_marketing?: boolean
           phone?: string | null
           target_exam_year?: string | null
           updated_at?: string
@@ -510,6 +536,19 @@ export type Database = {
           full_name?: string | null
           id?: string
           onboarding_completed?: boolean | null
+          primeiro_acesso?: boolean
+          tempo_estudo?: string | null
+          media_atual?: string | null
+          curso_pretendido?: string | null
+          faculdade_desejada?: string | null
+          maiores_dificuldades?: string[] | null
+          city?: string | null
+          state?: string | null
+          current_situation?: string | null
+          main_goal?: string | null
+          study_preference?: string | null
+          signup_source?: string | null
+          accepts_marketing?: boolean
           phone?: string | null
           target_exam_year?: string | null
           updated_at?: string

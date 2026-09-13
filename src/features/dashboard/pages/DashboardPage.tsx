@@ -59,6 +59,8 @@ interface AreaPerformance {
   accuracy: number;
 }
 
+const getFirstName = (fullName?: string | null) => fullName?.trim().split(/\s+/)[0] || "Estudante";
+
 // Componente de ícone auxiliar para Coffee/Pausa
 const CoffeeIcon = ({ className }: { className?: string }) => (
   <svg
@@ -81,6 +83,7 @@ const CoffeeIcon = ({ className }: { className?: string }) => (
 
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [userFirstName, setUserFirstName] = useState("Estudante");
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
@@ -130,9 +133,14 @@ const Dashboard = () => {
 
       setUser(session.user);
 
-      // Busca o papel do usuário
-      const { data: roleData } = await supabase.rpc("get_user_role", { _user_id: session.user.id });
+      // O nome exibido vem do perfil, que é a fonte persistida do cadastro.
+      // Mantemos o metadata como fallback para sessões antigas ou perfis ainda em sincronização.
+      const [{ data: roleData }, { data: profileData }] = await Promise.all([
+        supabase.rpc("get_user_role", { _user_id: session.user.id }),
+        supabase.from("profiles").select("full_name").eq("id", session.user.id).maybeSingle(),
+      ]);
       setIsAdmin(roleData === "admin");
+      setUserFirstName(getFirstName(profileData?.full_name || session.user.user_metadata?.full_name));
 
       // Buscar tentativas de questões para cálculo de desempenho por área
       try {
@@ -223,7 +231,7 @@ const Dashboard = () => {
       <main className="relative max-w-7xl lg:ml-0 lg:mr-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
         <PageLoader loading={loading} variant="dashboard">
           {/* Banner de Boas-Vindas */}
-          <WelcomeBanner userName={user?.user_metadata?.full_name?.split(" ")[0] || "Estudante"} userId={user?.id} />
+          <WelcomeBanner userName={userFirstName} userId={user?.id} />
 
           {/* Grid Geral do Dashboard */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-6">
