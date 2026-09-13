@@ -275,6 +275,8 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
         ],
         max_tokens: 2500,
         temperature: 0.15,
+        response_format: { type: "json_object" },
+        reasoning_effort: "low",
       }),
       signal: controller.signal,
     });
@@ -297,6 +299,8 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
           ],
           max_tokens: 2500,
           temperature: 0.15,
+          response_format: { type: "json_object" },
+          reasoning_effort: "low",
         }),
       });
     }
