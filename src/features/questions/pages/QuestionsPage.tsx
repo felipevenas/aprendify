@@ -236,7 +236,7 @@ const Questions = () => {
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 app-layout-container">
       <Navbar />
 
-      <main className="max-w-7xl lg:ml-0 lg:mr-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl lg:ml-0 lg:mr-auto px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
         <PageLoader loading={initialLoading} variant="default">
           {/* Header Minimalista Padronizado */}
           <motion.div
@@ -259,13 +259,13 @@ const Questions = () => {
                   )}
                 </AnimatePresence>
               }
-              className="mb-4"
+              className="mb-2 space-y-1"
             />
           </motion.div>
             
             {/* Actions row */}
             <TooltipProvider>
-              <div className="flex items-center justify-end gap-2 mb-4" data-tour="questions-actions">
+              <div className="flex items-center justify-end gap-2 mb-3" data-tour="questions-actions">
               
               <Tooltip>
                 <TooltipTrigger asChild>

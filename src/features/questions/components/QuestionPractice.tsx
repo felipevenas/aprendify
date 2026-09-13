@@ -344,14 +344,7 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
             </div>
           )}
 
-          {/* Enunciado */}
-          {question.title && (
-            <h2 className="mb-6 text-lg font-semibold leading-8 text-foreground sm:text-xl">
-              {cleanMarkdownArtifacts(question.title)}
-            </h2>
-          )}
-
-        {/* Imagens da questão */}
+          {/* Imagens da questão */}
         {question.files && question.files.length > 0 && (
           <div className="mb-6 space-y-4">
             {question.files.map((file: string, idx: number) => (
