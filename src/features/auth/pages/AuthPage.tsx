@@ -188,6 +188,7 @@ const Auth = () => {
 
   // Estado para animação de sucesso no cadastro
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const authPanelRef = useRef<HTMLDivElement>(null);
 
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
@@ -237,6 +238,21 @@ const Auth = () => {
   }, [registrationSuccess]);
 
   const currentContent = dynamicContent[contentIndex];
+
+  useEffect(() => {
+    // Ao trocar entre login e cadastro, o foco pode preservar a posição
+    // anterior dentro do painel rolável. Sempre recomeçamos pelo topo,
+    // inclusive no mobile, onde o próprio documento é o scroll container.
+    const resetAuthScroll = () => {
+      authPanelRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    };
+
+    resetAuthScroll();
+    const frame = window.requestAnimationFrame(resetAuthScroll);
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [isLogin]);
 
   // Handler para autenticação (login ou signup)
   const handleAuth = async (e: React.FormEvent) => {
@@ -602,7 +618,8 @@ const Auth = () => {
         initial={{ opacity: 0, x: 50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}
-        className="flex min-h-0 flex-1 items-center justify-center bg-card p-5 sm:p-8 lg:h-full lg:overflow-y-auto lg:rounded-[2rem] lg:p-10 xl:p-14"
+        ref={authPanelRef}
+        className="flex min-h-0 flex-1 items-start justify-center overscroll-contain bg-card p-5 sm:p-8 lg:h-full lg:overflow-y-auto lg:rounded-[2rem] lg:p-10 xl:p-14"
       >
         <div className="w-full max-w-lg">
           <div className="mb-6 flex items-center justify-between lg:hidden">
