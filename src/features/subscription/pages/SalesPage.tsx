@@ -35,18 +35,18 @@ import {
   Users
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { createCheckoutSession } from "../services/checkoutService";
+import { RemoteFailure, retryAfterLabel } from "@/features/auth/services/remoteErrors";
 
 // Preços oficiais do Stripe
 const STRIPE_PRICES = {
   starter: {
-    id: "price_1TnQt8BbpjcYJ0FGlA6eJbV6", // R$ 9,90/mês
     name: "Prática",
     price: 9.90,
     period: "/mês",
     description: "Ideal para estudar sem travas com questões ilimitadas e IA explicativa.",
   },
   annual: {
-    id: "price_1TnQtEBbpjcYJ0FGZ2GQbLKC", // R$ 95,04/ano
     name: "Completo",
     price: 95.04,
     monthlyEquivalent: 7.92,
@@ -58,7 +58,6 @@ const STRIPE_PRICES = {
 
 // Order bump opcional (add-on)
 const ORDER_BUMP = {
-  id: "order_bump_redacao",
   title: "Combo Redação (+5 Redações IA)",
   description: "Desbloqueie 5 análises aprofundadas adicionais com notas detalhadas nas 5 competências do ENEM.",
   price: 7.90,
@@ -70,12 +69,13 @@ export default function SalesPage() {
   const [selectedPlan, setSelectedPlan] = useState<"starter" | "annual">(
     searchParams.get("plano") === "starter" ? "starter" : "annual"
   );
-  const [includeOrderBump, setIncludeOrderBump] = useState(false);
+  const [includeOrderBump, setIncludeOrderBump] = useState(searchParams.get("bump") === "redacao");
   const [couponCode, setCouponCode] = useState(searchParams.get("cupom") || "");
   const [showCouponInput, setShowCouponInput] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<RemoteFailure | null>(null);
 
   // Monitora usuário autenticado
   useEffect(() => {
@@ -96,36 +96,14 @@ export default function SalesPage() {
     }
 
     setIsLoading(true);
+    setCheckoutError(null);
     try {
-      const requestBody: any = {
-        priceId: currentPlanData.id,
-      };
-
-      if (couponCode.trim()) {
-        requestBody.couponCode = couponCode.trim().toUpperCase();
-      }
-
-      // Se incluir order bump, envia parâmetro de order bump
-      if (includeOrderBump) {
-        requestBody.orderBumpPriceId = ORDER_BUMP.id;
-      }
-
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: requestBody,
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error("Não foi possível gerar a página de pagamento.");
-      }
-    } catch (err: any) {
-      console.error("Erro no checkout:", err);
-      toast.error(err.message || "Erro ao processar o pagamento. Tente novamente.");
+      const checkout = await createCheckoutSession(selectedPlan, includeOrderBump, couponCode);
+      window.location.href = checkout.url;
+    } catch (error) {
+      const failure = error instanceof RemoteFailure ? error : new RemoteFailure(500, "Não foi possível iniciar o pagamento. Tente novamente.", "server_error");
+      setCheckoutError(failure);
+      toast.error(failure.message);
     } finally {
       setIsLoading(false);
     }
@@ -386,7 +364,7 @@ export default function SalesPage() {
               </div>
               <div className="flex items-center gap-2.5 font-medium text-foreground">
                 <Check className="w-4 h-4 text-amber-500 shrink-0" />
-                <span><strong>12 correções</strong> de redação por mês</span>
+                <span><strong>Correções</strong> de redação conforme o limite do plano</span>
               </div>
               <div className="flex items-center gap-2.5 font-medium text-foreground">
                 <Check className="w-4 h-4 text-amber-500 shrink-0" />
@@ -502,16 +480,17 @@ export default function SalesPage() {
               <label className="text-sm font-semibold text-foreground mb-3 block">
                 2. Oferta exclusiva desta página (Opcional):
               </label>
-              <div 
-                onClick={() => setIncludeOrderBump(!includeOrderBump)}
+              <label
+                htmlFor="order-bump"
                 className={cn(
-                  "p-4 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3.5",
+                  "p-4 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3.5 focus-within:ring-2 focus-within:ring-emerald-500",
                   includeOrderBump 
                     ? "border-emerald-500 bg-emerald-500/[0.06] shadow-sm" 
                     : "border-dashed border-border hover:border-emerald-500/50"
                 )}
               >
                 <Checkbox 
+                  id="order-bump"
                   checked={includeOrderBump} 
                   onCheckedChange={(checked) => setIncludeOrderBump(!!checked)}
                   className="mt-1 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600" 
@@ -530,7 +509,7 @@ export default function SalesPage() {
                     {ORDER_BUMP.description}
                   </p>
                 </div>
-              </div>
+              </label>
             </div>
 
             {/* Cupom de Desconto */}
@@ -567,6 +546,16 @@ export default function SalesPage() {
             </div>
 
             <Separator />
+
+            {checkoutError && (
+              <div role="alert" aria-live="assertive" className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                <p>{checkoutError.message}</p>
+                {retryAfterLabel(checkoutError.retryAfterSeconds) && <p className="mt-1 text-xs">{retryAfterLabel(checkoutError.retryAfterSeconds)}</p>}
+                <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => void handleCheckout()} disabled={isLoading}>
+                  Tentar novamente
+                </Button>
+              </div>
+            )}
 
             {/* Resumo e Botão de Ação */}
             <div className="bg-muted/40 p-4 rounded-xl space-y-2">

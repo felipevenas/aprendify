@@ -18,13 +18,13 @@ import { essayService } from "../services/essayService";
 
 export const EssaysPage = () => {
   const navigate = useNavigate();
-  const { isPremium, isLoading: premiumLoading } = usePremium();
+  const { isPremium, isLoading: premiumLoading, monthlyEssayLimit } = usePremium();
   const [loading, setLoading] = useState(true);
   const [monthlyCount, setMonthlyCount] = useState(0);
   const [selectedEssay, setSelectedEssay] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("write");
 
-  const limit = isPremium ? 12 : 1;
+  const limit = monthlyEssayLimit ?? 1;
   const remaining = Math.max(0, limit - monthlyCount);
 
   useEffect(() => {
@@ -97,7 +97,7 @@ export const EssaysPage = () => {
                   {!isPremium && (
                     <Badge variant="secondary" className="gap-1">
                       <Crown className="h-3 w-3 text-yellow-500" />
-                      Premium: 4/mês
+                      Premium desbloqueia mais correções
                     </Badge>
                   )}
                 </div>

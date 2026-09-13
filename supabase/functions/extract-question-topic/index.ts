@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { consumeRateLimit, rateLimitHeaders } from "../_shared/rate-limit.ts";
 
 /**
  * Edge function para extrair o tópico específico de uma questão do ENEM usando IA
@@ -71,25 +72,23 @@ serve(async (req) => {
     // Check rate limit using service role client
     const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
     
-    const { data: rateLimitAllowed, error: rateLimitError } = await supabaseService
-      .rpc("check_rate_limit", {
-        _user_id: user.id,
-        _function_name: "extract-question-topic",
-        _max_calls: RATE_LIMIT_MAX_CALLS,
-        _window_minutes: RATE_LIMIT_WINDOW_MINUTES,
-      });
-
-    if (rateLimitError) {
-      console.error("[extract-question-topic] Rate limit check error:", rateLimitError);
-      // Continue anyway if rate limit check fails
-    } else if (!rateLimitAllowed) {
+    const rateLimit = await consumeRateLimit(
+      supabaseService,
+      req,
+      user.id,
+      "extract-question-topic",
+      RATE_LIMIT_MAX_CALLS,
+      RATE_LIMIT_WINDOW_MINUTES,
+    );
+    if (!rateLimit.allowed) {
       console.log("[extract-question-topic] Rate limit exceeded for user:", user.id);
       return new Response(
         JSON.stringify({ 
-          topic: "Tópico não identificado",
+          error: "Limite de solicitações atingido",
+          code: "RATE_LIMITED",
           rateLimited: true 
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 429, headers: { ...corsHeaders, ...rateLimitHeaders(rateLimit), "Content-Type": "application/json" } }
       );
     }
 
@@ -116,7 +115,7 @@ serve(async (req) => {
     const questionText = [
       context || "",
       title || "",
-      alternatives ? alternatives.map((a: any) => a.text).join(" ").substring(0, 300) : ""
+      alternatives ? alternatives.map((a: { text?: string }) => a.text ?? "").join(" ").substring(0, 300) : ""
     ].filter(Boolean).join("\n").substring(0, 1200);
 
     // Obtém exemplos de tópicos para a disciplina

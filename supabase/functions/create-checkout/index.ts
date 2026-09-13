@@ -1,212 +1,148 @@
-import { paymentReturnUrl } from "../_shared/redirects.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { ApiError, errorResponse, jsonResponse, readJsonObject } from "../_shared/api.ts";
+import { authenticateRequest } from "../_shared/auth.ts";
+import {
+  rateLimitHeaders,
+  consumeRateLimit,
+} from "../_shared/rate-limit.ts";
+import {
+  requireOrderBumpPrice,
+  requirePlanPrice,
+  REDACAO_ADD_ON_CODE,
+  resolvePlanFromConfiguredPrice,
+  stripeCatalog,
+  type PlanKey,
+} from "../_shared/catalog.ts";
+import { isAllowedPaymentReturnUrl, paymentReturnUrl } from "../_shared/redirects.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Rate limit configuration - prevent checkout abuse
-const RATE_LIMIT_MAX_CALLS = 5; // 5 checkout attempts per hour
-const RATE_LIMIT_WINDOW_MINUTES = 60;
+function invalid(message: string): never {
+  throw new ApiError(400, "INVALID_CHECKOUT_REQUEST", message);
+}
 
-const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[CREATE-CHECKOUT] ${step}${detailsStr}`);
-};
+function resolveItems(body: Record<string, unknown>, catalog: ReturnType<typeof stripeCatalog>) {
+  const requestedPlan = body.plan === undefined
+    ? null
+    : body.plan === "starter" || body.plan === "annual" ? body.plan as PlanKey : null;
+  const legacyPlan = body.priceId === undefined ? null : resolvePlanFromConfiguredPrice(catalog, body.priceId);
+  if (body.plan !== undefined && !requestedPlan) invalid("Plano inválido");
+  if (body.priceId !== undefined && !legacyPlan) invalid("Plano inválido");
+  if (requestedPlan && legacyPlan && requestedPlan !== legacyPlan) invalid("Planos conflitantes");
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  let plan: PlanKey | null = requestedPlan ?? legacyPlan;
+  let includeBump = body.orderBump === true;
+  if (body.orderBump !== undefined && body.orderBump !== true && body.orderBump !== false) invalid("Order bump inválido");
+  if (body.includeOrderBump !== undefined && typeof body.includeOrderBump !== "boolean") invalid("Order bump inválido");
+  if (body.includeOrderBump === true) includeBump = true;
+  if (body.orderBumpPriceId !== undefined) {
+    // The old client sends this symbolic key. A raw Stripe price is never accepted.
+    if (body.orderBumpPriceId !== REDACAO_ADD_ON_CODE) invalid("Order bump inválido");
+    includeBump = true;
+  }
+  if (body.quantity !== undefined && (body.quantity !== 1 || !Number.isInteger(body.quantity))) invalid("Quantidade inválida");
+
+  if (body.items !== undefined) {
+    if (!Array.isArray(body.items) || body.items.length < 1 || body.items.length > 2) invalid("Itens inválidos");
+    for (const raw of body.items) {
+      if (!raw || typeof raw !== "object") invalid("Itens inválidos");
+      const item = raw as Record<string, unknown>;
+      if (item.quantity !== 1 || !Number.isInteger(item.quantity)) invalid("Quantidade inválida");
+      const itemId = item.id ?? item.plan ?? item.priceId ?? item.price;
+      if (itemId === REDACAO_ADD_ON_CODE) {
+        includeBump = true;
+        continue;
+      }
+      const itemPlan = itemId === "starter" || itemId === "annual"
+        ? itemId as PlanKey
+        : resolvePlanFromConfiguredPrice(catalog, itemId);
+      if (!itemPlan || (plan && plan !== itemPlan)) invalid("Item não permitido");
+      plan = itemPlan;
+    }
   }
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (!plan) invalid("Plano obrigatório");
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price: requirePlanPrice(catalog, plan), quantity: 1 }];
+  if (includeBump) lineItems.push({ price: requireOrderBumpPrice(catalog), quantity: 1 });
+  return { plan, lineItems, includeOrderBump };
+}
 
-  const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
-  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
 
   try {
-    logStep("Function started");
+    const { user, serviceClient } = await authenticateRequest(req, corsHeaders);
+    if (!user.email) throw new ApiError(422, "CHECKOUT_ACCOUNT_INVALID", "Conta não elegível para checkout");
 
-    // Extrai priceId, orderBumpPriceId, items, cupom e URLs customizadas do body
-    const { priceId, orderBumpPriceId, items, couponCode, successUrl, cancelUrl } = await req.json();
-    logStep("Received request", { priceId, orderBumpPriceId, itemsCount: items?.length, couponCode: couponCode || "none" });
+    const limit = await consumeRateLimit(serviceClient, req, user.id, "create-checkout", 5, 60);
+    if (!limit.allowed) return jsonResponse({ error: "Limite de solicitações atingido", code: "RATE_LIMITED", rateLimited: true }, 429, corsHeaders, rateLimitHeaders(limit));
+    const requestHeaders = { ...corsHeaders, ...rateLimitHeaders(limit) };
 
-    const authHeader = req.headers.get("Authorization")!;
-    if (!authHeader) {
-      throw new Error("No authorization header provided");
-    }
-    
-    const token = authHeader.replace("Bearer ", "");
-    const { data } = await supabaseClient.auth.getUser(token);
-    const user = data.user;
-    
-    if (!user?.email) {
-      throw new Error("User not authenticated or email not available");
-    }
-    logStep("User authenticated", { userId: user.id });
+    const body = await readJsonObject(req, 16 * 1024);
+    const catalog = stripeCatalog();
+    const { plan, lineItems, includeOrderBump } = resolveItems(body, catalog);
 
-    // Check rate limit to prevent checkout abuse
-    const { data: rateLimitAllowed, error: rateLimitError } = await supabaseAdmin
-      .rpc("check_rate_limit", {
-        _user_id: user.id,
-        _function_name: "create-checkout",
-        _max_calls: RATE_LIMIT_MAX_CALLS,
-        _window_minutes: RATE_LIMIT_WINDOW_MINUTES,
-      });
-
-    if (rateLimitError) {
-      logStep("Rate limit check error", { error: rateLimitError.message });
-    } else if (!rateLimitAllowed) {
-      logStep("Rate limit exceeded", { userId: user.id });
-      return new Response(
-        JSON.stringify({ 
-          error: "Muitas tentativas de checkout. Tente novamente em 1 hora.",
-          rateLimited: true 
-        }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-      apiVersion: "2025-08-27.basil",
-    });
-
-    // Check if customer already exists
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    let customerId;
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-      logStep("Found existing customer", { customerId });
-    }
-
-    // Montagem dinâmica dos line_items
-    let checkoutLineItems: Array<{ price: string; quantity: number }> = [];
-    if (Array.isArray(items) && items.length > 0) {
-      checkoutLineItems = items.map((it: any) => ({
-        price: it.price || it.priceId,
-        quantity: it.quantity || 1,
-      }));
-    } else if (priceId) {
-      checkoutLineItems.push({
-        price: priceId,
-        quantity: 1,
-      });
-      if (orderBumpPriceId) {
-        checkoutLineItems.push({
-          price: orderBumpPriceId,
-          quantity: 1,
-        });
+    for (const key of ["successUrl", "cancelUrl"] as const) {
+      if (body[key] !== undefined && !isAllowedPaymentReturnUrl(body[key])) {
+        throw new ApiError(400, "INVALID_RETURN_URL", "URL de retorno inválida");
       }
-    } else {
-      throw new Error("Nenhum item ou priceId especificado para o checkout");
+    }
+    if (body.couponCode !== undefined && typeof body.couponCode !== "string") {
+      throw new ApiError(400, "INVALID_COUPON", "Cupom inválido");
+    }
+    const couponCode = body.couponCode === undefined ? "" : body.couponCode.trim().toUpperCase();
+    if (couponCode && (couponCode.length > 64 || !/^[A-Z0-9_-]+$/.test(couponCode))) {
+      throw new ApiError(400, "INVALID_COUPON", "Cupom inválido");
     }
 
-    // Variável para guardar o código do cupom de criador validado
-    let validatedCreatorCouponCode: string | null = null;
-    let creatorCouponId: string | null = null;
-    
-    // Configuração base da sessão de checkout
-    const sessionConfig: any = {
-      customer: customerId,
-      customer_email: customerId ? undefined : user.email,
-      line_items: checkoutLineItems,
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) throw new ApiError(503, "PAYMENT_UNAVAILABLE", "Pagamento temporariamente indisponível");
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const customers = await stripe.customers.list({ email: user.email, limit: 10 });
+    const customer = customers.data.find((candidate) => !candidate.metadata?.user_id || candidate.metadata.user_id === user.id);
+
+    const addOnMetadata = includeOrderBump ? REDACAO_ADD_ON_CODE : "none";
+    const sessionMetadata = { user_id: user.id, plan, add_on: addOnMetadata };
+    const sessionConfig: Stripe.Checkout.SessionCreateParams = {
+      ...(customer ? { customer: customer.id } : { customer_email: user.email }),
+      line_items: lineItems,
       mode: "subscription",
-      success_url: paymentReturnUrl(successUrl, "/subscription/success"),
-      cancel_url: paymentReturnUrl(cancelUrl, "/dashboard?payment=cancelled"),
-      metadata: {
-        user_id: user.id,
-      },
-      subscription_data: {
-        metadata: {
-          user_id: user.id,
-        },
-      },
-      // Permite que o cupom pré-preenchido seja editado pelo usuário
+      success_url: paymentReturnUrl(body.successUrl, "/subscription/success"),
+      cancel_url: paymentReturnUrl(body.cancelUrl, "/dashboard?payment=cancelled"),
+      metadata: sessionMetadata,
+      subscription_data: { metadata: sessionMetadata },
       allow_promotion_codes: !couponCode,
     };
-    
-    // Se um código de cupom foi fornecido, valida e aplica
+
     if (couponCode) {
-      try {
-        // Primeiro, verifica se é um cupom de criador no banco de dados
-        const { data: creatorCoupon } = await supabaseAdmin
-          .from("creator_coupons")
-          .select("id, coupon_code, user_id")
-          .eq("coupon_code", couponCode.toUpperCase())
-          .eq("is_active", true)
-          .maybeSingle();
-        
-        if (creatorCoupon) {
-          logStep("Found creator coupon in database", { 
-            couponCode: creatorCoupon.coupon_code,
-            creatorId: creatorCoupon.user_id 
-          });
-          validatedCreatorCouponCode = creatorCoupon.coupon_code;
-          creatorCouponId = creatorCoupon.id;
-          
-          // Adiciona o cupom do criador aos metadados para rastreamento
-          sessionConfig.metadata.creator_coupon_code = creatorCoupon.coupon_code;
-          sessionConfig.metadata.creator_coupon_id = creatorCoupon.id;
-          sessionConfig.subscription_data.metadata.creator_coupon_code = creatorCoupon.coupon_code;
-          sessionConfig.subscription_data.metadata.creator_coupon_id = creatorCoupon.id;
-        }
-        
-        // Busca o cupom no Stripe pelo código para obter o promotion_code
-        const promotionCodes = await stripe.promotionCodes.list({
-          code: couponCode,
-          active: true,
-          limit: 1,
-        });
-        
-        if (promotionCodes.data.length > 0) {
-          // Aplica o código promocional à sessão
-          sessionConfig.discounts = [{ promotion_code: promotionCodes.data[0].id }];
-          logStep("Stripe promotion code applied", { 
-            couponCode, 
-            promotionCodeId: promotionCodes.data[0].id 
-          });
-        } else if (validatedCreatorCouponCode) {
-          // Cupom de criador encontrado mas sem promoção no Stripe
-          // Ainda assim rastreamos, mas permite códigos promocionais manuais
-          logStep("Creator coupon tracked but no Stripe promo found", { couponCode });
-          sessionConfig.allow_promotion_codes = true;
-        } else {
-          // Cupom não encontrado em lugar nenhum
-          sessionConfig.allow_promotion_codes = true;
-          logStep("Coupon not found anywhere, allowing manual entry", { couponCode });
-        }
-      } catch (couponError) {
-        // Em caso de erro ao buscar cupom, permite entrada manual
-        logStep("Error fetching coupon, allowing manual entry", { 
-          error: couponError instanceof Error ? couponError.message : String(couponError) 
-        });
-        sessionConfig.allow_promotion_codes = true;
+      const { data: creatorCoupon, error } = await serviceClient
+        .from("creator_coupons")
+        .select("id, coupon_code")
+        .eq("coupon_code", couponCode)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (error) throw new ApiError(503, "COUPON_LOOKUP_UNAVAILABLE", "Cupom temporariamente indisponível");
+      const promotionCodes = await stripe.promotionCodes.list({ code: couponCode, active: true, limit: 1 });
+      if (promotionCodes.data[0]) sessionConfig.discounts = [{ promotion_code: promotionCodes.data[0].id }];
+      if (creatorCoupon) {
+        sessionConfig.metadata = { ...sessionConfig.metadata, creator_coupon_id: creatorCoupon.id, creator_coupon_code: creatorCoupon.coupon_code };
+        sessionConfig.subscription_data = {
+          ...sessionConfig.subscription_data,
+          metadata: { ...sessionConfig.subscription_data?.metadata, creator_coupon_id: creatorCoupon.id, creator_coupon_code: creatorCoupon.coupon_code },
+        };
       }
+      if (!promotionCodes.data[0]) sessionConfig.allow_promotion_codes = true;
     }
-    
+
     const session = await stripe.checkout.sessions.create(sessionConfig);
-
-    logStep("Checkout session created", { 
-      sessionId: session.id, 
-      url: session.url,
-      creatorCoupon: validatedCreatorCouponCode || "none"
-    });
-
-    return new Response(JSON.stringify({ url: session.url }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+    if (!session.url) throw new ApiError(503, "CHECKOUT_UNAVAILABLE", "Checkout temporariamente indisponível");
+    return new Response(JSON.stringify({ url: session.url }), { status: 200, headers: requestHeaders });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
+    return errorResponse(error, corsHeaders, "CHECKOUT_UNAVAILABLE", "Não foi possível iniciar o checkout");
   }
 });

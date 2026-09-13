@@ -1,180 +1,59 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { authenticateRequest } from "../_shared/auth.ts";
+import { ApiError, errorResponse, jsonResponse } from "../_shared/api.ts";
+import { consumeRateLimit, rateLimitHeaders } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-// Rate limit configuration - subscription checks are frequent but low-cost
-// Increased limit since this is called on every page load
-const RATE_LIMIT_MAX_CALLS = 200; // 200 checks per hour (more than enough for normal use)
-const RATE_LIMIT_WINDOW_MINUTES = 60;
-
-const logStep = (step: string, details?: any) => {
-  // Only log non-sensitive information
-  const safeDetails = details ? { ...details } : undefined;
-  if (safeDetails?.email) safeDetails.email = "[REDACTED]";
-  const detailsStr = safeDetails ? ` - ${JSON.stringify(safeDetails)}` : '';
-  console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-
-  const supabaseClient = createClient(supabaseUrl, supabaseServiceKey, { 
-    auth: { persistSession: false } 
-  });
-
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    logStep("Function started");
-
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { userId: user.id });
-
-    // Check rate limit
-    const { data: rateLimitAllowed, error: rateLimitError } = await supabaseClient
-      .rpc("check_rate_limit", {
-        _user_id: user.id,
-        _function_name: "check-subscription",
-        _max_calls: RATE_LIMIT_MAX_CALLS,
-        _window_minutes: RATE_LIMIT_WINDOW_MINUTES,
-      });
-
-    if (rateLimitError) {
-      logStep("Rate limit check error");
-    } else if (!rateLimitAllowed) {
-      logStep("Rate limit exceeded");
-      return new Response(
-        JSON.stringify({ error: "Too many requests", rateLimited: true }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const contentLength = Number(req.headers.get("content-length") ?? "0");
+    if (Number.isFinite(contentLength) && contentLength > 1024) {
+      throw new ApiError(413, "PAYLOAD_TOO_LARGE", "Payload excede o limite permitido");
     }
+    const auth = await authenticateRequest(req, corsHeaders);
+    const limit = await consumeRateLimit(auth.serviceClient, req, auth.user.id, "check-subscription", 200, 60);
+    if (!limit.allowed) return jsonResponse({ error: "Muitas solicitações. Tente novamente em breve.", code: "RATE_LIMITED", rateLimited: true }, 429, corsHeaders, rateLimitHeaders(limit));
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    
-    if (customers.data.length === 0) {
-      logStep("No customer found, checking local database");
-      
-      // Check local subscriptions table as fallback (for admin grants)
-      const { data: localSub } = await supabaseClient
+    // The local projection is the server-owned entitlement source. Stripe is
+    // synchronized by the signed webhook; this read must not search by email
+    // or grant access based on a client-provided identity.
+    const [{ data: subscription, error }, { data: redacaoCredits, error: creditsError }] = await Promise.all([
+      auth.serviceClient
         .from("subscriptions")
-        .select("*")
-        .eq("user_id", user.id)
+        .select("status, plan_type, end_date, updated_at")
+        .eq("user_id", auth.user.id)
         .eq("status", "authorized")
-        .maybeSingle();
-      
-      if (localSub) {
-        logStep("Found local subscription (admin grant)", { planType: localSub.plan_type });
-        return new Response(JSON.stringify({ 
-          subscribed: true,
-          plan_type: localSub.plan_type,
-          subscription_end: localSub.end_date,
-          source: "admin_grant"
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
-      }
-      
-      return new Response(JSON.stringify({ subscribed: false }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+        .or("end_date.is.null,end_date.gt." + new Date().toISOString())
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      auth.serviceClient.rpc("get_essay_addon_credit_balance", { _user_id: auth.user.id }),
+    ]);
+    if (error) throw new Error("subscription projection unavailable");
+    if (creditsError || typeof redacaoCredits !== "number" || !Number.isSafeInteger(redacaoCredits) || redacaoCredits < 0) {
+      throw new Error("essay add-on credit balance unavailable");
     }
 
-    const customerId = customers.data[0].id;
-    logStep("Found Stripe customer", { customerId });
-
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 1,
-    });
-    
-    const hasActiveSub = subscriptions.data.length > 0;
-    let planType = null;
-    let subscriptionEnd = null;
-
-    if (hasActiveSub) {
-      const subscription = subscriptions.data[0];
-      subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
-      logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
-      
-      // Determine plan type based on price interval
-      const priceId = subscription.items.data[0].price.id;
-      const price = await stripe.prices.retrieve(priceId);
-      planType = price.recurring?.interval === "year" ? "annual" : "monthly";
-      logStep("Determined subscription plan", { planType, priceId });
-      
-      // Sync to local database
-      await supabaseClient.from("subscriptions").upsert({
-        user_id: user.id,
-        status: "authorized",
-        plan_type: planType,
-        stripe_subscription_id: subscription.id,
-        stripe_customer_id: customerId,
-        start_date: new Date(subscription.start_date * 1000).toISOString(),
-        end_date: subscriptionEnd,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id" });
-      logStep("Synced subscription to local database");
-    } else {
-      logStep("No active Stripe subscription found, checking local database");
-      
-      // Check local subscriptions table as fallback (for admin grants)
-      const { data: localSub } = await supabaseClient
-        .from("subscriptions")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("status", "authorized")
-        .maybeSingle();
-      
-      if (localSub) {
-        logStep("Found local subscription (admin grant)", { planType: localSub.plan_type });
-        return new Response(JSON.stringify({ 
-          subscribed: true,
-          plan_type: localSub.plan_type,
-          subscription_end: localSub.end_date,
-          source: "admin_grant"
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
-      }
-    }
-
-    return new Response(JSON.stringify({
-      subscribed: hasActiveSub,
+    const planType = subscription?.plan_type ?? null;
+    const essayLimit = planType === "annual" || planType === "god" || planType === "creator"
+      ? 12
+      : planType === "monthly" ? 4 : 1;
+    return jsonResponse({
+      subscribed: Boolean(subscription),
       plan_type: planType,
-      subscription_end: subscriptionEnd
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+      tier: !subscription ? "free" : (planType === "annual" || planType === "god" || planType === "creator") ? "complete" : "starter",
+      monthly_essay_limit: essayLimit,
+      redacao_combo_credits: redacaoCredits,
+      subscription_end: subscription?.end_date ?? null,
+      source: "server_projection",
+    }, 200, corsHeaders, rateLimitHeaders(limit));
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in check-subscription", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
+    return errorResponse(error, corsHeaders, "SUBSCRIPTION_UNAVAILABLE", "Não foi possível verificar a assinatura");
   }
 });

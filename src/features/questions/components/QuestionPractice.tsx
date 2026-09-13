@@ -262,14 +262,14 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-      <Card className="p-6 sm:p-8 border-border/50 shadow-lg">
+      <Card className="overflow-hidden border-border/60 bg-card shadow-sm">
         {/* Header da questão */}
-        <div className="mb-6 pb-6 border-b border-border">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="border-b border-border bg-muted/20 px-5 py-4 sm:px-8 sm:py-5">
+          <div className="flex flex-wrap items-center gap-2.5">
             {/* Lado esquerdo: Número da questão + badge de avaliação anterior */}
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-sm font-semibold bg-primary/5 border-primary/30">
-                Questão {question.index} - ENEM {question.year || new Date().getFullYear()}
+              <Badge variant="outline" className="border-primary/30 bg-background text-primary">
+                ENEM {question.year || new Date().getFullYear()} • Questão {question.index}
               </Badge>
               
               {/* Badge de avaliação anterior */}
@@ -300,8 +300,8 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
               )}
             </div>
             
-            {/* Lado direito: Disciplina + Dificuldade + Idioma */}
-            <div className="flex items-center gap-2">
+            {/* Metadados da questão */}
+            <div className="flex flex-wrap items-center gap-2">
               {question.discipline && (
                 <Badge className={cn("border", getDisciplineColor(question.discipline))}>
                   {formatDisciplineName(question.discipline)}
@@ -321,21 +321,35 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
               )}
             </div>
           </div>
+
+          {question.topic && (
+            <p className="mt-3 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Tópico:</span> {question.topic}
+            </p>
+          )}
         </div>
 
-        {/* Contexto da questão */}
-        {processedContext && (
-          <div className="mb-6 p-4 bg-muted/30 rounded-lg space-y-3">
-            <p className="text-sm sm:text-base text-foreground whitespace-pre-wrap leading-relaxed">
-              {processedContext.mainText}
-            </p>
-            {processedContext.reference && (
-              <p className="text-xs sm:text-sm text-muted-foreground italic border-l-2 border-primary/30 pl-3 mt-2">
-                {processedContext.reference}
+        <div className="px-5 py-6 sm:px-8 sm:py-8">
+          {/* Contexto da questão */}
+          {processedContext && (
+            <div className="mb-6 rounded-r-xl border-l-4 border-primary bg-muted/35 px-5 py-4">
+              <p className="text-sm italic leading-relaxed text-foreground sm:text-base whitespace-pre-wrap">
+                {processedContext.mainText}
               </p>
-            )}
-          </div>
-        )}
+              {processedContext.reference && (
+                <p className="mt-3 border-l border-primary/30 pl-3 text-xs italic text-muted-foreground sm:text-sm">
+                  {processedContext.reference}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Enunciado */}
+          {question.title && (
+            <h2 className="mb-6 text-lg font-semibold leading-8 text-foreground sm:text-xl">
+              {cleanMarkdownArtifacts(question.title)}
+            </h2>
+          )}
 
         {/* Imagens da questão */}
         {question.files && question.files.length > 0 && (
@@ -352,14 +366,14 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
         )}
 
         {/* Introdução das alternativas */}
-        {question.alternativesIntroduction && (
-          <div className="mb-4">
-            <p className="font-medium text-foreground">{cleanMarkdownArtifacts(question.alternativesIntroduction)}</p>
-          </div>
-        )}
+          {question.alternativesIntroduction && (
+            <div className="mb-4">
+              <p className="font-medium text-foreground">{cleanMarkdownArtifacts(question.alternativesIntroduction)}</p>
+            </div>
+          )}
 
         {/* Alternativas */}
-        <div className="space-y-3 mb-6">
+        <div className="mb-6 space-y-3">
           {question.alternatives.map((alt: any) => {
             const isSelected = selectedAlternative === alt.letter;
             const isCorrectAlt = alt.letter === question.correctAlternative;
@@ -391,7 +405,7 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
                 onClick={() => handleSelectAlternative(alt.letter)}
                 disabled={showResult}
                 className={cn(
-                  "w-full text-left p-4 rounded-lg border-2 transition-all duration-200",
+                  "w-full text-left rounded-xl border px-4 py-4 transition-colors duration-200 sm:px-5",
                   bgColor,
                   borderColor,
                   !showResult && "cursor-pointer hover:shadow-md",
@@ -402,7 +416,7 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
                   {/* Letra da alternativa */}
                   <div
                     className={cn(
-                      "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2",
+                      "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border text-sm font-bold",
                       showResult && isCorrectAlt && "bg-green-500 border-green-500 text-white",
                       showResult && isSelected && !isCorrect && "bg-red-500 border-red-500 text-white",
                       !showResult && isSelected && "bg-primary border-primary text-white",
@@ -554,6 +568,7 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
               <ChevronRight className="h-4 w-4" />
             </Button>
           )}
+        </div>
         </div>
       </Card>
     </motion.div>

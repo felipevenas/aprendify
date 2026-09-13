@@ -33,14 +33,14 @@ const Questions = () => {
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { isPremium, isLoading: premiumLoading, dailyQuestionCount } = usePremium();
+  const { isPremium, isLoading: premiumLoading, dailyQuestionCount, dailyQuestionLimit } = usePremium();
   const { currentQuestion, loading: loadingQuestion, fetchQuestion, clearCache } = useQuestionBank();
   const { recordQuestionAnswered, streakData } = useStreakContext();
   
   // Session counter for this study session
   const [sessionCount, setSessionCount] = useState(0);
   
-  const FREE_DAILY_LIMIT = 10;
+  const freeDailyLimit = dailyQuestionLimit ?? 10;
 
   // Filtros
   const [selectedYear, setSelectedYear] = useState<string>("all");
@@ -78,7 +78,7 @@ const Questions = () => {
           .gte("created_at", new Date().toISOString().split('T')[0]);
         
         const realCount = todayAttempts?.length || 0;
-        if (realCount >= FREE_DAILY_LIMIT) {
+        if (realCount >= freeDailyLimit) {
           toast.error("Você atingiu o limite de 10 questões diárias. Assine o Premium para questões ilimitadas!");
           return;
         }
@@ -100,7 +100,7 @@ const Questions = () => {
     if (!result.success && result.message) {
       toast.error(result.message);
     }
-  }, [isPremium, dailyQuestionCount, fetchQuestion, selectedYear, selectedDiscipline, selectedLanguage, selectedDifficulty, selectedTopic, selectedStatus, searchKeyword, userId]);
+  }, [isPremium, dailyQuestionCount, dailyQuestionLimit, freeDailyLimit, fetchQuestion, selectedYear, selectedDiscipline, selectedLanguage, selectedDifficulty, selectedTopic, selectedStatus, searchKeyword, userId]);
 
   // Extrai o tópico específico da questão via IA
   const extractQuestionTopic = async (question: typeof currentQuestion): Promise<string | null> => {
@@ -149,7 +149,7 @@ const Questions = () => {
         .gte("created_at", new Date().toISOString().split('T')[0]);
       
       const realCount = todayAttempts?.length || 0;
-      if (realCount >= FREE_DAILY_LIMIT) {
+      if (realCount >= freeDailyLimit) {
         toast.error("Você atingiu o limite de 10 questões diárias. Assine o Premium para questões ilimitadas!");
         return;
       }
@@ -224,7 +224,7 @@ const Questions = () => {
   // Carrega questão aleatória ao montar o componente
   useEffect(() => {
     if (!initialLoading && !currentQuestion && !loadingQuestion && userId) {
-      if (!isPremium && dailyQuestionCount >= FREE_DAILY_LIMIT) {
+      if (!isPremium && dailyQuestionCount >= freeDailyLimit) {
         // Não busca questão se o usuário grátis já atingiu o limite
         return;
       }
@@ -345,21 +345,21 @@ const Questions = () => {
 
           {/* Alerta de limite para usuários free */}
           {!premiumLoading && !isPremium && (
-            <Alert className={`${dailyQuestionCount >= FREE_DAILY_LIMIT ? 'border-destructive' : 'border-primary'}`}>
+            <Alert className={`${dailyQuestionCount >= freeDailyLimit ? 'border-destructive' : 'border-primary'}`}>
               <AlertDescription className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  {dailyQuestionCount >= FREE_DAILY_LIMIT ? (
+                  {dailyQuestionCount >= freeDailyLimit ? (
                     <Lock className="h-4 w-4 text-destructive" />
                   ) : (
                     <BookOpen className="h-4 w-4 text-primary" />
                   )}
                   <span>
-                    {dailyQuestionCount >= FREE_DAILY_LIMIT
+                    {dailyQuestionCount >= freeDailyLimit
                       ? "Limite diário atingido! Assine o Premium para continuar."
-                      : `Você respondeu ${dailyQuestionCount} de ${FREE_DAILY_LIMIT} questões hoje.`}
+                      : `Você respondeu ${dailyQuestionCount} de ${freeDailyLimit} questões hoje.`}
                   </span>
                 </div>
-                {dailyQuestionCount >= FREE_DAILY_LIMIT && (
+                {dailyQuestionCount >= freeDailyLimit && (
                   <Button 
                     size="sm" 
                     onClick={() => navigate("/subscription")}
@@ -424,12 +424,12 @@ const Questions = () => {
                 <Skeleton className="h-14 w-full rounded-xl" />
               </div>
             </Card>
-          ) : !isPremium && dailyQuestionCount >= FREE_DAILY_LIMIT ? (
+          ) : !isPremium && dailyQuestionCount >= freeDailyLimit ? (
             <Card className="p-12 border-border/50 shadow-lg text-center">
               <Lock className="h-12 w-12 text-destructive mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">Limite diário atingido</h3>
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                Você já respondeu o limite de 10 questões gratuitas por hoje. Assine o plano Premium para ter acesso a milhares de questões ilimitadas, resoluções com IA e muito mais!
+                Você já respondeu o limite gratuito de {freeDailyLimit} questões por hoje. Assine o plano Premium para continuar praticando.
               </p>
               <Button onClick={() => navigate("/subscription")} className="gap-2 bg-primary">
                 <Crown className="h-4 w-4" />

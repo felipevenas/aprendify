@@ -10,7 +10,9 @@ export const essayService = {
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return (data || []) as Essay[];
+    // The generated Supabase table type still reflects the legacy essay columns;
+    // the adapter keeps that external mismatch at the infrastructure boundary.
+    return (data || []) as unknown as Essay[];
   },
 
   async getMonthlyEssayCount(userId: string): Promise<number> {

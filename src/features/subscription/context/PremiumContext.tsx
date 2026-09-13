@@ -1,347 +1,237 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeRemoteFailure, type RemoteFailure } from "@/features/auth/services/remoteErrors";
+
+export type EntitlementStatus = "loading" | "ready" | "unavailable";
 
 export interface PremiumContextValue {
+  /** Only true after the server has authoritatively returned subscribed=true. */
   isPremium: boolean;
   isLoading: boolean;
+  entitlementStatus: EntitlementStatus;
+  entitlementError: RemoteFailure | null;
   dailyQuestionCount: number;
+  dailyQuestionLimit: number | null;
+  monthlyEssayLimit: number | null;
+  tier: string | null;
   planType: string | null;
   subscriptionEnd: string | null;
   refreshPremiumStatus: () => void;
 }
 
 const PremiumContext = createContext<PremiumContextValue | undefined>(undefined);
-
-// Cache configuration - reduce API calls
-const CACHE_KEY = "premium_status_cache";
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache
-const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000; // Refresh every 5 minutes instead of 1
-
-interface CachedPremiumStatus {
-  isPremium: boolean;
-  planType: string | null;
-  subscriptionEnd: string | null;
-  timestamp: number;
-  userId: string;
-}
-
-const getCachedStatus = (userId: string): CachedPremiumStatus | null => {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (!cached) return null;
-    
-    const parsed: CachedPremiumStatus = JSON.parse(cached);
-    const isExpired = Date.now() - parsed.timestamp > CACHE_TTL_MS;
-    const isSameUser = parsed.userId === userId;
-    
-    if (isExpired || !isSameUser) {
-      localStorage.removeItem(CACHE_KEY);
-      return null;
-    }
-    
-    return parsed;
-  } catch {
-    return null;
-  }
-};
-
-const setCachedStatus = (userId: string, status: Omit<CachedPremiumStatus, "timestamp" | "userId">) => {
-  try {
-    const cached: CachedPremiumStatus = {
-      ...status,
-      userId,
-      timestamp: Date.now()
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cached));
-  } catch {
-    // Ignore storage errors
-  }
-};
-
-export const usePremiumContext = (): PremiumContextValue => {
-  const context = useContext(PremiumContext);
-  if (!context) {
-    throw new Error("usePremiumContext must be used within a PremiumProvider");
-  }
-  return context;
-};
+const FREE_DAILY_QUESTION_LIMIT = 10;
+const FREE_MONTHLY_ESSAY_LIMIT = 1;
 
 interface PremiumProviderProps {
   children: ReactNode;
 }
 
+type RecordValue = Record<string, unknown>;
+
+const asRecord = (value: unknown): RecordValue => (
+  value !== null && typeof value === "object" ? value as RecordValue : {}
+);
+
+const firstRecord = (...values: unknown[]): RecordValue => values
+  .map(asRecord)
+  .find((value) => Object.keys(value).length > 0) ?? {};
+
+const getFiniteNonNegative = (...values: unknown[]): number | null => {
+  const value = values.find((candidate) => (
+    typeof candidate === "number" && Number.isFinite(candidate) && candidate >= 0
+  ));
+  return typeof value === "number" ? Math.floor(value) : null;
+};
+
+const readEntitlements = (payload: RecordValue, subscribed: boolean) => {
+  const entitlements = asRecord(payload.entitlements);
+  const limits = firstRecord(payload.limits, payload.quota, entitlements.limits);
+  const usage = firstRecord(payload.usage, entitlements.usage);
+
+  const dailyQuestionLimit = getFiniteNonNegative(
+    limits.daily_questions,
+    limits.dailyQuestionLimit,
+    limits.questions_per_day,
+    payload.daily_question_limit,
+  );
+  const monthlyEssayLimit = getFiniteNonNegative(
+    limits.monthly_essays,
+    limits.monthlyEssayLimit,
+    limits.essays_per_month,
+    payload.monthly_essay_limit,
+  );
+  const dailyQuestionCount = getFiniteNonNegative(
+    usage.daily_questions,
+    usage.dailyQuestionCount,
+    payload.daily_question_count,
+  );
+
+  return {
+    dailyQuestionLimit: dailyQuestionLimit ?? (subscribed ? null : FREE_DAILY_QUESTION_LIMIT),
+    monthlyEssayLimit: monthlyEssayLimit ?? FREE_MONTHLY_ESSAY_LIMIT,
+    dailyQuestionCount,
+    tier: typeof payload.tier === "string"
+      ? payload.tier
+      : typeof entitlements.tier === "string" ? entitlements.tier : null,
+  };
+};
+
+export const usePremiumContext = (): PremiumContextValue => {
+  const context = useContext(PremiumContext);
+  if (!context) throw new Error("usePremiumContext must be used within a PremiumProvider");
+  return context;
+};
+
 export const PremiumProvider = ({ children }: PremiumProviderProps) => {
   const [isPremium, setIsPremium] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [entitlementStatus, setEntitlementStatus] = useState<EntitlementStatus>("loading");
+  const [entitlementError, setEntitlementError] = useState<RemoteFailure | null>(null);
   const [dailyQuestionCount, setDailyQuestionCount] = useState(0);
+  const [dailyQuestionLimit, setDailyQuestionLimit] = useState<number | null>(FREE_DAILY_QUESTION_LIMIT);
+  const [monthlyEssayLimit, setMonthlyEssayLimit] = useState<number | null>(FREE_MONTHLY_ESSAY_LIMIT);
+  const [tier, setTier] = useState<string | null>(null);
   const [planType, setPlanType] = useState<string | null>(null);
   const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState(false);
-  const lastCheckRef = useRef<number>(0);
-  const isCheckingRef = useRef<boolean>(false);
+  const requestIdRef = useRef(0);
 
-  const checkPremiumStatus = useCallback(async (uid?: string, forceRefresh = false) => {
-    const targetUserId = uid || userId;
-    
-    // Prevent concurrent checks
-    if (isCheckingRef.current) return;
-    
-    // Throttle checks - minimum 30 seconds between calls unless forced
-    const now = Date.now();
-    if (!forceRefresh && now - lastCheckRef.current < 30000) {
-      return;
-    }
-    
+  const clearEntitlement = useCallback(() => {
+    setIsPremium(false);
+    setEntitlementStatus("unavailable");
+    setDailyQuestionLimit(FREE_DAILY_QUESTION_LIMIT);
+    setMonthlyEssayLimit(FREE_MONTHLY_ESSAY_LIMIT);
+    setTier(null);
+    setPlanType(null);
+    setSubscriptionEnd(null);
+  }, []);
+
+  const checkPremiumStatus = useCallback(async (currentUserId: string, isInitial = false) => {
+    const requestId = ++requestIdRef.current;
+    if (isInitial) setIsLoading(true);
+    setEntitlementError(null);
+
     try {
-      isCheckingRef.current = true;
-      
-      if (!targetUserId) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          setIsPremium(false);
-          setIsLoading(false);
-          return;
-        }
-        setUserId(user.id);
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const [subscriptionResult, attemptsResult] = await Promise.all([
+        supabase.functions.invoke("check-subscription"),
+        supabase
+          .from("question_attempts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", currentUserId)
+          .gte("created_at", startOfDay.toISOString()),
+      ]);
+
+      if (requestId !== requestIdRef.current) return;
+      if (subscriptionResult.error) {
+        throw normalizeRemoteFailure(subscriptionResult.error, { operation: "entitlement" });
       }
 
-      const currentUserId = targetUserId || userId;
-      if (!currentUserId) return;
-
-      // Check cache first (unless forced refresh)
-      if (!forceRefresh) {
-        const cached = getCachedStatus(currentUserId);
-        if (cached) {
-          setIsPremium(cached.isPremium);
-          setPlanType(cached.planType);
-          setSubscriptionEnd(cached.subscriptionEnd);
-          setIsLoading(false);
-          setInitialized(true);
-          
-          // Still update daily count from database
-          const { data: attempts } = await supabase
-            .from("question_attempts")
-            .select("id")
-            .eq("user_id", currentUserId)
-            .gte("created_at", new Date().toISOString().split('T')[0]);
-
-          if (attempts) {
-            setDailyQuestionCount(attempts.length);
-          }
-          return;
-        }
+      const payload = asRecord(subscriptionResult.data);
+      if (typeof payload.subscribed !== "boolean") {
+        throw normalizeRemoteFailure({ status: 503 }, { operation: "entitlement" });
       }
 
-      lastCheckRef.current = now;
-
-      // Try to check subscription via Stripe function
-      try {
-        const { data, error } = await supabase.functions.invoke("check-subscription");
-        
-        if (!error && data && !data.rateLimited) {
-          const premiumStatus = data.subscribed === true;
-          setIsPremium(premiumStatus);
-          setPlanType(data.plan_type || null);
-          setSubscriptionEnd(data.subscription_end || null);
-          
-          // Cache the result
-          setCachedStatus(currentUserId, {
-            isPremium: premiumStatus,
-            planType: data.plan_type || null,
-            subscriptionEnd: data.subscription_end || null
-          });
-        } else if (data?.rateLimited) {
-          // Rate limited - use cached data or fallback to database
-          const cached = getCachedStatus(currentUserId);
-          if (cached) {
-            setIsPremium(cached.isPremium);
-            setPlanType(cached.planType);
-            setSubscriptionEnd(cached.subscriptionEnd);
-          } else {
-            // Fallback to local database check
-            await checkLocalSubscription(currentUserId);
-          }
-        } else {
-          // Fallback to local database check
-          await checkLocalSubscription(currentUserId);
-        }
-      } catch {
-        // Fallback to local database check
-        await checkLocalSubscription(currentUserId);
+      const entitlement = readEntitlements(payload, payload.subscribed);
+      setIsPremium(payload.subscribed);
+      setEntitlementStatus("ready");
+      setPlanType(typeof payload.plan_type === "string" ? payload.plan_type : entitlement.tier);
+      setTier(entitlement.tier ?? (typeof payload.plan_type === "string" ? payload.plan_type : null));
+      setSubscriptionEnd(typeof payload.subscription_end === "string" ? payload.subscription_end : null);
+      setDailyQuestionLimit(entitlement.dailyQuestionLimit);
+      setMonthlyEssayLimit(entitlement.monthlyEssayLimit);
+      if (entitlement.dailyQuestionCount !== null) {
+        setDailyQuestionCount(entitlement.dailyQuestionCount);
+      } else if (!attemptsResult.error && typeof attemptsResult.count === "number") {
+        setDailyQuestionCount(attemptsResult.count);
       }
-
-      // Get daily question count
-      const { data: attempts, error: attemptsError } = await supabase
-        .from("question_attempts")
-        .select("id")
-        .eq("user_id", currentUserId)
-        .gte("created_at", new Date().toISOString().split('T')[0]);
-
-      if (!attemptsError && attempts) {
-        setDailyQuestionCount(attempts.length);
-      }
-
-      setIsLoading(false);
-      setInitialized(true);
     } catch (error) {
-      console.error("Error in checkPremiumStatus:", error);
-      setIsPremium(false);
-      setIsLoading(false);
-      setInitialized(true);
+      if (requestId !== requestIdRef.current) return;
+      const failure = normalizeRemoteFailure(error, { operation: "entitlement" });
+      clearEntitlement();
+      setEntitlementError(failure);
     } finally {
-      isCheckingRef.current = false;
+      if (requestId === requestIdRef.current) setIsLoading(false);
     }
-  }, [userId]);
-
-  const checkLocalSubscription = async (currentUserId: string) => {
-    const { data: subscriptions } = await supabase
-      .from("subscriptions")
-      .select("*")
-      .eq("user_id", currentUserId)
-      .eq("status", "authorized")
-      .or("end_date.is.null,end_date.gt." + new Date().toISOString())
-      .limit(1);
-
-    if (subscriptions && subscriptions.length > 0) {
-      setIsPremium(true);
-      setPlanType(subscriptions[0].plan_type || null);
-      setSubscriptionEnd(subscriptions[0].end_date || null);
-      
-      // Cache the result
-      setCachedStatus(currentUserId, {
-        isPremium: true,
-        planType: subscriptions[0].plan_type || null,
-        subscriptionEnd: subscriptions[0].end_date || null
-      });
-    } else {
-      setIsPremium(false);
-      setCachedStatus(currentUserId, {
-        isPremium: false,
-        planType: null,
-        subscriptionEnd: null
-      });
-    }
-  };
+  }, [clearEntitlement]);
 
   useEffect(() => {
-    const init = async () => {
+    let mounted = true;
+    const initialize = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        
-        // Try to use cache first for faster initial load
-        const cached = getCachedStatus(user.id);
-        if (cached) {
-          setIsPremium(cached.isPremium);
-          setPlanType(cached.planType);
-          setSubscriptionEnd(cached.subscriptionEnd);
-          setIsLoading(false);
-          setInitialized(true);
-          
-          // Background refresh
-          checkPremiumStatus(user.id, false);
-        } else {
-          checkPremiumStatus(user.id, true);
-        }
-      } else {
-        setIsPremium(false);
+      if (!mounted) return;
+      if (!user) {
+        setUserId(null);
+        clearEntitlement();
+        setEntitlementStatus("ready");
         setIsLoading(false);
-        setInitialized(true);
+        return;
       }
+      setUserId(user.id);
+      await checkPremiumStatus(user.id, true);
     };
 
-    init();
-
-    // Listen for auth changes
+    void initialize();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUserId(session.user.id);
-        if (!initialized) {
-          checkPremiumStatus(session.user.id, true);
-        }
-      } else {
+      if (!session?.user) {
         setUserId(null);
-        setIsPremium(false);
+        clearEntitlement();
+        setEntitlementStatus("ready");
         setIsLoading(false);
-        localStorage.removeItem(CACHE_KEY);
+        return;
       }
+      setUserId(session.user.id);
+      void checkPremiumStatus(session.user.id, true);
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      mounted = false;
+      requestIdRef.current += 1;
+      void subscription.unsubscribe();
+    };
+  }, [checkPremiumStatus, clearEntitlement]);
 
   useEffect(() => {
     if (!userId) return;
-
-    // Listen for subscription changes for this specific user
     const subscriptionsChannel = supabase
       .channel(`subscriptions-global-${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'subscriptions',
-          filter: `user_id=eq.${userId}`
-        },
-        () => {
-          // Force refresh on subscription changes
-          localStorage.removeItem(CACHE_KEY);
-          checkPremiumStatus(userId, true);
-        }
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${userId}` }, () => {
+        void checkPremiumStatus(userId);
+      })
       .subscribe();
 
-    // Listen for question attempts to update daily count in real-time
     const attemptsChannel = supabase
       .channel(`attempts-global-${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'question_attempts',
-          filter: `user_id=eq.${userId}`
-        },
-        () => {
-          // Update daily count only, not full status
-          setDailyQuestionCount(prev => prev + 1);
-        }
-      )
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "question_attempts", filter: `user_id=eq.${userId}` }, () => {
+        setDailyQuestionCount((previous) => previous + 1);
+      })
       .subscribe();
 
     return () => {
-      supabase.removeChannel(subscriptionsChannel);
-      supabase.removeChannel(attemptsChannel);
+      void supabase.removeChannel(subscriptionsChannel);
+      void supabase.removeChannel(attemptsChannel);
     };
   }, [userId, checkPremiumStatus]);
 
-  // Auto-refresh every 5 minutes instead of 1 minute
-  useEffect(() => {
-    if (!userId) return;
-
-    const interval = setInterval(() => {
-      checkPremiumStatus(userId, false);
-    }, AUTO_REFRESH_INTERVAL_MS);
-
-    return () => clearInterval(interval);
-  }, [userId, checkPremiumStatus]);
-
   const refreshPremiumStatus = useCallback(() => {
-    if (userId) {
-      checkPremiumStatus(userId, true);
-    }
+    if (userId) void checkPremiumStatus(userId);
   }, [userId, checkPremiumStatus]);
 
   return (
-    <PremiumContext.Provider value={{ 
-      isPremium, 
-      isLoading, 
-      dailyQuestionCount, 
-      planType, 
+    <PremiumContext.Provider value={{
+      isPremium,
+      isLoading,
+      entitlementStatus,
+      entitlementError,
+      dailyQuestionCount,
+      dailyQuestionLimit,
+      monthlyEssayLimit,
+      tier,
+      planType,
       subscriptionEnd,
-      refreshPremiumStatus 
+      refreshPremiumStatus,
     }}>
       {children}
     </PremiumContext.Provider>

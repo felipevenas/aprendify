@@ -85,6 +85,10 @@ serve(async (req) => {
 
     if (rateLimitError) {
       console.error("[format-question] Rate limit check error:", rateLimitError);
+      return new Response(
+        JSON.stringify({ error: "Controle de uso temporariamente indisponível" }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     } else if (!rateLimitAllowed) {
       console.log("[format-question] Rate limit exceeded for admin:", user.id);
       return new Response(

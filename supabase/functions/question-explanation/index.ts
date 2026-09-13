@@ -166,7 +166,7 @@ serve(async (req) => {
     }
     const targetImageUrl = imageCandidates.length > 0 ? imageCandidates[0] : null;
 
-    // Montar prompt para explicação pedagógica completa, didática e acessível
+    // Montar prompt para uma explicação literal, curta e diretamente ligada à questão
     const alternativesText = question.alternatives
       .map((alt) => `${alt.letter.toUpperCase()}) ${alt.text}`)
       .join("\n");
@@ -181,23 +181,23 @@ ${alternativesText}
 Gabarito Oficial: ${question.correctAlternative.toUpperCase()}
 ${targetImageUrl ? "\n[Esta questão contém imagem/gráfico em anexo: considere a leitura visual na sua explicação didática]" : ""}
 
-Você é um professor de cursinho nota 10: extremamente didático, claro, acessível e prático.
-O estudante acabou de responder a questão e quer sanar a dúvida na hora e realmente aprender o assunto.
-Evite linguagem jurídica, burocrática ou acadêmica demais (nada de "incontestavelmente", "premissas axiológicas", "matriz de referência"). 
-Adote um tom amigável e conversacional, explicando o conteúdo da matéria como quem tira a dúvida de um amigo na lousa.
+Explique exatamente esta questão, como um professor que acabou de corrigir a resposta do estudante.
+Seja direto, literal e específico ao texto-base, ao comando e à alternativa correta.
+Não dê dicas genéricas de prova, macetes, estratégias de eliminação ou conselhos que poderiam servir para qualquer questão.
+Não invente informações que não estejam no enunciado ou no conteúdo necessário para justificar o gabarito.
 
 Responda APENAS com JSON no seguinte formato (sem blocos markdown, apenas o JSON puro):
 {
-  "concept_summary": "Explique o conceito ou assunto principal por trás dessa questão em 2 a 3 frases claras e didáticas, para o estudante entender a matéria.",
-  "resolution_steps": "Passo a passo descomplicado de como raciocinar e chegar à resposta certa na hora da prova.",
-  "correct_explanation": "Por que a alternativa ${question.correctAlternative.toUpperCase()} é a certa, explicando de forma simples a relação com a teoria.",
+  "concept_summary": "Em 2 ou 3 frases, explique o conceito necessário para entender o texto-base e o comando desta questão.",
+  "resolution_steps": "Em 2 ou 3 frases, conecte o texto-base e o comando à resposta, sem listar dicas gerais de prova.",
+  "correct_explanation": "Explique literalmente por que a alternativa ${question.correctAlternative.toUpperCase()} responde ao comando e, se necessário, aponte o erro central das demais.",
   "distractors": [
     {
       "letter": "A",
-      "trap_explanation": "Explicação amigável de onde está a pegadinha ou o erro conceitual dessa opção (ex: 'Cuidado aqui: a banca tentou te confundir com..., mas na verdade...')"
+      "trap_explanation": "Explique objetivamente o erro desta alternativa em relação ao enunciado e ao conteúdo da questão."
     }
   ],
-  "golden_tip": "Macete prático, analogia ou dica rápida para nunca mais errar esse assunto no ENEM."
+  "golden_tip": "Se houver uma observação final, limite-a a uma frase específica sobre esta questão; não escreva um macete genérico."
 }`;
 
     const systemInstruction = "Você é um professor experiente e muito didático de preparação para o ENEM. Sua missão é explicar conceitos com clareza, sanar dúvidas instantaneamente e ensinar a matéria de forma leve, direta e memorável. Responda estritamente com JSON válido.";

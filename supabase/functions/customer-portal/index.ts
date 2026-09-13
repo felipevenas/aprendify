@@ -1,18 +1,22 @@
 import { APP_ORIGIN } from "../_shared/redirects.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { ApiError, errorResponse, jsonResponse } from "../_shared/api.ts";
+import { authenticateRequest } from "../_shared/auth.ts";
+import { consumeRateLimit, rateLimitHeaders } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": APP_ORIGIN,
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Expose-Headers": "Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset",
 };
 
 // Rate limit configuration
 const RATE_LIMIT_MAX_CALLS = 10; // 10 portal access attempts per hour
 const RATE_LIMIT_WINDOW_MINUTES = 60;
 
-const logStep = (step: string, details?: any) => {
+const logStep = (step: string, details?: Record<string, unknown>) => {
   // Redact sensitive information from logs
   const safeDetails = details ? { ...details } : undefined;
   if (safeDetails?.email) safeDetails.email = "[REDACTED]";
@@ -29,71 +33,29 @@ serve(async (req) => {
     logStep("Function started");
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-
-    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey, { 
-      auth: { persistSession: false } 
-    });
-
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
+    if (!stripeKey) throw new ApiError(503, "PAYMENT_UNAVAILABLE", "Pagamento temporariamente indisponível");
+    const { user, serviceClient } = await authenticateRequest(req, corsHeaders);
     logStep("User authenticated", { userId: user.id });
 
-    // Check rate limit
-    const { data: rateLimitAllowed, error: rateLimitError } = await supabaseClient
-      .rpc("check_rate_limit", {
-        _user_id: user.id,
-        _function_name: "customer-portal",
-        _max_calls: RATE_LIMIT_MAX_CALLS,
-        _window_minutes: RATE_LIMIT_WINDOW_MINUTES,
-      });
-
-    if (rateLimitError) {
-      logStep("Rate limit check error");
-    } else if (!rateLimitAllowed) {
+    const limit = await consumeRateLimit(serviceClient, req, user.id, "customer-portal", RATE_LIMIT_MAX_CALLS, RATE_LIMIT_WINDOW_MINUTES);
+    if (!limit.allowed) {
       logStep("Rate limit exceeded");
-      return new Response(
-        JSON.stringify({ error: "Too many requests", rateLimited: true }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ error: "Too many requests", code: "RATE_LIMITED", rateLimited: true }, 429, corsHeaders, rateLimitHeaders(limit));
     }
+
+    const { data: projection, error: projectionError } = await serviceClient
+      .from("subscriptions")
+      .select("stripe_customer_id")
+      .eq("user_id", user.id)
+      .not("stripe_customer_id", "is", null)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (projectionError) throw new ApiError(503, "SUBSCRIPTION_UNAVAILABLE", "Assinatura temporariamente indisponível");
+    const customerId = projection?.stripe_customer_id;
+    if (!customerId) throw new ApiError(400, "STRIPE_CUSTOMER_NOT_FOUND", "Esta assinatura não possui gerenciamento pelo Stripe");
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    
-    if (customers.data.length === 0) {
-      // Check if user has a local subscription (admin grant)
-      const { data: localSub } = await supabaseClient
-        .from("subscriptions")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("status", "authorized")
-        .maybeSingle();
-
-      if (localSub && !localSub.stripe_subscription_id) {
-        logStep("User has admin-granted subscription without Stripe customer");
-        return new Response(JSON.stringify({ 
-          error: "Sua assinatura foi concedida pelo administrador e não pode ser gerenciada pelo portal Stripe.",
-          isAdminGrant: true 
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 400,
-        });
-      }
-
-      throw new Error("No Stripe customer found for this user");
-    }
-    
-    const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
     const origin = APP_ORIGIN;
@@ -104,15 +66,11 @@ serve(async (req) => {
     logStep("Customer portal session created", { sessionId: portalSession.id, url: portalSession.url });
 
     return new Response(JSON.stringify({ url: portalSession.url }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, ...rateLimitHeaders(limit), "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in customer-portal", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
+    logStep("ERROR in customer-portal", { code: error instanceof ApiError ? error.code : "INTERNAL_ERROR" });
+    return errorResponse(error, corsHeaders, "CUSTOMER_PORTAL_UNAVAILABLE", "Não foi possível abrir o portal de gerenciamento");
   }
 });

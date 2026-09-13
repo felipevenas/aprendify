@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { authenticateRequest } from "../_shared/auth.ts";
+import { ApiError, errorResponse, jsonResponse, readJsonObject } from "../_shared/api.ts";
+import { consumeRateLimit, rateLimitHeaders } from "../_shared/rate-limit.ts";
 
 /**
  * Edge function para corrigir redações no padrão ENEM usando Groq API
@@ -10,20 +12,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-interface EssayCorrectionRequest {
-  title: string;
-  content: string;
-}
-
 // Limites de redações por tipo de usuário
-const FREE_MONTHLY_LIMIT = 1;
-const PREMIUM_MONTHLY_LIMIT = 12;
-
 // Rate limit configuration (in addition to monthly limits)
 const RATE_LIMIT_MAX_CALLS = 3; // 3 corrections per hour max
 const RATE_LIMIT_WINDOW_MINUTES = 60;
+const MAX_BODY_BYTES = 32 * 1024;
+const MAX_TITLE_LENGTH = 200;
+const MAX_CONTENT_LENGTH = 12_000;
 
 // Prompt detalhado com rubrica oficial do ENEM e múltiplos exemplos de calibração
 const ENEM_RUBRIC_PROMPT = `Você é um corretor OFICIAL de redações do ENEM com 15+ anos de experiência na banca. Sua missão é avaliar redações com PRECISÃO e JUSTIÇA, reconhecendo textos de alta qualidade quando apresentados.
@@ -185,110 +183,67 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let addonCreditConsumed = false;
+  let addonIdempotencyKey: string | null = null;
+  let authenticated: Awaited<ReturnType<typeof authenticateRequest>> | null = null;
+
   try {
-    // Verificar autenticação
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Não autorizado" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const auth = await authenticateRequest(req, corsHeaders);
+    authenticated = auth;
+    const body = await readJsonObject(req, MAX_BODY_BYTES);
+    const title = body.title;
+    const content = body.content;
+    if (typeof title !== "string" || typeof content !== "string" || !title.trim() || !content.trim()) {
+      throw new ApiError(400, "INVALID_ESSAY", "Título e conteúdo são obrigatórios");
     }
-
-    // Criar cliente Supabase
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
-
-    // Obter usuário atual
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Usuário não encontrado" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (title.length > MAX_TITLE_LENGTH || content.length > MAX_CONTENT_LENGTH) {
+      throw new ApiError(413, "ESSAY_TOO_LARGE", "Redação excede o limite permitido");
     }
+    if (content.length < 200) throw new ApiError(400, "ESSAY_TOO_SHORT", "A redação deve ter pelo menos 200 caracteres");
 
-    // User authenticated successfully
-
-    // Check rate limit using service role client (in addition to monthly limits)
-    const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
-    
-    const { data: rateLimitAllowed, error: rateLimitError } = await supabaseService
-      .rpc("check_rate_limit", {
-        _user_id: user.id,
-        _function_name: "correct-essay",
-        _max_calls: RATE_LIMIT_MAX_CALLS,
-        _window_minutes: RATE_LIMIT_WINDOW_MINUTES,
-      });
-
-    if (rateLimitError) {
-      console.error("[correct-essay] Rate limit check error:", rateLimitError);
-      // Continue anyway if rate limit check fails
-    } else if (!rateLimitAllowed) {
-      console.log("[correct-essay] Rate limit exceeded for user:", user.id);
-      return new Response(
-        JSON.stringify({ 
-          error: "Limite de correções por hora atingido. Tente novamente em breve.",
-          rateLimited: true 
-        }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Verificar status premium
-    const { data: isPremium } = await supabase
-      .rpc("is_user_premium", { _user_id: user.id });
-
-    // Contar redações do mês
-    const { data: monthlyCount } = await supabase
-      .rpc("get_monthly_essay_count", { _user_id: user.id });
-
-    const currentCount = monthlyCount || 0;
-    const limit = isPremium ? PREMIUM_MONTHLY_LIMIT : FREE_MONTHLY_LIMIT;
-
-    // Verificar limite
-    if (currentCount >= limit) {
-      const message = isPremium
-        ? "Você atingiu o limite de 12 redações por mês. Aguarde o próximo mês para enviar mais."
-        : "Você atingiu o limite de 1 redação por mês no plano gratuito. Assine o Premium para corrigir até 12 redações por mês.";
-      
-      return new Response(
-        JSON.stringify({ error: message, limitReached: true }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Parse do body
-    const { title, content }: EssayCorrectionRequest = await req.json();
-
-    if (!title || !content) {
-      return new Response(
-        JSON.stringify({ error: "Título e conteúdo são obrigatórios" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Verificar tamanho mínimo da redação (aproximadamente 7 linhas)
-    if (content.length < 200) {
-      return new Response(
-        JSON.stringify({ error: "A redação deve ter pelo menos 200 caracteres" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const rateLimit = await consumeRateLimit(auth.serviceClient, req, auth.user.id, "correct-essay", RATE_LIMIT_MAX_CALLS, RATE_LIMIT_WINDOW_MINUTES);
+    if (!rateLimit.allowed) return jsonResponse({ error: "Limite de correções por hora atingido. Tente novamente em breve.", code: "RATE_LIMITED", rateLimited: true }, 429, corsHeaders, rateLimitHeaders(rateLimit));
+    const responseHeaders = { ...corsHeaders, ...rateLimitHeaders(rateLimit) };
 
     // Obter chave da Groq
     const groqApiKey = Deno.env.get("GROQ_API_KEY");
-    if (!groqApiKey) {
-      console.error("[correct-essay] GROQ_API_KEY não configurada");
-      return new Response(
-        JSON.stringify({ error: "Serviço de IA não configurado" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!groqApiKey) throw new ApiError(503, "AI_UNAVAILABLE", "Serviço de IA temporariamente indisponível");
+
+    const suppliedIdempotencyKey = req.headers.get("idempotency-key")?.trim() || null;
+    if (suppliedIdempotencyKey && !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(suppliedIdempotencyKey)) {
+      throw new ApiError(400, "INVALID_IDEMPOTENCY_KEY", "Chave de idempotência inválida");
+    }
+    addonIdempotencyKey = suppliedIdempotencyKey ?? crypto.randomUUID();
+
+    // Prefer the purchased Combo credit. An infrastructure error fails closed
+    // instead of falling through and leaving the credit available for later.
+    const { data: addonCredit, error: addonCreditError } = await auth.serviceClient.rpc("consume_essay_addon_credit", {
+      _user_id: auth.user.id,
+      _idempotency_key: addonIdempotencyKey,
+    });
+    if (addonCreditError || !addonCredit) {
+      throw new ApiError(503, "ADD_ON_CREDIT_UNAVAILABLE", "Crédito do Combo temporariamente indisponível");
+    }
+    const addonCreditResult = Array.isArray(addonCredit) ? addonCredit[0] : addonCredit;
+    if (!addonCreditResult || typeof addonCreditResult.consumed !== "boolean") {
+      throw new ApiError(503, "ADD_ON_CREDIT_UNAVAILABLE", "Crédito do Combo temporariamente indisponível");
+    }
+    addonCreditConsumed = addonCreditResult.consumed;
+
+    let remainingEssays: number | null = null;
+    if (!addonCreditConsumed) {
+      const { data: quota, error: quotaError } = await auth.serviceClient.rpc("consume_essay_quota", { _user_id: auth.user.id });
+      if (quotaError || !quota) throw new ApiError(503, "QUOTA_UNAVAILABLE", "Controle de quota temporariamente indisponível");
+      const quotaResult = Array.isArray(quota) ? quota[0] : quota;
+      if (!quotaResult || typeof quotaResult.allowed !== "boolean") throw new ApiError(503, "QUOTA_UNAVAILABLE", "Controle de quota temporariamente indisponível");
+      if (!quotaResult.allowed) return jsonResponse({
+        error: `Você atingiu o limite de ${quotaResult.quota_limit ?? 1} redação(ões) por mês.`,
+        code: "ESSAY_QUOTA_EXCEEDED",
+        limitReached: true,
+        quotaLimit: quotaResult.quota_limit ?? 1,
+        currentCount: quotaResult.used_count ?? quotaResult.quota_limit ?? 1,
+      }, 403, responseHeaders);
+      remainingEssays = Number(quotaResult.remaining ?? 0);
     }
 
     // Prompt do usuário com a redação
@@ -300,8 +255,10 @@ ${content}
 Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade quando presente. Analise cada competência cuidadosamente antes de atribuir a nota.`;
 
     // Chamar API da Groq
-    console.log("[correct-essay] Chamando Groq API (llama-3.3-70b-versatile) para correção...");
-    let groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    console.log("[correct-essay] requesting AI correction");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45_000);
+    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${groqApiKey}`,
@@ -319,48 +276,19 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
         max_tokens: 2500,
         temperature: 0.15,
       }),
+      signal: controller.signal,
     });
 
-    // Fallback de contingência caso o modelo 70b sofra rate limit (429) ou indisponibilidade
-    if (!groqResponse.ok) {
-      console.warn("[correct-essay] Falha no llama-3.3-70b-versatile, tentando fallback com llama-3.1-8b-instant...");
-      try {
-        groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${groqApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "llama-3.1-8b-instant",
-            messages: [
-              {
-                role: "system",
-                content: ENEM_RUBRIC_PROMPT
-              },
-              { role: "user", content: userPrompt }
-            ],
-            max_tokens: 2500,
-            temperature: 0.15,
-          }),
-        });
-      } catch (err) {
-        console.error("[correct-essay] Erro no fallback:", err);
-      }
-    }
+    clearTimeout(timeout);
 
     if (!groqResponse || !groqResponse.ok) {
-      const errorText = groqResponse ? await groqResponse.text() : "Falha na requisição";
-      console.error("[correct-essay] Erro na API Groq:", groqResponse?.status, errorText);
-      return new Response(
-        JSON.stringify({ error: "Erro ao corrigir redação com IA. Tente novamente em instantes." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.error("[correct-essay] Groq request failed", groqResponse?.status);
+      throw new ApiError(502, "AI_REQUEST_FAILED", "Erro ao corrigir redação com IA. Tente novamente em instantes.");
     }
 
     const groqData = await groqResponse.json();
     const responseContent = groqData.choices?.[0]?.message?.content || "";
-    console.log("[correct-essay] Resposta da IA recebida");
+    console.log("[correct-essay] AI response received");
 
     // Parse do JSON da resposta
     let correction;
@@ -373,11 +301,8 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
         throw new Error("JSON não encontrado na resposta");
       }
     } catch (parseError) {
-      console.error("[correct-essay] Erro ao parsear resposta da IA:", parseError, responseContent);
-      return new Response(
-        JSON.stringify({ error: "Erro ao processar correção" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.error("[correct-essay] Erro ao parsear resposta da IA", parseError instanceof Error ? parseError.message : "parse_failed");
+      throw new ApiError(502, "AI_INVALID_RESPONSE", "Erro ao processar correção");
     }
 
     // Validar e normalizar notas
@@ -389,11 +314,11 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
     };
 
     const scores = {
-      score_competency_1: normalizeScore(correction.score_competency_1 || 0),
-      score_competency_2: normalizeScore(correction.score_competency_2 || 0),
-      score_competency_3: normalizeScore(correction.score_competency_3 || 0),
-      score_competency_4: normalizeScore(correction.score_competency_4 || 0),
-      score_competency_5: normalizeScore(correction.score_competency_5 || 0),
+      score_competency_1: normalizeScore(Number(correction.score_competency_1) || 0),
+      score_competency_2: normalizeScore(Number(correction.score_competency_2) || 0),
+      score_competency_3: normalizeScore(Number(correction.score_competency_3) || 0),
+      score_competency_4: normalizeScore(Number(correction.score_competency_4) || 0),
+      score_competency_5: normalizeScore(Number(correction.score_competency_5) || 0),
     };
 
     const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
@@ -414,10 +339,10 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
     });
 
     // Salvar redação no banco de dados
-    const { data: essay, error: insertError } = await supabase
+    const { data: essay, error: insertError } = await auth.serviceClient
       .from("essays")
       .insert({
-        user_id: user.id,
+        user_id: auth.user.id,
         title,
         content,
         ...scores,
@@ -431,10 +356,7 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
 
     if (insertError) {
       console.error("[correct-essay] Erro ao salvar redação:", insertError);
-      return new Response(
-        JSON.stringify({ error: "Erro ao salvar redação" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      throw new ApiError(500, "ESSAY_SAVE_FAILED", "Erro ao salvar redação");
     }
 
     console.log("[correct-essay] Redação corrigida e salva:", essay.id, "Nota:", totalScore);
@@ -443,16 +365,27 @@ Corrija esta redação seguindo a rubrica ENEM. Seja JUSTO: reconheça qualidade
       JSON.stringify({ 
         success: true,
         essay,
-        remainingEssays: limit - currentCount - 1
+        remainingEssays
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: responseHeaders }
     );
 
   } catch (error) {
-    console.error("[correct-essay] Error:", error);
-    return new Response(
-      JSON.stringify({ error: "Erro interno do servidor" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    let responseError = error;
+    if (addonCreditConsumed && addonIdempotencyKey && authenticated) {
+      try {
+        const { error: refundError } = await authenticated.serviceClient.rpc("refund_essay_addon_credit", {
+          _user_id: authenticated.user.id,
+          _idempotency_key: addonIdempotencyKey,
+        });
+        if (refundError) throw refundError;
+      } catch {
+        // Failing closed preserves accounting integrity; operations can
+        // reconcile the immutable debit if the compensating RPC is unavailable.
+        responseError = new ApiError(503, "ADD_ON_CREDIT_REFUND_FAILED", "Não foi possível restaurar o crédito do Combo");
+      }
+    }
+    console.error("[correct-essay] Request failed", responseError instanceof ApiError ? responseError.code : "INTERNAL_ERROR");
+    return errorResponse(responseError, corsHeaders, "ESSAY_CORRECTION_FAILED", "Erro interno do servidor");
   }
 });

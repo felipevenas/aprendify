@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { ApiError, errorResponse } from "../_shared/api.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -54,7 +55,7 @@ serve(async (req) => {
     logStep("Function started");
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+    if (!stripeKey) throw new ApiError(503, "PAYMENT_UNAVAILABLE", "Pagamento temporariamente indisponível");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -62,19 +63,19 @@ serve(async (req) => {
 
     // Verify admin user
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    if (!authHeader) throw new ApiError(401, "UNAUTHENTICATED", "Não autorizado");
 
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
+    if (userError) throw new ApiError(401, "UNAUTHENTICATED", "Não autorizado");
 
     const adminUser = userData.user;
-    if (!adminUser) throw new Error("User not authenticated");
+    if (!adminUser) throw new ApiError(401, "UNAUTHENTICATED", "Não autorizado");
 
     // Check if user is admin
     const { data: roleData } = await supabaseClient.rpc("get_user_role", { _user_id: adminUser.id });
     if (roleData !== "admin") {
-      throw new Error("User is not an admin");
+      throw new ApiError(403, "FORBIDDEN", "Acesso restrito a administradores");
     }
     logStep("Admin verified", { adminId: adminUser.id });
 
@@ -89,6 +90,10 @@ serve(async (req) => {
 
     if (rateLimitError) {
       logStep("Rate limit check error");
+      return new Response(
+        JSON.stringify({ error: "Controle de uso temporariamente indisponível" }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     } else if (!rateLimitAllowed) {
       logStep("Rate limit exceeded");
       return new Response(
@@ -277,12 +282,7 @@ serve(async (req) => {
       },
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR", { message: errorMessage });
-
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
+    logStep("ERROR", { code: error instanceof ApiError ? error.code : "INTERNAL_ERROR" });
+    return errorResponse(error, corsHeaders, "COUPON_UNAVAILABLE", "Não foi possível concluir a operação de cupom");
   }
 });

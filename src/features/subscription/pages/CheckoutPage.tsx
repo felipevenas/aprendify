@@ -10,18 +10,18 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { createCheckoutSession } from "../services/checkoutService";
+import { RemoteFailure, retryAfterLabel } from "@/features/auth/services/remoteErrors";
 
 const PLANS = {
   starter: {
     name: "Prática",
-    priceId: "price_1TnQt8BbpjcYJ0FGlA6eJbV6",
     price: 9.9,
     period: "/mês",
     description: "Questões ilimitadas, IA explicativa e 4 redações por mês.",
   },
   annual: {
     name: "Completo",
-    priceId: "price_1TnQtEBbpjcYJ0FGZ2GQbLKC",
     price: 95.04,
     period: "/ano",
     description: "Tudo do Prática, simulados TRI, cronograma IA e 12 redações por mês.",
@@ -29,7 +29,6 @@ const PLANS = {
 } as const;
 
 const ORDER_BUMP = {
-  id: "order_bump_redacao",
   title: "Combo Redação",
   price: 7.9,
   description: "+5 análises aprofundadas por IA.",
@@ -53,6 +52,7 @@ export default function CheckoutPage() {
   const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<RemoteFailure | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -80,6 +80,7 @@ export default function CheckoutPage() {
   const authUrl = `/auth?${checkoutQuery.toString()}`;
 
   const handleContinue = async () => {
+    setCheckoutError(null);
     setIsLoading(true);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -88,18 +89,12 @@ export default function CheckoutPage() {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: {
-          priceId: plan.priceId,
-          orderBumpPriceId: includeOrderBump ? ORDER_BUMP.id : undefined,
-          couponCode: couponCode.trim() || undefined,
-        },
-      });
-      if (error) throw error;
-      if (!data?.url) throw new Error("Não foi possível gerar o checkout.");
-      window.location.href = data.url;
-    } catch (error: any) {
-      toast.error(error?.message || "Não foi possível iniciar o pagamento. Tente novamente.");
+      const checkout = await createCheckoutSession(selectedPlan, includeOrderBump, couponCode);
+      window.location.href = checkout.url;
+    } catch (error) {
+      const failure = error instanceof RemoteFailure ? error : new RemoteFailure(500, "Não foi possível iniciar o pagamento. Tente novamente.", "server_error");
+      setCheckoutError(failure);
+      toast.error(failure.message);
     } finally {
       setIsLoading(false);
     }
@@ -168,6 +163,15 @@ export default function CheckoutPage() {
           <Card className="h-fit lg:sticky lg:top-6">
             <CardHeader><CardTitle className="text-lg">Resumo do pedido</CardTitle></CardHeader>
             <CardContent className="space-y-4">
+              {checkoutError && (
+                <div role="alert" aria-live="assertive" className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                  <p>{checkoutError.message}</p>
+                  {retryAfterLabel(checkoutError.retryAfterSeconds) && <p className="mt-1 text-xs">{retryAfterLabel(checkoutError.retryAfterSeconds)}</p>}
+                  <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => void handleContinue()} disabled={isLoading}>
+                    Tentar novamente
+                  </Button>
+                </div>
+              )}
               <div className="flex justify-between gap-4 text-sm"><span>{plan.name}</span><span>R$ {formatPrice(plan.price)}</span></div>
               {includeOrderBump && <div className="flex justify-between gap-4 text-sm"><span>{ORDER_BUMP.title}</span><span>R$ {formatPrice(ORDER_BUMP.price)}</span></div>}
               <Separator />

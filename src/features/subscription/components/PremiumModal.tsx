@@ -6,6 +6,8 @@ import { Check, Crown, Star, Sparkles, Loader2, Tag, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { createCheckoutSession } from "../services/checkoutService";
+import { RemoteFailure, retryAfterLabel } from "@/features/auth/services/remoteErrors";
 
 interface PremiumModalProps {
   open: boolean;
@@ -19,12 +21,10 @@ const PLANS = {
   monthly: {
     price: 9.9,
     period: "mês",
-    priceId: "price_1TnQt8BbpjcYJ0FGlA6eJbV6",
   },
   annual: {
     price: 95.04,
     period: "ano",
-    priceId: "price_1TnQtEBbpjcYJ0FGZ2GQbLKC",
     monthlyEquivalent: 7.92,
     discount: 20,
   },
@@ -37,12 +37,13 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
   // Estado do cupom de desconto
   const [couponCode, setCouponCode] = useState("");
   const [showCouponInput, setShowCouponInput] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<RemoteFailure | null>(null);
 
   const benefits = [
     "Questões ilimitadas por dia",
     "Todas as questões explicadas",
     "Flashcards ilimitados",
-    "12 correções de redação por mês",
+    "Correções de redação conforme o limite do plano",
     "Acesso completo às estatísticas",
     "Matérias personalizadas ilimitadas",
     "Histórico completo de desempenho",
@@ -52,36 +53,15 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
 
   // Função para iniciar o processo de assinatura
   const handleSubscribe = async () => {
+    setCheckoutError(null);
     setIsLoading(true);
     try {
-      const plan = PLANS[selectedPlan];
-      
-      // Prepara o corpo da requisição com o cupom (se houver)
-      const requestBody: { priceId: string; couponCode?: string } = {
-        priceId: plan.priceId,
-      };
-      
-      // Adiciona o código do cupom se foi informado
-      if (couponCode.trim()) {
-        requestBody.couponCode = couponCode.trim().toUpperCase();
-      }
-      
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: requestBody,
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data?.url) {
-        window.open(data.url, "_blank");
-      } else {
-        throw new Error("Não foi possível criar a sessão de checkout");
-      }
+      const checkout = await createCheckoutSession(selectedPlan === "monthly" ? "starter" : "annual", false, couponCode);
+      window.open(checkout.url, "_blank", "noopener,noreferrer");
     } catch (error) {
-      console.error("Erro ao criar checkout:", error);
-      toast.error("Erro ao iniciar o pagamento. Tente novamente.");
+      const failure = error instanceof RemoteFailure ? error : new RemoteFailure(500, "Não foi possível iniciar o pagamento. Tente novamente.", "server_error");
+      setCheckoutError(failure);
+      toast.error(failure.message);
     } finally {
       setIsLoading(false);
     }
@@ -187,6 +167,15 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
           </div>
 
           <div className="pt-3 border-t">
+            {checkoutError && !isPremium && (
+              <div role="alert" aria-live="assertive" className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                <p>{checkoutError.message}</p>
+                {retryAfterLabel(checkoutError.retryAfterSeconds) && <p className="mt-1 text-xs">{retryAfterLabel(checkoutError.retryAfterSeconds)}</p>}
+                <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => void handleSubscribe()} disabled={isLoading}>
+                  Tentar novamente
+                </Button>
+              </div>
+            )}
             {isPremium ? (
               <div className="text-center space-y-3">
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border border-yellow-500/30">

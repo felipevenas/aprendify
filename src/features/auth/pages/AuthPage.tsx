@@ -14,6 +14,8 @@ import { z } from "zod";
 import ReCAPTCHA from "react-google-recaptcha";
 import Confetti from "react-confetti";
 import { useWindowSize } from "@/hooks/useWindowSize";
+import { MotionConfig } from "framer-motion";
+import { getSafeAuthMessage } from "../services/authMessages";
 
 /**
  * Chave pública do reCAPTCHA V2 (site key)
@@ -152,6 +154,8 @@ const Auth = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [forgotMessage, setForgotMessage] = useState<string | null>(null);
 
   // Estado para reCAPTCHA V2 - apenas para cadastro (opcional se a chave não estiver configurada)
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
@@ -213,6 +217,7 @@ const Auth = () => {
   // Handler para autenticação (login ou signup)
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthMessage(null);
     setLoading(true);
 
     try {
@@ -222,16 +227,15 @@ const Auth = () => {
         let loginEmail = loginIdentifier;
 
         if (!isEmail) {
-          // Buscar email pelo username (case-insensitive)
-          const { data: profile, error: profileError } = await supabase
+          // Username login is kept compatible with the existing profile lookup.
+          // Its result is never exposed to the user, preventing account enumeration.
+          const { data: profile } = await supabase
             .from("profiles")
             .select("email")
-            .ilike("username", loginIdentifier)
+            .ilike("username", loginIdentifier.trim())
             .maybeSingle();
 
-          if (profileError || !profile) {
-            throw new Error("Usuário não encontrado");
-          }
+          if (!profile?.email) throw new Error("Authentication failed");
           loginEmail = profile.email;
         }
 
@@ -307,19 +311,6 @@ const Auth = () => {
           }
         }
 
-        // Check if username already exists (case-insensitive)
-        const { data: existingUsername } = await supabase
-          .from("profiles")
-          .select("id")
-          .ilike("username", username)
-          .maybeSingle();
-
-        if (existingUsername) {
-          toast.error("Este nome de usuário já está em uso. Escolha outro.");
-          setLoading(false);
-          return;
-        }
-
         try {
           phoneSchema.parse(phone);
         } catch (e) {
@@ -369,13 +360,6 @@ const Auth = () => {
 
         if (signUpError) throw signUpError;
 
-        // Verificar se precisa confirmar email
-        if (signUpData?.user?.identities?.length === 0) {
-          toast.error("Este e-mail já está cadastrado. Tente fazer login.");
-          setLoading(false);
-          return;
-        }
-
         // Mostrar animação de sucesso com confetti
         setShowSuccessAnimation(true);
         
@@ -405,25 +389,14 @@ const Auth = () => {
           setBirthdate("");
         }, 2500);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Reset do reCAPTCHA em caso de erro
       recaptchaRef.current?.reset();
       setRecaptchaToken(null);
       
-      // Mapeamento de erros para mensagens amigáveis
-      const errorMessages: Record<string, string> = {
-        "Invalid login credentials": "E-mail ou senha incorretos.",
-        "Email not confirmed": "Por favor, confirme seu e-mail antes de fazer login.",
-        "User already registered": "Este e-mail já está cadastrado.",
-        "Password should be at least 6 characters": "A senha deve ter no mínimo 6 caracteres.",
-        "Unable to validate email address: invalid format": "Formato de e-mail inválido.",
-        "Signup disabled": "Novos cadastros estão temporariamente desabilitados.",
-        "Email rate limit exceeded": "Muitas tentativas. Aguarde alguns minutos.",
-        "For security purposes, you can only request this once every 60 seconds": "Aguarde 60 segundos antes de tentar novamente.",
-      };
-      
-      const friendlyMessage = errorMessages[error.message] || error.message || "Ocorreu um erro. Tente novamente.";
-      toast.error(friendlyMessage);
+      const safeMessage = getSafeAuthMessage(isLogin ? "login" : "signup", error);
+      setAuthMessage(safeMessage);
+      toast.error(safeMessage);
     } finally {
       setLoading(false);
     }
@@ -447,8 +420,10 @@ const Auth = () => {
       });
 
       if (error) throw error;
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao conectar com Google. Tente novamente.");
+    } catch (error: unknown) {
+      const safeMessage = getSafeAuthMessage("oauth", error);
+      setAuthMessage(safeMessage);
+      toast.error(safeMessage);
       setLoading(false);
     }
   };
@@ -456,6 +431,7 @@ const Auth = () => {
   // Handler para recuperação de senha
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    setForgotMessage(null);
     setForgotLoading(true);
 
     try {
@@ -465,17 +441,22 @@ const Auth = () => {
 
       if (error) throw error;
 
-      toast.success("E-mail de recuperação enviado! Verifique sua caixa de entrada.");
+      const safeMessage = "Se o e-mail estiver cadastrado, enviaremos instruções para recuperar sua senha.";
+      setForgotMessage(safeMessage);
+      toast.success(safeMessage);
       setShowForgotPassword(false);
       setForgotEmail("");
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao enviar e-mail de recuperação.");
+    } catch (error: unknown) {
+      const safeMessage = getSafeAuthMessage("recovery", error);
+      setForgotMessage(safeMessage);
+      toast.error(safeMessage);
     } finally {
       setForgotLoading(false);
     }
   };
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="min-h-screen flex flex-col lg:flex-row relative">
       {/* Animação de confetti ao cadastrar com sucesso */}
       <AnimatePresence>
@@ -613,6 +594,12 @@ const Auth = () => {
           </motion.div>
 
           {/* Formulário */}
+          {authMessage && (
+            <div role="alert" aria-live="assertive" className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+              {authMessage}
+            </div>
+          )}
+
           <motion.form
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -639,6 +626,8 @@ const Auth = () => {
                       type="text"
                       placeholder="Seu nome completo"
                       value={fullName}
+                      name="fullName"
+                      autoComplete="name"
                       onChange={(e) => setFullName(e.target.value)}
                       onFocus={() => setFocusedInput("fullName")}
                       onBlur={() => setFocusedInput(null)}
@@ -665,6 +654,8 @@ const Auth = () => {
                       type="email"
                       placeholder="seu@email.com"
                       value={email}
+                      name="email"
+                      autoComplete="email"
                       onChange={(e) => setEmail(e.target.value)}
                       onFocus={() => setFocusedInput("email")}
                       onBlur={() => setFocusedInput(null)}
@@ -691,6 +682,8 @@ const Auth = () => {
                       type="text"
                       placeholder="seunome123"
                       value={username}
+                      name="username"
+                      autoComplete="username"
                       onChange={(e) => setUsername(e.target.value)}
                       onFocus={() => setFocusedInput("username")}
                       onBlur={() => setFocusedInput(null)}
@@ -717,6 +710,8 @@ const Auth = () => {
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
                       value={password}
+                      name="password"
+                      autoComplete={isLogin ? "current-password" : "new-password"}
                       onChange={(e) => setPassword(e.target.value)}
                       onFocus={() => setFocusedInput("password")}
                       onBlur={() => setFocusedInput(null)}
@@ -728,7 +723,8 @@ const Auth = () => {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      tabIndex={-1}
+                      aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                      aria-pressed={showPassword}
                     >
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
@@ -794,6 +790,9 @@ const Auth = () => {
                       type={showConfirmPassword ? "text" : "password"}
                       placeholder="••••••••"
                       value={confirmPassword}
+                      name="confirmPassword"
+                      autoComplete="new-password"
+                      aria-invalid={confirmPassword.length > 0 && !passwordsMatch}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       onFocus={() => setFocusedInput("confirmPassword")}
                       onBlur={() => setFocusedInput(null)}
@@ -811,7 +810,8 @@ const Auth = () => {
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      tabIndex={-1}
+                      aria-label={showConfirmPassword ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
+                      aria-pressed={showConfirmPassword}
                     >
                       {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
@@ -854,6 +854,8 @@ const Auth = () => {
                       id="birthdate"
                       type="date"
                       value={birthdate}
+                      name="birthdate"
+                      autoComplete="bday"
                       onChange={(e) => setBirthdate(e.target.value)}
                       onFocus={() => setFocusedInput("birthdate")}
                       onBlur={() => setFocusedInput(null)}
@@ -879,6 +881,8 @@ const Auth = () => {
                       type="tel"
                       placeholder="(00) 00000-0000"
                       value={phone}
+                      name="phone"
+                      autoComplete="tel"
                       onChange={(e) => {
                         // Aplica máscara de telefone (00) 00000-0000
                         let value = e.target.value.replace(/\D/g, '');
@@ -937,6 +941,8 @@ const Auth = () => {
                       type="text"
                       placeholder="seu@email.com ou seunome123"
                       value={loginIdentifier}
+                      name="username-or-email"
+                      autoComplete="username"
                       onChange={(e) => setLoginIdentifier(e.target.value)}
                       onFocus={() => setFocusedInput("loginIdentifier")}
                       onBlur={() => setFocusedInput(null)}
@@ -963,6 +969,8 @@ const Auth = () => {
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
                       value={password}
+                      name="password"
+                      autoComplete="current-password"
                       onChange={(e) => setPassword(e.target.value)}
                       onFocus={() => setFocusedInput("passwordLogin")}
                       onBlur={() => setFocusedInput(null)}
@@ -974,7 +982,8 @@ const Auth = () => {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      tabIndex={-1}
+                      aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                      aria-pressed={showPassword}
                     >
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
@@ -1095,9 +1104,11 @@ const Auth = () => {
               <Label htmlFor="forgotEmail">E-mail</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input
-                  id="forgotEmail"
-                  type="email"
+                  <Input
+                    id="forgotEmail"
+                    type="email"
+                    name="email"
+                    autoComplete="email"
                   placeholder="seu@email.com"
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
@@ -1123,8 +1134,12 @@ const Auth = () => {
             </div>
           </form>
         </DialogContent>
+        {forgotMessage && (
+          <p role="status" aria-live="polite" className="sr-only">{forgotMessage}</p>
+        )}
       </Dialog>
     </div>
+    </MotionConfig>
   );
 };
 

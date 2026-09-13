@@ -11,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { studyActivityTracker } from "@/features/gamification/services/studyActivityTracker";
+import { normalizeHttpFailure, readJsonSafely, RemoteFailure, retryAfterLabel } from "@/features/auth/services/remoteErrors";
 
 /**
  * Formulário para escrever e enviar redação para correção
@@ -34,6 +35,8 @@ const EssayForm = ({ onComplete, canSubmit, isPremium }: EssayFormProps) => {
   const [generatingTopic, setGeneratingTopic] = useState(false);
   const [generatedTopic, setGeneratedTopic] = useState<GeneratedTopic | null>(null);
   const [showTopicDetails, setShowTopicDetails] = useState(true);
+  const [remoteError, setRemoteError] = useState<RemoteFailure | null>(null);
+  const [failedAction, setFailedAction] = useState<"topic" | "submit" | null>(null);
 
   // Contagem de caracteres e palavras
   const charCount = content.length;
@@ -46,6 +49,8 @@ const EssayForm = ({ onComplete, canSubmit, isPremium }: EssayFormProps) => {
 
   // Gerar tema de redação com IA
   const handleGenerateTopic = async () => {
+    setRemoteError(null);
+    setFailedAction(null);
     setGeneratingTopic(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -70,10 +75,10 @@ const EssayForm = ({ onComplete, canSubmit, isPremium }: EssayFormProps) => {
         }
       );
 
-      const data = await response.json();
+      const data = await readJsonSafely(response) as GeneratedTopic & { error?: unknown } | null;
 
       if (!response.ok) {
-        throw new Error(data.error || "Erro ao gerar tema");
+        throw normalizeHttpFailure(response, { operation: "essay" });
       }
 
       setGeneratedTopic(data);
@@ -84,11 +89,13 @@ const EssayForm = ({ onComplete, canSubmit, isPremium }: EssayFormProps) => {
         title: "Tema gerado! 📝",
         description: "Leia os textos motivadores e comece sua redação.",
       });
-    } catch (error: any) {
-      console.error("Erro ao gerar tema:", error);
+    } catch (error) {
+      const failure = error instanceof RemoteFailure ? error : new RemoteFailure(500, "Não foi possível concluir a solicitação. Tente novamente.", "server_error");
+      setRemoteError(failure);
+      setFailedAction("topic");
       toast({
-        title: "Erro",
-        description: error.message || "Não foi possível gerar o tema.",
+        title: "Não foi possível gerar o tema",
+        description: failure.message,
         variant: "destructive",
       });
     } finally {
@@ -98,6 +105,8 @@ const EssayForm = ({ onComplete, canSubmit, isPremium }: EssayFormProps) => {
 
   // Enviar redação para correção
   const handleSubmit = async () => {
+    setRemoteError(null);
+    setFailedAction(null);
     if (!canSubmit) {
       toast({
         title: "Limite atingido",
@@ -144,10 +153,10 @@ const EssayForm = ({ onComplete, canSubmit, isPremium }: EssayFormProps) => {
         }
       );
 
-      const data = await response.json();
+      const data = await readJsonSafely(response) as { error?: unknown } | null;
 
       if (!response.ok) {
-        throw new Error(data.error || "Erro ao corrigir redação");
+        throw normalizeHttpFailure(response, { operation: "essay" });
       }
 
       // Registra no mapa de calor de estudo real
@@ -160,11 +169,13 @@ const EssayForm = ({ onComplete, canSubmit, isPremium }: EssayFormProps) => {
       setContent("");
       
       onComplete();
-    } catch (error: any) {
-      console.error("Erro ao enviar redação:", error);
+    } catch (error) {
+      const failure = error instanceof RemoteFailure ? error : new RemoteFailure(500, "Não foi possível concluir a solicitação. Tente novamente.", "server_error");
+      setRemoteError(failure);
+      setFailedAction("submit");
       toast({
-        title: "Erro",
-        description: error.message || "Não foi possível corrigir a redação.",
+        title: "Não foi possível enviar a redação",
+        description: failure.message,
         variant: "destructive",
       });
     } finally {
@@ -177,7 +188,26 @@ const EssayForm = ({ onComplete, canSubmit, isPremium }: EssayFormProps) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      <Card className="p-6">
+      <Card className="p-6" aria-busy={loading || generatingTopic}>
+        {remoteError && (
+          <Alert variant="destructive" className="mb-6" role="alert" aria-live="assertive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <p>{remoteError.message}</p>
+              {retryAfterLabel(remoteError.retryAfterSeconds) && <p className="mt-1 text-xs">{retryAfterLabel(remoteError.retryAfterSeconds)}</p>}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-3"
+                onClick={() => failedAction === "topic" ? void handleGenerateTopic() : void handleSubmit()}
+                disabled={loading || generatingTopic}
+              >
+                Tentar novamente
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
         {/* Alerta se não pode enviar */}
         {!canSubmit && (
           <Alert variant="destructive" className="mb-6">
@@ -211,6 +241,10 @@ const EssayForm = ({ onComplete, canSubmit, isPremium }: EssayFormProps) => {
                 placeholder="Ex: O impacto das redes sociais na saúde mental dos jovens"
                 disabled={loading || !canSubmit}
                 maxLength={200}
+                name="essay-title"
+                autoComplete="off"
+                aria-describedby="essay-title-help"
+                aria-invalid={title.length > 0 && title.trim().length < 5}
                 className="flex-1"
               />
               <Button
@@ -233,7 +267,7 @@ const EssayForm = ({ onComplete, canSubmit, isPremium }: EssayFormProps) => {
                 )}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p id="essay-title-help" className="text-xs text-muted-foreground">
               Digite o tema ou clique em "Gerar Tema ENEM" para criar um tema no padrão oficial
             </p>
           </div>
@@ -293,12 +327,16 @@ const EssayForm = ({ onComplete, canSubmit, isPremium }: EssayFormProps) => {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Escreva sua redação aqui... Lembre-se de estruturar em introdução, desenvolvimento e conclusão."
+              name="essay-content"
+              maxLength={12000}
+              aria-describedby="essay-content-help"
+              aria-invalid={content.length > 0 && content.length < minChars}
               disabled={loading || !canSubmit}
               className="min-h-[400px] font-mono text-sm leading-relaxed"
             />
             
             {/* Contadores */}
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div id="essay-content-help" className="flex flex-wrap items-center justify-between gap-2 text-xs" aria-live="polite">
               <div className="flex gap-4">
                 <span className={charCount < minChars ? "text-destructive" : "text-muted-foreground"}>
                   {charCount} caracteres {charCount < minChars && `(mín. ${minChars})`}
