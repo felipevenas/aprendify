@@ -224,7 +224,7 @@ export const WelcomeBanner = ({ userName, userId }: WelcomeBannerProps) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.5 }}
       >
-        Olá, <span className="text-gradient">{userName}</span>!
+        Olá, <span className="text-foreground">{userName}</span>!
       </motion.h1>
 
       {/* Contextual message */}

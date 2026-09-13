@@ -219,10 +219,10 @@ const NavbarContent = () => {
         <Link to="/dashboard"
           className="flex items-center gap-2.5 px-6 h-16 border-b border-border/50 cursor-pointer flex-shrink-0"
         >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center shadow-md">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center">
             <BookOpen className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="text-xl font-bold text-gradient">
+          <span className="text-xl font-bold text-foreground">
             Aprendify
           </span>
         </Link>
