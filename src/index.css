@@ -293,10 +293,12 @@ All colors MUST be HSL.
     padding-top: 4rem; /* altura do header */
   }
 
-  /* Centraliza o contêiner principal de todas as páginas de estudo na área restante no desktop */
-  main {
-    margin-left: auto !important;
+  /* Mantém o conteúdo encostado à área da sidebar, sem centralização dupla. */
+  .app-layout-container main {
+    margin-left: 0 !important;
     margin-right: auto !important;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
   }
 }
 
