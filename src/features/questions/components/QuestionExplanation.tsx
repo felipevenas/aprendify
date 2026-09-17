@@ -11,12 +11,13 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { normalizeHttpFailure, normalizeRemoteFailure, RemoteFailure, retryAfterLabel } from "@/features/auth/services/remoteErrors";
+import type { QuestionAlternative, StudyQuestion } from "../types";
 
 /**
  * Componente para exibir explicação pedagógica completa com análise de distratores
  */
 interface QuestionExplanationProps {
-  question: any;
+  question: StudyQuestion;
   isPremium: boolean;
   showResult: boolean;
   selectedAlternative?: string | null;
@@ -74,14 +75,14 @@ const QuestionExplanation = ({ question, isPremium, showResult, selectedAlternat
   const correctAlt = (question?.correctAlternative || question?.correct_alternative || "A").toUpperCase();
 
   // Fallback curto e específico, sem dicas genéricas de prova
-  const generatePedagogicalFallback = (q: any, letter: string): StructuredExplanation => {
+  const generatePedagogicalFallback = (q: StudyQuestion, letter: string): StructuredExplanation => {
     const alternatives = q.alternatives || [];
-    const correctObj = alternatives.find((a: any) => (a.letter || "").toUpperCase() === letter);
+    const correctObj = alternatives.find((a: QuestionAlternative) => (a.letter || "").toUpperCase() === letter);
     const correctText = correctObj?.text || "Alternativa correta conforme gabarito oficial.";
 
     const distractors = alternatives
-      .filter((a: any) => (a.letter || "").toUpperCase() !== letter)
-      .map((alt: any, idx: number) => ({
+      .filter((a: QuestionAlternative) => (a.letter || "").toUpperCase() !== letter)
+      .map((alt: QuestionAlternative, idx: number) => ({
         letter: (alt.letter || "").toUpperCase(),
         trap_explanation: `A alternativa afirma "${alt.text?.slice(0, 100)}${alt.text?.length > 100 ? "..." : ""}", mas não atende ao que o enunciado pede.`
       }));
@@ -124,7 +125,7 @@ const QuestionExplanation = ({ question, isPremium, showResult, selectedAlternat
         throw new RemoteFailure(401, "Sua sessão expirou. Entre novamente para continuar.", "unauthorized");
       }
 
-      let data: any = null;
+      let data: { explanation?: string; structuredExplanation?: StructuredExplanation } | null = null;
       try {
         const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/question-explanation`, {
           method: "POST",
@@ -142,8 +143,8 @@ const QuestionExplanation = ({ question, isPremium, showResult, selectedAlternat
               selectedAlternative: selectedAlternative || "",
               discipline: question.discipline || "",
               year: question.year || "",
-              files: (question as any).files || [],
-              images: (question as any).images || [],
+              files: question.files || [],
+              images: question.images || [],
             },
           }),
         });

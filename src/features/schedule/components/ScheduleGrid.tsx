@@ -38,7 +38,7 @@ const ScheduleGrid = () => {
 
       if (error) throw error;
       setItems(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao carregar cronograma");
     } finally {
       setLoading(false);
@@ -77,7 +77,7 @@ const ScheduleGrid = () => {
 
       if (error) throw error;
       toast.success("Horário removido!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao remover horário");
     }
   };

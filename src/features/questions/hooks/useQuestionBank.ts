@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { QuestionAlternative } from "../types";
 
 interface QuestionData {
   id?: string;
@@ -10,7 +11,7 @@ interface QuestionData {
   context: string | null;
   files: string[] | null;
   alternativesIntroduction: string | null;
-  alternatives: any;
+  alternatives: QuestionAlternative[];
   correctAlternative: string;
   year: string;
   difficulty: "easy" | "medium" | "hard" | null;
@@ -202,12 +203,12 @@ export const useQuestionBank = () => {
       context: data.context,
       files: data.files,
       alternativesIntroduction: data.alternatives_introduction,
-      alternatives: data.alternatives,
+      alternatives: data.alternatives as unknown as QuestionAlternative[],
       correctAlternative: data.correct_alternative,
       year: data.year,
       difficulty: data.difficulty as "easy" | "medium" | "hard" | null,
-      mainTopic: (data as any).main_topic,
-      subtopics: (data as any).subtopics,
+      mainTopic: data.main_topic,
+      subtopics: data.subtopics,
     };
   }, []);
 

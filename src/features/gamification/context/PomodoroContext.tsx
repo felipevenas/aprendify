@@ -86,7 +86,10 @@ export const PomodoroProvider = ({ children }: { children: ReactNode }) => {
 
   const playAlertSound = () => {
     try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextConstructor = window.AudioContext ??
+        (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextConstructor) return;
+      const audioCtx = new AudioContextConstructor();
       const oscillator = audioCtx.createOscillator();
       const gainNode = audioCtx.createGain();
 

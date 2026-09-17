@@ -86,8 +86,8 @@ export const AddTaskDialog = ({ open, onOpenChange, editTask, onSuccess }: AddTa
       onOpenChange(false);
       resetForm();
       onSuccess?.();
-    } catch (error: any) {
-      toast.error(error.message || `Erro ao ${editTask ? "atualizar" : "adicionar"} tarefa`);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : `Erro ao ${editTask ? "atualizar" : "adicionar"} tarefa`);
     } finally {
       setLoading(false);
     }

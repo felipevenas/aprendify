@@ -15,13 +15,14 @@ import EssayForm from "../components/EssayForm";
 import EssayList from "../components/EssayList";
 import EssayDetail from "../components/EssayDetail";
 import { essayService } from "../services/essayService";
+import { Essay } from "../types";
 
 export const EssaysPage = () => {
   const navigate = useNavigate();
   const { isPremium, isLoading: premiumLoading, monthlyEssayLimit } = usePremium();
   const [loading, setLoading] = useState(true);
   const [monthlyCount, setMonthlyCount] = useState(0);
-  const [selectedEssay, setSelectedEssay] = useState<any>(null);
+  const [selectedEssay, setSelectedEssay] = useState<Essay | null>(null);
   const [activeTab, setActiveTab] = useState("write");
 
   const limit = monthlyEssayLimit ?? 1;
@@ -66,7 +67,7 @@ export const EssaysPage = () => {
     });
   };
 
-  const handleSelectEssay = (essay: any) => {
+  const handleSelectEssay = (essay: Essay) => {
     setSelectedEssay(essay);
     setActiveTab("detail");
   };

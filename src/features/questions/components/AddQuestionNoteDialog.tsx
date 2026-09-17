@@ -88,11 +88,11 @@ const AddQuestionNoteDialog = ({ open, onOpenChange, questionContext }: AddQuest
       // Limpa o formulário e fecha o diálogo
       resetForm();
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao salvar anotação:", error);
       toast({
         title: "Erro ao salvar",
-        description: error.message || "Não foi possível salvar a anotação.",
+        description: error instanceof Error ? error.message : "Não foi possível salvar a anotação.",
         variant: "destructive",
       });
     } finally {

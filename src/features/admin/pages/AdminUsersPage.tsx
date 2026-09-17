@@ -324,9 +324,9 @@ const AdminUsers = () => {
       toast.success(`Assinatura Criador concedida! Cupom ${data.code} criado no Stripe com 15% OFF.`);
       setCreatorCouponCode("");
       fetchUsers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao conceder criador:", error);
-      toast.error(error.message || "Erro ao conceder assinatura de criador");
+      toast.error(error instanceof Error ? error.message : "Erro ao conceder assinatura de criador");
     } finally {
       setActionLoading(null);
       setConfirmDialog({ open: false, type: null, userId: "", userName: "" });

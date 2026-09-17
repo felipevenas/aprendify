@@ -147,7 +147,7 @@ export const TRICalculatorPage: React.FC = () => {
       if (showToast) {
         toast.success("Metas e parâmetros salvos com sucesso!");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Erro ao salvar parâmetros da calculadora:", err);
       if (showToast) {
         toast.error("Erro ao sincronizar parâmetros.");

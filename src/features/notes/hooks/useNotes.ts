@@ -15,8 +15,8 @@ export function useNotes() {
 
       const data = await notesService.getNotes(user.id);
       setNotes(data);
-    } catch (error: any) {
-      toast.error("Erro ao carregar anotações: " + error.message);
+    } catch (error: unknown) {
+      toast.error("Erro ao carregar anotações: " + (error instanceof Error ? error.message : "Erro inesperado"));
     } finally {
       setLoading(false);
     }
@@ -26,8 +26,8 @@ export function useNotes() {
     try {
       await notesService.deleteNote(noteId);
       toast.success("Anotação excluída com sucesso!");
-    } catch (error: any) {
-      toast.error("Erro ao excluir anotação: " + error.message);
+    } catch (error: unknown) {
+      toast.error("Erro ao excluir anotação: " + (error instanceof Error ? error.message : "Erro inesperado"));
     }
   }, []);
 

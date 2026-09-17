@@ -19,6 +19,30 @@ const AVAILABLE_YEARS = [
   "2014", "2013", "2012", "2011", "2010", "2009"
 ];
 
+interface ImportResult {
+  inserted: number;
+  total: number;
+  skipped?: number;
+  errors?: Array<{ batch: number; error: string }>;
+  error?: string;
+}
+
+interface SyncYearResult {
+  year: string;
+  success: boolean;
+  inserted?: number;
+  error?: string;
+}
+
+interface SyncResult {
+  success?: boolean;
+  totalInserted?: number;
+  totalSkipped?: number;
+  totalErrors?: number;
+  results?: SyncYearResult[];
+  error?: string;
+}
+
 /**
  * Painel Administrativo de Importação de Questões
  * Suporta sincronização automatizada via API pública, inserção manual ou carga via arquivo JSON
@@ -29,12 +53,12 @@ const AdminImport = () => {
   const [year, setYear] = useState("2024");
   const [jsonFile, setJsonFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
   
   // Estado para sincronização da API
   const [syncing, setSyncing] = useState(false);
   const [selectedYears, setSelectedYears] = useState<string[]>(["2023"]);
-  const [syncResult, setSyncResult] = useState<any>(null);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   
   // Estado para progresso em tempo real
   const [syncProgress, setSyncProgress] = useState({
@@ -150,10 +174,10 @@ const AdminImport = () => {
       setResult(response.data);
       toast.success(`Importação concluída! ${response.data.inserted} questões importadas.`);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro na importação:", error);
-      toast.error(error.message || "Erro ao importar questões");
-      setResult({ error: error.message });
+      toast.error(error instanceof Error ? error.message : "Erro ao importar questões");
+      setResult({ inserted: 0, total: 0, error: error instanceof Error ? error.message : "Erro inesperado" });
     } finally {
       setImporting(false);
     }
@@ -179,7 +203,7 @@ const AdminImport = () => {
     try {
       console.log(`🔄 Sincronizando anos: ${selectedYears.join(", ")}`);
 
-      const results: any[] = [];
+      const results: SyncYearResult[] = [];
       let totalInserted = 0;
       let totalSkipped = 0;
       let totalErrors = 0;
@@ -213,8 +237,8 @@ const AdminImport = () => {
               questionsImported: prev.questionsImported + (data.totalInserted || 0),
             }));
           }
-        } catch (error: any) {
-          results.push({ year: yearToSync, success: false, error: error.message });
+        } catch (error: unknown) {
+          results.push({ year: yearToSync, success: false, error: error instanceof Error ? error.message : "Erro inesperado" });
           totalErrors++;
         }
 
@@ -241,10 +265,10 @@ const AdminImport = () => {
         toast.warning(`Sincronização concluída com ${totalErrors} erros.`);
       }
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro na sincronização:", error);
-      toast.error(error.message || "Erro ao sincronizar questões");
-      setSyncResult({ error: error.message });
+      toast.error(error instanceof Error ? error.message : "Erro ao sincronizar questões");
+      setSyncResult({ error: error instanceof Error ? error.message : "Erro inesperado" });
     } finally {
       setSyncing(false);
       setSyncProgress(prev => ({
@@ -451,7 +475,7 @@ const AdminImport = () => {
                             <div className="mt-3 pt-3 border-t border-border/50">
                               <p className="text-xs font-medium text-muted-foreground mb-2">Detalhes por ano:</p>
                               <div className="grid grid-cols-2 gap-2">
-                                {syncResult.results.map((r: any) => (
+                                {syncResult.results.map((r) => (
                                   <div 
                                     key={r.year}
                                     className={`text-xs p-2 rounded flex items-center justify-between ${

@@ -40,10 +40,18 @@ import Navbar from "@/components/Navbar";
 import DifficultyIndicator from "@/components/questions/DifficultyIndicator";
 import { cn } from "@/lib/utils";
 import { formatDisciplineName } from "@/lib/formatters";
+import type { Json } from "@/integrations/supabase/types";
 
 /**
  * Interface para questão (banco local + API externa)
  */
+interface QuestionAlternative {
+  letter: string;
+  text: string;
+  file?: string;
+  files?: string[];
+}
+
 interface Question {
   id: string;
   index: number;
@@ -51,7 +59,7 @@ interface Question {
   discipline: string;
   context: string | null;
   alternativesIntroduction: string | null;
-  alternatives: any[];
+  alternatives: QuestionAlternative[];
   correctAlternative: string;
   year: string;
   difficulty: "easy" | "medium" | "hard" | null;
@@ -247,19 +255,19 @@ const AdminQuestions = () => {
         discipline: q.discipline,
         context: q.context,
         alternativesIntroduction: q.alternatives_introduction,
-        alternatives: q.alternatives as any[],
+        alternatives: q.alternatives as unknown as QuestionAlternative[],
         correctAlternative: q.correct_alternative,
         year: q.year,
         difficulty: q.difficulty as "easy" | "medium" | "hard" | null,
         files: q.files,
         language: q.language,
         isFromAPI: false,
-        mainTopic: (q as any).main_topic,
-        subtopics: (q as any).subtopics,
-        confidence: (q as any).confidence,
-        classificationStatus: (q as any).classification_status,
-        origin: (q as any).origin,
-        isActive: (q as any).is_active ?? true,
+        mainTopic: q.main_topic,
+        subtopics: q.subtopics,
+        confidence: q.confidence,
+        classificationStatus: q.classification_status,
+        origin: q.origin,
+        isActive: q.is_active,
       }));
       
       setQuestions(mappedQuestions);
@@ -315,7 +323,7 @@ const AdminQuestions = () => {
           title: editingQuestion.title,
           context: editingQuestion.context,
           alternatives_introduction: editingQuestion.alternativesIntroduction,
-          alternatives: editingQuestion.alternatives,
+            alternatives: editingQuestion.alternatives as unknown as Json,
           correct_alternative: editingQuestion.correctAlternative,
           difficulty: editingQuestion.difficulty,
           main_topic: editingQuestion.mainTopic,
@@ -567,7 +575,7 @@ const AdminQuestions = () => {
     let totalProcessed = 0;
     let totalFailed = 0;
     let remaining = needsProcessing;
-    let cancelled = false;
+    const cancelled = false;
 
     const DELAY_BETWEEN_REQUESTS_MS = 2500; // 2.5s = ~24 RPM (conservador)
     const RATE_LIMIT_PAUSE_SECONDS = 65;
@@ -713,7 +721,7 @@ const AdminQuestions = () => {
     const DELAY_BETWEEN_REQUESTS_MS = 2100; // 2.1s = ~28 RPM
     const RATE_LIMIT_PAUSE_SECONDS = 65; // 1 min + 5s quando atingir limite
 
-    let cancelled = false;
+    const cancelled = false;
 
     try {
       for (let i = 0; i < yearsWithPending.length; i++) {
@@ -1696,7 +1704,7 @@ const AdminQuestions = () => {
                 {/* Alternativas */}
                 <div className="space-y-4">
                   <Label>Alternativas</Label>
-                  {editingQuestion.alternatives?.map((alt: any, idx: number) => (
+                  {editingQuestion.alternatives?.map((alt: QuestionAlternative, idx: number) => (
                     <div key={idx} className="space-y-2">
                       <div className="flex gap-3 items-start">
                         <div className={cn(

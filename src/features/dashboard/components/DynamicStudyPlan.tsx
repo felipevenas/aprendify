@@ -209,7 +209,11 @@ const DynamicStudyPlan = ({ userId, showGoal = true }: DynamicStudyPlanProps) =>
 
         if (pendingChallenges && pendingChallenges.length > 0) {
           const challenge = pendingChallenges[0];
-          const challengeData = challenge.challenge as any;
+          const challengeData = challenge.challenge as {
+            target_value: number;
+            title?: string;
+            discipline?: string;
+          } | null;
           if (challengeData) {
             const remaining = challengeData.target_value - challenge.current_value;
             

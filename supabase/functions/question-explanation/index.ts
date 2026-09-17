@@ -181,7 +181,7 @@ serve(async (req) => {
       });
     }
     if (question.context) {
-      const matchUrls = question.context.match(/https?:\/\/[^\s\)\"']+\.(?:png|jpg|jpeg|webp|gif)/gi);
+      const matchUrls = question.context.match(/https?:\/\/[^\s)"']+\.(?:png|jpg|jpeg|webp|gif)/gi);
       if (matchUrls) {
         imageCandidates.push(...matchUrls);
       }

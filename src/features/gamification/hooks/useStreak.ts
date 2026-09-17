@@ -75,11 +75,13 @@ export const useStreak = (): UseStreakReturn => {
       }
 
       // Busca ou cria registro de streak
-      let { data, error } = await supabase
+      const streakResponse = await supabase
         .from('user_streaks')
         .select('*')
         .eq('user_id', user.id)
         .single();
+      let { data } = streakResponse;
+      const { error } = streakResponse;
 
       if (error && error.code === 'PGRST116') {
         // Registro não existe, cria um novo

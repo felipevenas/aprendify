@@ -31,7 +31,7 @@ export const useConfetti = () => {
         });
         break;
 
-      case 'achievement':
+      case 'achievement': {
         // Confetti dourado para conquistas
         const duration = 3000;
         const animationEnd = Date.now() + duration;
@@ -60,6 +60,7 @@ export const useConfetti = () => {
         };
         frame();
         break;
+      }
 
       case 'correct':
         // Confetti sutil para resposta correta
@@ -74,7 +75,7 @@ export const useConfetti = () => {
         break;
 
       case 'celebration':
-      default:
+      default: {
         // Confetti padrão de celebração
         const count = 200;
         const defaultColors = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe'];
@@ -94,6 +95,7 @@ export const useConfetti = () => {
         fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
         fire(0.1, { spread: 120, startVelocity: 45 });
         break;
+      }
     }
   }, []);
 

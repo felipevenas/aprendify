@@ -18,6 +18,23 @@ interface QuestionData {
   correct_alternative: string;
 }
 
+interface ExternalAlternative {
+  letter?: string;
+  text?: string;
+}
+
+interface ExternalQuestion {
+  title?: string;
+  context?: string | null;
+  alternatives?: ExternalAlternative[];
+  alternativesIntroduction?: string | null;
+  discipline: string;
+  year?: string | number;
+  index?: number;
+  files?: string[];
+  correctAlternative?: string;
+}
+
 /**
  * Configuration for API rate limiting with retry support
  */
@@ -133,7 +150,7 @@ export const useSimuladoPreparation = () => {
     onProgress?: (loaded: number) => void
   ): Promise<QuestionData[]> => {
     const apiDisciplines = disciplines.map(mapLocalToAPI);
-    const allQuestions: any[] = [];
+    const allQuestions: ExternalQuestion[] = [];
     let offset = 0;
     let hasMore = true;
     let retryCount = 0;
@@ -181,7 +198,7 @@ export const useSimuladoPreparation = () => {
           break;
         }
 
-        const data = await response.json();
+        const data = await response.json() as { questions?: ExternalQuestion[] };
         
         if (!data.questions || data.questions.length === 0) {
           hasMore = false;
@@ -225,7 +242,7 @@ export const useSimuladoPreparation = () => {
       title: q.title || "",
       context: q.context || null,
       alternatives: Array.isArray(q.alternatives)
-        ? q.alternatives.map((alt: any) => ({ letter: alt.letter || "", text: alt.text || "" }))
+        ? q.alternatives.map((alt) => ({ letter: alt.letter || "", text: alt.text || "" }))
         : [],
       alternatives_introduction: q.alternativesIntroduction || null,
       discipline: mapAPIToLocal(q.discipline),
@@ -613,7 +630,7 @@ export const usePDFOnlyPreparation = () => {
     signal: AbortSignal
   ): Promise<QuestionData[]> => {
     const apiDisciplines = disciplines.map(mapLocalToAPI);
-    const allQuestions: any[] = [];
+    const allQuestions: ExternalQuestion[] = [];
     let offset = 0;
     let hasMore = true;
     let retryCount = 0;
@@ -639,7 +656,7 @@ export const usePDFOnlyPreparation = () => {
         retryCount = 0;
         if (response.status === 404 || !response.ok) break;
 
-        const data = await response.json();
+        const data = await response.json() as { questions?: ExternalQuestion[] };
         if (!data.questions || data.questions.length === 0) break;
 
         allQuestions.push(...data.questions);
@@ -663,7 +680,7 @@ export const usePDFOnlyPreparation = () => {
       title: q.title || "",
       context: q.context || null,
       alternatives: Array.isArray(q.alternatives)
-        ? q.alternatives.map((alt: any) => ({ letter: alt.letter || "", text: alt.text || "" }))
+        ? q.alternatives.map((alt) => ({ letter: alt.letter || "", text: alt.text || "" }))
         : [],
       alternatives_introduction: q.alternativesIntroduction || null,
       discipline: mapAPIToLocal(q.discipline),

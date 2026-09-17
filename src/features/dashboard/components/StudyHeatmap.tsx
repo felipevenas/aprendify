@@ -61,10 +61,10 @@ const StudyHeatmap = ({ userId, embedded = false }: StudyHeatmapProps) => {
     const startDow = startDate.getDay();
     startDate.setDate(startDate.getDate() - startDow);
 
-    let currentDate = new Date(startDate);
+    const currentDate = new Date(startDate);
     let activeDays = 0;
     let streak = 0;
-    let streakBroken = false;
+    const streakBroken = false;
 
     const allDays: { date: string; count: number }[] = [];
 

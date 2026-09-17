@@ -74,8 +74,8 @@ const TwoFactorAuth = ({ userId }: TwoFactorAuthProps) => {
         setFactorId(data.id);
         setShowEnrollDialog(true);
       }
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao iniciar configuração do 2FA");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Erro ao iniciar configuração do 2FA");
     } finally {
       setEnrolling(false);
     }
@@ -108,8 +108,8 @@ const TwoFactorAuth = ({ userId }: TwoFactorAuthProps) => {
       setShowEnrollDialog(false);
       setVerificationCode("");
       toast.success("Autenticação em dois fatores ativada com sucesso!");
-    } catch (error: any) {
-      toast.error(error.message || "Código inválido. Tente novamente.");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Código inválido. Tente novamente.");
     } finally {
       setVerifying(false);
     }
@@ -130,8 +130,8 @@ const TwoFactorAuth = ({ userId }: TwoFactorAuthProps) => {
       setMfaEnabled(false);
       setFactorId(null);
       toast.success("Autenticação em dois fatores desativada");
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao desativar 2FA");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Erro ao desativar 2FA");
     } finally {
       setUnenrolling(false);
     }

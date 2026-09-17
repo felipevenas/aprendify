@@ -23,6 +23,25 @@ const corsHeaders = {
 const RATE_LIMIT_MAX_CALLS = 3; // 3 schedule generations per hour
 const RATE_LIMIT_WINDOW_MINUTES = 60;
 
+interface GeneratedScheduleItem {
+  discipline: string;
+  topic: string;
+  duration_minutes: number;
+  start_time: string;
+  activities: string;
+  tips: string;
+  priority?: string;
+}
+
+interface GeneratedScheduleDay {
+  date: string;
+  items: GeneratedScheduleItem[];
+}
+
+interface GeneratedSchedule {
+  schedule: GeneratedScheduleDay[];
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -313,7 +332,7 @@ Responda APENAS com JSON válido (sem markdown):
     console.log("[generate-study-schedule] AI Response length:", aiContent.length);
 
     // Parse do JSON da IA
-    let scheduleData;
+    let scheduleData: GeneratedSchedule;
     try {
       // Remove possíveis marcadores de código markdown
       let cleanedContent = aiContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
@@ -334,7 +353,7 @@ Responda APENAS com JSON válido (sem markdown):
         }
       }
       
-      scheduleData = JSON.parse(cleanedContent);
+      scheduleData = JSON.parse(cleanedContent) as GeneratedSchedule;
     } catch (parseError) {
       console.error("[generate-study-schedule] Error parsing AI response:", parseError);
       console.error("[generate-study-schedule] Raw content:", aiContent.substring(0, 500));
@@ -356,7 +375,7 @@ Responda APENAS com JSON válido (sem markdown):
     }
 
     // Inserir novos itens do cronograma
-    const newItems: any[] = [];
+    const newItems: Array<Record<string, string | number | boolean | null>> = [];
     
     for (const day of scheduleData.schedule) {
       for (const item of day.items) {

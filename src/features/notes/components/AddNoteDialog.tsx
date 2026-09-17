@@ -85,8 +85,8 @@ export const AddNoteDialog = ({ open, onOpenChange, editNote, onSuccess }: AddNo
       resetForm();
       onOpenChange(false);
       onSuccess?.();
-    } catch (error: any) {
-      toast.error(`Erro ao ${editNote ? "atualizar" : "criar"} anotação: ` + error.message);
+    } catch (error: unknown) {
+      toast.error(`Erro ao ${editNote ? "atualizar" : "criar"} anotação: ` + (error instanceof Error ? error.message : "Erro inesperado"));
     } finally {
       setLoading(false);
     }

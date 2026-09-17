@@ -37,6 +37,7 @@ import {
   PaginationPrevious
 } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
+import type { StudyQuestion } from "@/features/questions/types";
 
 interface ErrorQuestion {
   id: string;
@@ -45,7 +46,7 @@ interface ErrorQuestion {
   created_at: string;
   days_since_error: number;
   review_priority: 'high' | 'medium' | 'low';
-  question_data?: any;
+  question_data?: StudyQuestion;
 }
 
 // Intervalos de repetição espaçada (em dias)
@@ -251,8 +252,9 @@ const ReviewErrors = () => {
       }
 
       // Normaliza os campos do banco (snake_case) para o formato esperado pelo QuestionPractice (camelCase)
-      const normalizedQuestion = {
+      const normalizedQuestion: StudyQuestion = {
         ...question,
+        alternatives: question.alternatives as unknown as StudyQuestion["alternatives"],
         correctAlternative: question.correct_alternative,
         alternativesIntroduction: question.alternatives_introduction,
       };

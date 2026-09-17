@@ -119,8 +119,8 @@ const AddQuestionDialog = ({ open, onOpenChange, editQuestion }: AddQuestionDial
 
       resetForm();
       onOpenChange(false);
-    } catch (error: any) {
-      toast.error(`Erro ao ${editQuestion ? "atualizar" : "criar"} questão: ` + error.message);
+    } catch (error: unknown) {
+      toast.error(`Erro ao ${editQuestion ? "atualizar" : "criar"} questão: ` + (error instanceof Error ? error.message : "Erro inesperado"));
     } finally {
       setLoading(false);
     }
@@ -151,7 +151,7 @@ const AddQuestionDialog = ({ open, onOpenChange, editQuestion }: AddQuestionDial
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Tipo de Questão *</Label>
-                <RadioGroup value={questionType} onValueChange={(value) => setQuestionType(value as any)}>
+                <RadioGroup value={questionType} onValueChange={(value) => setQuestionType(value as "concurso" | "vestibular")}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="concurso" id="concurso" />
                     <Label htmlFor="concurso" className="font-normal cursor-pointer">

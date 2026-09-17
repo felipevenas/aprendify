@@ -113,8 +113,8 @@ const AddScheduleDialog = ({ open, onOpenChange, editItem }: AddScheduleDialogPr
 
       onOpenChange(false);
       resetForm();
-    } catch (error: any) {
-      toast.error(error.message || `Erro ao ${editItem ? "atualizar" : "adicionar"} horário`);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : `Erro ao ${editItem ? "atualizar" : "adicionar"} horário`);
     } finally {
       setLoading(false);
     }

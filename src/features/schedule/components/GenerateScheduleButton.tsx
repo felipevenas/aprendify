@@ -81,7 +81,7 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
 
       if (error) {
         console.error("Error generating schedule:", error);
-        const msg = (error as any)?.message || "Erro ao gerar plano. Tente novamente.";
+        const msg = error.message || "Erro ao gerar plano. Tente novamente.";
         toast.error(msg);
         return;
       }

@@ -93,8 +93,8 @@ const AddFlashcardDialog = ({ open, onOpenChange, editFlashcard, defaultSubjectI
 
       resetForm();
       onOpenChange(false);
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao salvar flashcard");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Erro ao salvar flashcard");
     } finally {
       setLoading(false);
     }

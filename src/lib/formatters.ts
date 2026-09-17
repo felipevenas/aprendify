@@ -91,7 +91,7 @@ const findReferences = (text: string): string[] => {
 export const separateTextAndReference = (text: string): { mainText: string; reference: string | null } => {
   if (!text) return { mainText: '', reference: null };
   
-  let cleaned = cleanMarkdownArtifacts(text);
+  const cleaned = cleanMarkdownArtifacts(text);
   
   // Encontra todas as referências
   const foundReferences = findReferences(cleaned);

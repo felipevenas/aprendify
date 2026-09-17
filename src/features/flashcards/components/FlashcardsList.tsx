@@ -41,7 +41,7 @@ const FlashcardsList = ({ subjectFilter = "all" }: FlashcardsListProps) => {
 
       if (error) throw error;
       setFlashcards(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao carregar flashcards");
     } finally {
       setLoading(false);
@@ -81,7 +81,7 @@ const FlashcardsList = ({ subjectFilter = "all" }: FlashcardsListProps) => {
 
       if (error) throw error;
       toast.success("Flashcard removido!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao remover flashcard");
     }
   };
