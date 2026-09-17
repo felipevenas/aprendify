@@ -280,3 +280,5 @@ export const ShareResultsButton = ({
     </DropdownMenu>
   );
 };
+
+export default ShareResultsButton;

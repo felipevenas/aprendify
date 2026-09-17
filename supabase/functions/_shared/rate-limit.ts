@@ -26,6 +26,16 @@ async function clientKey(req: Request): Promise<string | null> {
   return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+async function anonymousBucketId(req: Request): Promise<string> {
+  const key = (await clientKey(req)) ?? "anonymous";
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
+  const bytes = new Uint8Array(digest).slice(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 export function rateLimitHeaders(result: RateLimitResult): Record<string, string> {
   return {
     "X-RateLimit-Limit": String(result.limit),
@@ -64,4 +74,14 @@ export async function consumeRateLimit(
     retryAfterSeconds: Number(row.retry_after_seconds ?? 0),
     resetAt: String(row.reset_at ?? new Date().toISOString()),
   };
+}
+
+export async function consumeAnonymousRateLimit(
+  serviceClient: { rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }> },
+  req: Request,
+  functionName: string,
+  maxCalls: number,
+  windowMinutes: number,
+): Promise<RateLimitResult> {
+  return consumeRateLimit(serviceClient, req, await anonymousBucketId(req), functionName, maxCalls, windowMinutes);
 }

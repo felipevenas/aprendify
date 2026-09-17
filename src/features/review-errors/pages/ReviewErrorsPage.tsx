@@ -270,29 +270,17 @@ const ReviewErrors = () => {
   const handleAnswerSubmit = async (
     questionId: string, 
     selectedAnswer: string, 
-    correctAnswer: string, 
-    isCorrect: boolean, 
-    hadDoubt?: boolean
+    _correctAnswer?: string,
+    _isCorrect?: boolean,
+    _hadDoubt?: boolean
   ) => {
     if (!selectedError || !userId) return;
 
     try {
-      // Salva a tentativa no banco de dados
-      const attemptData = {
-        user_id: userId,
-        question_id: questionId,
-        discipline: selectedError.discipline || "desconhecida",
-        year: selectedError.question_data?.year || new Date().getFullYear().toString(),
-        selected_answer: selectedAnswer,
-        correct_answer: correctAnswer,
-        is_correct: isCorrect,
-        had_doubt: hadDoubt || null,
-        language: selectedError.question_data?.language || null,
-      };
-
-      const { error: insertError } = await supabase
-        .from("question_attempts")
-        .insert(attemptData);
+      const { error: insertError } = await supabase.rpc("record_question_attempt", {
+        _question_id: questionId,
+        _selected_answer: selectedAnswer,
+      });
 
       if (insertError) {
         console.error("Erro ao salvar tentativa:", insertError);
@@ -303,7 +291,8 @@ const ReviewErrors = () => {
       // Volta para a lista
       setSelectedError(null);
 
-      if (isCorrect) {
+      const isCorrectAnswer = selectedAnswer === selectedError.question_data?.correctAlternative;
+      if (isCorrectAnswer) {
         toast.success("Parabéns! Questão revisada com sucesso! 🎉", {
           description: "Esta questão foi removida da sua lista de revisão."
         });

@@ -39,3 +39,5 @@ export const SimuladoProgress = ({
     </div>
   );
 };
+
+export default SimuladoProgress;

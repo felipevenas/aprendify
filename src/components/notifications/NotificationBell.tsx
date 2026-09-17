@@ -146,7 +146,9 @@ export const NotificationBell = () => {
         <Button
           variant="ghost"
           size="icon"
-          className="relative rounded-full hover:bg-primary/10 h-9 w-9 sm:h-10 sm:w-10 transition-all duration-300"
+          aria-label={unreadCount > 0 ? `Notificações, ${unreadCount} não lidas` : "Notificações"}
+          title="Notificações"
+          className="relative rounded-full hover:bg-primary/10 h-11 w-11 sm:h-10 sm:w-10 transition-all duration-300"
         >
           <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
           <AnimatePresence>
@@ -195,14 +197,15 @@ export const NotificationBell = () => {
           ) : (
             <div className="p-2 space-y-2">
               {notifications.map((notification, index) => (
-                <motion.div
+                <motion.button
+                  type="button"
                   key={notification.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                   onClick={() => !notification.is_read && markAsRead(notification.id)}
                   className={cn(
-                    "p-2.5 sm:p-3 rounded-lg border cursor-pointer transition-all duration-200",
+                    "w-full text-left p-2.5 sm:p-3 rounded-lg border cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     notification.is_read
                       ? "bg-muted/30 opacity-70"
                       : notificationColors[notification.notification_type] || "bg-muted",
@@ -236,7 +239,7 @@ export const NotificationBell = () => {
                       </p>
                     </div>
                   </div>
-                </motion.div>
+                </motion.button>
               ))}
             </div>
           )}

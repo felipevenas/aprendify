@@ -242,7 +242,7 @@ const NavbarContent = () => {
         <div className="flex items-center gap-2 lg:hidden">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
-              <Button aria-label="Abrir menu" variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+              <Button aria-label="Abrir menu" variant="ghost" size="icon" className="h-11 w-11 rounded-full">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
@@ -294,8 +294,10 @@ const NavbarContent = () => {
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label={isCreator ? "Abrir plano Criador" : isPremium ? "Abrir plano Premium" : "Ver planos Premium"}
+                    title={isCreator ? "Plano Criador" : isPremium ? "Plano Premium" : "Plano Gratuito"}
                     onClick={() => isCreator ? navigate("/creator") : isPremium ? setShowPremiumModal(true) : navigate("/subscription")}
-                    className="rounded-full h-9 w-9 sm:h-10 sm:w-10 transition-colors duration-300"
+                    className="rounded-full h-11 w-11 sm:h-10 sm:w-10 transition-colors duration-300"
                   >
                     {isCreator ? (
                       <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />

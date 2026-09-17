@@ -1,8 +1,19 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { consumeRateLimit, rateLimitHeaders } from '../_shared/rate-limit.ts'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://app.aprendify.cloud',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Expose-Headers': 'Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset',
+}
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin')
+  const allowedOrigin = origin === 'https://app.aprendify.cloud' || Boolean(origin && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin))
+    ? origin
+    : corsHeaders['Access-Control-Allow-Origin']
+  return { ...corsHeaders, 'Access-Control-Allow-Origin': allowedOrigin, Vary: 'Origin' }
 }
 
 // Validation schema for question data
@@ -29,7 +40,7 @@ function validateQuestionData(data: unknown): { valid: boolean; error?: string; 
   const q = data as Record<string, unknown>
 
   // Validate year
-  if (typeof q.year !== 'string' || !q.year.trim() || !/^\d{4}$/.test(q.year.trim())) {
+  if (typeof q.year !== 'string' || !q.year.trim() || !/^20(?:0[9]|1[0-9]|2[0-6])$/.test(q.year.trim())) {
     return { valid: false, error: 'Ano inválido. Use formato YYYY (ex: 2024)' }
   }
 
@@ -67,14 +78,16 @@ function validateQuestionData(data: unknown): { valid: boolean; error?: string; 
     return { valid: false, error: 'Deve haver exatamente 5 alternativas (A-E)' }
   }
 
+  const letters = new Set<string>()
   for (const alt of q.alternatives) {
     if (!alt || typeof alt !== 'object') {
       return { valid: false, error: 'Formato de alternativa inválido' }
     }
     const a = alt as Record<string, unknown>
-    if (typeof a.letter !== 'string' || !VALID_ALTERNATIVES.includes(a.letter)) {
+    if (typeof a.letter !== 'string' || !VALID_ALTERNATIVES.includes(a.letter) || letters.has(a.letter)) {
       return { valid: false, error: `Letra de alternativa inválida: ${a.letter}` }
     }
+    letters.add(a.letter)
     if (typeof a.text !== 'string' || !a.text.trim()) {
       return { valid: false, error: `Alternativa ${a.letter} está vazia` }
     }
@@ -94,7 +107,7 @@ function validateQuestionData(data: unknown): { valid: boolean; error?: string; 
       return { valid: false, error: 'Formato de arquivos inválido' }
     }
     for (const file of q.files) {
-      if (typeof file !== 'string' || !file.startsWith('http')) {
+      if (typeof file !== 'string' || file.length > 2048 || !file.startsWith('https://')) {
         return { valid: false, error: 'URL de arquivo inválida' }
       }
     }
@@ -117,18 +130,19 @@ function validateQuestionData(data: unknown): { valid: boolean; error?: string; 
 }
 
 Deno.serve(async (req) => {
+  const headers = getCorsHeaders(req)
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { status: 204, headers })
   }
 
   try {
     // Verify authentication
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
+    const token = req.headers.get('Authorization')?.match(/^Bearer\s+(\S+)$/i)?.[1]
+    if (!token) {
       return new Response(
         JSON.stringify({ error: 'Autenticação necessária' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -137,14 +151,12 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     // Get user from token
-    const token = authHeader.replace('Bearer ', '')
     const { data: { user }, error: userError } = await supabase.auth.getUser(token)
 
     if (userError || !user) {
-      console.error('Auth error:', userError)
       return new Response(
         JSON.stringify({ error: 'Token inválido ou expirado' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -152,21 +164,43 @@ Deno.serve(async (req) => {
     const { data: roleData, error: roleError } = await supabase.rpc('get_user_role', { _user_id: user.id })
 
     if (roleError || roleData !== 'admin') {
-      console.error('Role check failed:', roleError, 'Role:', roleData)
       return new Response(
         JSON.stringify({ error: 'Acesso negado. Apenas administradores podem adicionar questões.' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 403, headers: { ...headers, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const rateLimit = await consumeRateLimit(supabase, req, user.id, 'add-manual-question', 20, 60)
+    if (!rateLimit.allowed) {
+      return new Response(
+        JSON.stringify({ error: 'Limite de importações atingido', code: 'RATE_LIMITED' }),
+        { status: 429, headers: { ...headers, ...rateLimitHeaders(rateLimit), 'Content-Type': 'application/json' } }
       )
     }
 
     // Parse and validate request body
-    const body = await req.json()
+    const bodyBytes = new Uint8Array(await req.arrayBuffer())
+    if (bodyBytes.byteLength > 512 * 1024) {
+      return new Response(
+        JSON.stringify({ error: 'Payload excede o limite permitido', code: 'PAYLOAD_TOO_LARGE' }),
+        { status: 413, headers: { ...headers, ...rateLimitHeaders(rateLimit), 'Content-Type': 'application/json' } }
+      )
+    }
+    let body: unknown
+    try {
+      body = JSON.parse(new TextDecoder().decode(bodyBytes))
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'JSON inválido', code: 'INVALID_JSON' }),
+        { status: 400, headers: { ...headers, ...rateLimitHeaders(rateLimit), 'Content-Type': 'application/json' } }
+      )
+    }
     const validation = validateQuestionData(body)
 
     if (!validation.valid || !validation.data) {
       return new Response(
         JSON.stringify({ error: validation.error }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...headers, ...rateLimitHeaders(rateLimit), 'Content-Type': 'application/json' } }
       )
     }
 
@@ -178,25 +212,21 @@ Deno.serve(async (req) => {
       .single()
 
     if (insertError) {
-      console.error('Insert error:', insertError)
       return new Response(
-        JSON.stringify({ error: `Erro ao inserir questão: ${insertError.message}` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Não foi possível inserir a questão', code: 'QUESTION_INSERT_FAILED' }),
+        { status: 500, headers: { ...headers, ...rateLimitHeaders(rateLimit), 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log(`Question added successfully by admin ${user.id}:`, data.id)
-
     return new Response(
       JSON.stringify({ success: true, data }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...headers, ...rateLimitHeaders(rateLimit), 'Content-Type': 'application/json' } }
     )
 
   } catch (error) {
-    console.error('Unexpected error:', error)
     return new Response(
       JSON.stringify({ error: 'Erro interno do servidor' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } }
     )
   }
 })

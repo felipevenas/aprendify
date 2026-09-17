@@ -105,9 +105,9 @@ export const FlashcardsPage = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2" data-tour="flashcards-controls">
+              <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center" data-tour="flashcards-controls">
                 <Select value={subjectFilter} onValueChange={setSubjectFilter}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Filtrar por matéria" />
                   </SelectTrigger>
                   <SelectContent>
@@ -126,7 +126,7 @@ export const FlashcardsPage = () => {
                   </SelectContent>
                 </Select>
 
-                <Button onClick={handleOpenDialog} size="sm" className="gap-2">
+                <Button onClick={handleOpenDialog} size="sm" className="w-full gap-2 sm:w-auto">
                   <Plus className="h-4 w-4" />
                   Novo Flashcard
                 </Button>

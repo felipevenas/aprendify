@@ -399,3 +399,5 @@ export const NewSimuladoDialog = ({ open, onOpenChange }: NewSimuladoDialogProps
     </>
   );
 };
+
+export default NewSimuladoDialog;

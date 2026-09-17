@@ -112,20 +112,20 @@ export default function SubscriptionSuccessPage() {
                 <Alert aria-live="polite">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    <strong>payment_pending</strong>: quando o webhook confirmar a assinatura, atualize este status. Não feche esta página se quiser acompanhar a confirmação.
+                    Estamos confirmando a assinatura com segurança. Você pode atualizar o status ou voltar ao painel; o acesso só será liberado após a confirmação do servidor.
                   </AlertDescription>
                 </Alert>
               )}
               {paymentState === "payment_failed" && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription><strong>payment_failed</strong>: verifique o método de pagamento ou inicie um novo checkout.</AlertDescription>
+                    <AlertDescription>Não conseguimos confirmar o pagamento. Verifique o método de pagamento ou inicie um novo checkout.</AlertDescription>
                 </Alert>
               )}
               {paymentState === "cancelled" && (
                 <Alert variant="destructive">
                   <XCircle className="h-4 w-4" />
-                  <AlertDescription><strong>cancelled</strong>: o fluxo foi encerrado sem alterar seu acesso.</AlertDescription>
+                  <AlertDescription>O checkout foi cancelado e seu acesso não foi alterado.</AlertDescription>
                 </Alert>
               )}
 

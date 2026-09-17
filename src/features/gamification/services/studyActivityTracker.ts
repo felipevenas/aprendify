@@ -79,7 +79,7 @@ export const studyActivityTracker = {
           .gte("created_at", startIso),
         supabase
           .from("simulados")
-          .select("created_at, completed_at")
+          .select("created_at, finished_at")
           .eq("user_id", userId)
           .gte("created_at", startIso),
         supabase
@@ -107,7 +107,7 @@ export const studyActivityTracker = {
 
       // Mapear simulados
       (simuladosRes.data || []).forEach((row) => {
-        const targetDate = row.completed_at || row.created_at;
+        const targetDate = row.finished_at || row.created_at;
         const d = new Date(targetDate).toISOString().split("T")[0];
         const day = ensureDay(d);
         day.simulados += 1;

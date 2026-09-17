@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useSoundEffects } from './useSoundEffects';
+import { useSoundEffects } from '@/hooks/useSoundEffects';
 
 // Constantes do sistema de streak
 const REQUIRED_DAILY_QUESTIONS = 5;
@@ -295,3 +295,5 @@ export const useStreak = (): UseStreakReturn => {
     checkAndUpdateStreak,
   };
 };
+
+export default useStreak;

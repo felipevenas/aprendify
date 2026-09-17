@@ -1,241 +1,143 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { ApiError, errorResponse, jsonResponse, readJsonObject } from "../_shared/api.ts";
+import { authenticateRequest } from "../_shared/auth.ts";
+import { consumeRateLimit, rateLimitHeaders } from "../_shared/rate-limit.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const APP_ORIGIN = "https://app.aprendify.cloud";
+const LOCAL_ORIGINS = new Set(["http://localhost:8080", "http://127.0.0.1:8080"]);
 
-// Mapeia número da questão para disciplina (baseado na estrutura do ENEM)
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin");
+  return {
+    "Access-Control-Allow-Origin": origin && (origin === APP_ORIGIN || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) ? origin : APP_ORIGIN,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Expose-Headers": "Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset",
+    Vary: "Origin",
+  };
+}
+
+const VALID_YEARS = /^(20(?:0[9]|1[0-9]|2[0-6]))$/;
+
 function getDisciplineFromNumber(questionNumber: number): string {
-  // Dia 1: Linguagens (1-45) + Ciências Humanas (46-90)
-  // Dia 2: Ciências da Natureza (91-135) + Matemática (136-180)
-  if (questionNumber >= 1 && questionNumber <= 45) {
-    return "linguagens";
-  } else if (questionNumber >= 46 && questionNumber <= 90) {
-    return "humanas";
-  } else if (questionNumber >= 91 && questionNumber <= 135) {
-    return "natureza";
-  } else if (questionNumber >= 136 && questionNumber <= 180) {
-    return "matematica";
-  }
+  if (questionNumber <= 45) return "linguagens";
+  if (questionNumber <= 90) return "humanas";
+  if (questionNumber <= 135) return "natureza";
+  if (questionNumber <= 180) return "matematica";
   return "outros";
 }
 
-// Detecta idioma para questões de língua estrangeira (1-5)
 function getLanguageFromQuestion(questionNumber: number, content: string): string | null {
-  if (questionNumber >= 1 && questionNumber <= 5) {
-    // Tenta detectar pelo conteúdo
-    const lowerContent = content.toLowerCase();
-    if (lowerContent.includes("inglês") || lowerContent.includes("english")) {
-      return "ingles";
-    }
-    if (lowerContent.includes("espanhol") || lowerContent.includes("español")) {
-      return "espanhol";
-    }
-    // Default para inglês se não conseguir detectar
-    return "ingles";
-  }
-  return null;
+  if (questionNumber < 1 || questionNumber > 5) return null;
+  const lowerContent = content.toLowerCase();
+  if (lowerContent.includes("inglês") || lowerContent.includes("english")) return "ingles";
+  if (lowerContent.includes("espanhol") || lowerContent.includes("español")) return "espanhol";
+  return "ingles";
 }
 
-// Extrai texto de um array de content
-function extractText(contentArray: any[]): string {
-  if (!contentArray || !Array.isArray(contentArray)) return "";
-  
+function extractText(contentArray: unknown[]): string {
+  if (!Array.isArray(contentArray)) return "";
   return contentArray
-    .filter((item: any) => item.type === "text")
-    .map((item: any) => item.content)
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+    .filter((item) => item.type === "text" && typeof item.content === "string")
+    .map((item) => item.content as string)
     .join(" ")
     .trim();
 }
 
-// Extrai URLs de imagens de um array de content
-function extractImages(contentArray: any[], questionNumber: number, baseUrl: string): string[] {
-  if (!contentArray || !Array.isArray(contentArray)) return [];
-  
-  const images: string[] = [];
-  contentArray.forEach((item: any) => {
-    if (item.type === "image") {
-      // Converte path local para URL do bucket
-      // Formato esperado: question-{number}.png
-      const imageName = `question-${questionNumber}.png`;
-      images.push(`${baseUrl}/storage/v1/object/public/enem-images/${imageName}`);
-    }
-  });
-  
-  return images;
+function extractImages(contentArray: unknown[], questionNumber: number, baseUrl: string): string[] {
+  if (!Array.isArray(contentArray)) return [];
+  const hasImage = contentArray.some((item) => Boolean(item) && typeof item === "object" && (item as Record<string, unknown>).type === "image");
+  return hasImage ? [`${baseUrl}/storage/v1/object/public/enem-images/question-${questionNumber}.png`] : [];
 }
 
-// Transforma questão do formato do scraper para o formato do banco
-function transformQuestion(raw: any, year: string, supabaseUrl: string): any {
+function transformQuestion(raw: Record<string, unknown>, year: string, supabaseUrl: string): Record<string, unknown> {
   const questionNumber = raw.number;
-  const context = extractText(raw.content);
-  const files = extractImages(raw.content, questionNumber, supabaseUrl);
-  const discipline = getDisciplineFromNumber(questionNumber);
-  const language = getLanguageFromQuestion(questionNumber, context);
-  
-  // Transforma alternatives de objeto para array
-  const alternativesArray: any[] = [];
-  let correctAlternative = "A";
-  
-  const altKeys = Object.keys(raw.alternatives || {}).sort((a, b) => parseInt(a) - parseInt(b));
-  
-  for (const key of altKeys) {
-    const alt = raw.alternatives[key];
-    const letter = alt.alternative || String.fromCharCode(65 + parseInt(key));
-    const text = extractText(alt.content);
-    const altFiles = extractImages(alt.content, questionNumber, supabaseUrl);
-    
-    alternativesArray.push({
-      letter,
-      text,
-      files: altFiles.length > 0 ? altFiles : undefined
-    });
-    
-    if (alt.correct === true) {
-      correctAlternative = letter;
-    }
+  if (!Number.isInteger(questionNumber) || (questionNumber as number) < 1 || (questionNumber as number) > 180) {
+    throw new ApiError(400, "INVALID_QUESTION", "Número de questão inválido");
   }
-  
+
+  const content = Array.isArray(raw.content) ? raw.content : [];
+  const context = extractText(content);
+  const alternativesSource = raw.alternatives;
+  if (!alternativesSource || typeof alternativesSource !== "object" || Array.isArray(alternativesSource)) {
+    throw new ApiError(400, "INVALID_QUESTION", "Alternativas inválidas");
+  }
+
+  const alternatives: Array<Record<string, unknown>> = [];
+  let correctAlternative = "";
+  for (const key of Object.keys(alternativesSource as Record<string, unknown>).sort((a, b) => Number(a) - Number(b))) {
+    const alternative = (alternativesSource as Record<string, unknown>)[key];
+    if (!alternative || typeof alternative !== "object") throw new ApiError(400, "INVALID_QUESTION", "Alternativa inválida");
+    const item = alternative as Record<string, unknown>;
+    const letter = typeof item.alternative === "string" ? item.alternative : String.fromCharCode(65 + Number(key));
+    const alternativeContent = Array.isArray(item.content) ? item.content : [];
+    alternatives.push({ letter, text: extractText(alternativeContent), files: extractImages(alternativeContent, questionNumber as number, supabaseUrl) });
+    if (item.correct === true) correctAlternative = letter;
+  }
+  if (alternatives.length !== 5 || !/^[A-E]$/.test(correctAlternative)) {
+    throw new ApiError(400, "INVALID_QUESTION", "A questão deve possuir cinco alternativas e um gabarito válido");
+  }
+
   return {
     year,
     index: questionNumber,
     title: `Questão ${questionNumber}`,
-    discipline,
-    language,
-    context,
-    files: files.length > 0 ? files : null,
+    discipline: getDisciplineFromNumber(questionNumber as number),
+    language: getLanguageFromQuestion(questionNumber as number, context),
+    context: context.slice(0, 50000),
+    files: extractImages(content, questionNumber as number, supabaseUrl),
     alternatives_introduction: null,
-    alternatives: alternativesArray,
+    alternatives,
     correct_alternative: correctAlternative,
-    origin: 'enem_api',
-    classification_status: 'pending_classification',
+    origin: "enem_api",
+    classification_status: "pending_classification",
   };
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const headers = corsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers });
 
   try {
-    // Verifica autenticação admin
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Authorization header required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const { user, serviceClient } = await authenticateRequest(req, headers);
+    const { data: role, error: roleError } = await serviceClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+    if (roleError) throw new ApiError(503, "AUTHZ_UNAVAILABLE", "Não foi possível verificar permissões");
+    if (!role) throw new ApiError(403, "FORBIDDEN", "Acesso restrito a administradores");
+
+    const limit = await consumeRateLimit(serviceClient, req, user.id, "import-enem-questions", 5, 60);
+    if (!limit.allowed) return jsonResponse({ error: "Limite de importações atingido", code: "RATE_LIMITED" }, 429, headers, rateLimitHeaders(limit));
+
+    const body = await readJsonObject(req, 8 * 1024 * 1024);
+    const year = typeof body.year === "string" ? body.year.trim() : "";
+    const questions = body.questions;
+    if (!VALID_YEARS.test(year) || !Array.isArray(questions) || questions.length === 0 || questions.length > 200) {
+      throw new ApiError(400, "INVALID_IMPORT_PAYLOAD", "Informe um ano válido e entre 1 e 200 questões");
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
-    // Cliente com service role para inserir dados
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    
-    // Cliente com token do usuário para verificar admin
-    const supabaseClient = createClient(
-      supabaseUrl,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    if (!supabaseUrl) throw new ApiError(503, "IMPORT_UNAVAILABLE", "Importação temporariamente indisponível");
+    const transformed = questions.map((raw) => {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new ApiError(400, "INVALID_QUESTION", "Questão inválida");
+      return transformQuestion(raw as Record<string, unknown>, year, supabaseUrl);
+    });
 
-    // Verifica se usuário é admin
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'User not authenticated' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Verificar se o usuário é admin usando a função get_user_role
-    const { data: userRole, error: roleError } = await supabaseClient
-      .rpc('get_user_role', { _user_id: user.id });
-
-    if (roleError) {
-      console.error('Error checking user role:', roleError);
-      return new Response(
-        JSON.stringify({ error: 'Error checking permissions' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (userRole !== 'admin') {
-      console.log('Access denied for user:', user.id, 'role:', userRole);
-      return new Response(
-        JSON.stringify({ error: 'Admin access required' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('Admin access granted for user:', user.id);
-
-    // Parse body
-    const body = await req.json();
-    const { year, questions } = body;
-
-    if (!year || !questions || !Array.isArray(questions)) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid payload. Expected { year: string, questions: array }' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`📥 Importando ${questions.length} questões do ENEM ${year}`);
-
-    // Transforma e insere questões
-    const transformedQuestions = questions.map((q: any) => transformQuestion(q, year, supabaseUrl));
-    
     let inserted = 0;
-    let errors: any[] = [];
-
-    // Insere em batches de 50
-    const batchSize = 50;
-    for (let i = 0; i < transformedQuestions.length; i += batchSize) {
-      const batch = transformedQuestions.slice(i, i + batchSize);
-      
-      const { data, error } = await supabaseAdmin
-        .from('enem_questions')
-        .upsert(batch, { 
-          onConflict: 'year,index',
-          ignoreDuplicates: false 
-        })
-        .select();
-
-      if (error) {
-        console.error(`❌ Erro no batch ${i}-${i + batchSize}:`, error);
-        errors.push({ batch: i, error: error.message });
-      } else {
-        inserted += data?.length || 0;
-        console.log(`✅ Batch ${i}-${i + batchSize}: ${data?.length} questões inseridas`);
-      }
+    const errors: Array<{ batch: number; error: string }> = [];
+    for (let i = 0; i < transformed.length; i += 50) {
+      const batch = transformed.slice(i, i + 50);
+      const { data, error } = await serviceClient.from("enem_questions").upsert(batch, { onConflict: "year,index", ignoreDuplicates: false }).select("id");
+      if (error) errors.push({ batch: i, error: "Falha ao persistir lote" });
+      else inserted += data?.length ?? 0;
     }
 
-    const result = {
-      success: true,
-      year,
-      total: questions.length,
-      inserted,
-      errors: errors.length > 0 ? errors : undefined
-    };
-
-    console.log(`📊 Resultado final:`, result);
-
-    return new Response(
-      JSON.stringify(result),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
+    return jsonResponse({ success: errors.length === 0, year, total: questions.length, inserted, errors: errors.length ? errors : undefined }, 200, headers, rateLimitHeaders(limit));
   } catch (error) {
-    console.error('❌ Erro na importação:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return errorResponse(error, headers, "IMPORT_UNAVAILABLE", "Não foi possível importar as questões");
   }
 });

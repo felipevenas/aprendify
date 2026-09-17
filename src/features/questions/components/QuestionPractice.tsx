@@ -68,7 +68,7 @@ const setCachedDifficulty = (questionKey: string, difficulty: "easy" | "medium" 
 interface QuestionPracticeProps {
   question: any;
   onNext: () => void;
-  onAnswer?: (questionId: string, selectedAnswer: string, correctAnswer: string, isCorrect: boolean, hadDoubt?: boolean) => void;
+  onAnswer?: (questionId: string, selectedAnswer: string, correctAnswer?: string, isCorrect?: boolean, hadDoubt?: boolean) => void;
   isPremium?: boolean;
 }
 
@@ -92,7 +92,7 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        const questionId = `${question.year}-${question.discipline}-${question.index}`;
+        const questionId = question.id || `${question.year}-${question.discipline}-${question.index}`;
         
         const { data } = await supabase
           .from("question_attempts")
@@ -200,8 +200,8 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
 
     // Salva a resposta se a callback foi fornecida (sem hadDoubt ainda)
     if (onAnswer) {
-      const questionId = `${question.year}-${question.discipline}-${question.index}`;
-      onAnswer(questionId, selectedAlternative, correctAlt, isCorrectAnswer);
+      const questionId = question.id || `${question.year}-${question.discipline}-${question.index}`;
+      onAnswer(questionId, selectedAlternative);
     }
   };
 

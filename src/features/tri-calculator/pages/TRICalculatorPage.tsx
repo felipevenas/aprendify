@@ -355,8 +355,9 @@ export const TRICalculatorPage: React.FC = () => {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-xs font-semibold">Curso / Instituição Alvo</Label>
+                      <Label htmlFor="tri-target-name" className="text-xs font-semibold">Curso / Instituição Alvo</Label>
                       <Input
+                        id="tri-target-name"
                         type="text"
                         value={targetName}
                         onChange={(e) => setTargetName(e.target.value)}
@@ -365,8 +366,9 @@ export const TRICalculatorPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold">Nota de Corte Alvo (pontos)</Label>
+                      <Label htmlFor="tri-cutoff-score" className="text-xs font-semibold">Nota de Corte Alvo (pontos)</Label>
                       <Input
+                        id="tri-cutoff-score"
                         type="number"
                         step="0.1"
                         value={cutoffScore}
@@ -386,7 +388,7 @@ export const TRICalculatorPage: React.FC = () => {
                       <span className="text-[11px] text-muted-foreground">Valores de 1x a 5x</span>
                     </div>
 
-                    <div className="grid grid-cols-5 gap-2 pt-1">
+                    <div className="grid grid-cols-2 gap-3 pt-1 sm:grid-cols-5 sm:gap-2">
                       {(["linguagens", "humanas", "natureza", "matematica", "redacao"] as const).map((areaKey) => {
                         const labels: Record<string, string> = {
                           linguagens: "Linguagens",
@@ -397,10 +399,11 @@ export const TRICalculatorPage: React.FC = () => {
                         };
                         return (
                           <div key={areaKey} className="text-center">
-                            <span className="text-[11px] font-medium text-muted-foreground block mb-1 truncate">
+                            <Label htmlFor={`tri-weight-${areaKey}`} className="text-[11px] font-medium text-muted-foreground block mb-1 break-words">
                               {labels[areaKey]}
-                            </span>
+                            </Label>
                             <Input
+                              id={`tri-weight-${areaKey}`}
                               type="number"
                               min="1"
                               max="5"
