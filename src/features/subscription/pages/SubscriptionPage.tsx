@@ -24,6 +24,16 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { PageLoader } from "@/components/ui/page-loader";
 import { PremiumModal } from "@/components/PremiumModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface SubscriptionDetails {
   id: string;
@@ -45,6 +55,7 @@ export default function Subscription() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
   const [showPlansModal, setShowPlansModal] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   useEffect(() => {
     fetchSubscription();
@@ -73,7 +84,7 @@ export default function Subscription() {
     }
   };
 
-  const openCustomerPortal = async () => {
+  const openCustomerPortal = async (mode: "manage" | "cancel" = "manage") => {
     setIsPortalLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -89,14 +100,17 @@ export default function Subscription() {
       });
 
       if (error) throw error;
-      
+
       if (data?.isAdminGrant) {
         toast.info("Sua assinatura foi concedida pelo administrador e não requer gerenciamento pelo Stripe.");
         return;
       }
-      
+
       if (data?.url) {
-        window.open(data.url, "_blank");
+        if (mode === "cancel") {
+          toast.info("Você será redirecionado para o portal do Stripe para confirmar o cancelamento.");
+        }
+        window.open(data.url, "_blank", "noopener,noreferrer");
       } else if (data?.error) {
         throw new Error(data.error);
       } else {
@@ -104,9 +118,10 @@ export default function Subscription() {
       }
     } catch (error) {
       console.error("Error opening portal:", error);
-      toast.error("Erro ao abrir o portal de gerenciamento");
+      toast.error(mode === "cancel" ? "Erro ao abrir o portal de cancelamento" : "Erro ao abrir o portal de gerenciamento");
     } finally {
       setIsPortalLoading(false);
+      setShowCancelDialog(false);
     }
   };
 
@@ -293,18 +308,30 @@ export default function Subscription() {
                         </li>
                       </ul>
                       
-                      <Button 
-                        onClick={openCustomerPortal}
-                        disabled={isPortalLoading}
-                        className="w-full mt-4"
-                      >
-                        {isPortalLoading ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <ExternalLink className="w-4 h-4 mr-2" />
-                        )}
-                        Abrir Portal de Gerenciamento
-                      </Button>
+                      <div className="grid gap-3 sm:grid-cols-2 mt-4">
+                        <Button
+                          onClick={() => void openCustomerPortal("manage")}
+                          disabled={isPortalLoading}
+                          className="w-full"
+                        >
+                          {isPortalLoading ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <ExternalLink className="w-4 h-4 mr-2" />
+                          )}
+                          Gerenciar plano
+                        </Button>
+
+                        <Button
+                          onClick={() => setShowCancelDialog(true)}
+                          variant="destructive"
+                          disabled={isPortalLoading}
+                          className="w-full"
+                        >
+                          <XCircle className="w-4 h-4 mr-2" />
+                          Cancelar plano
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 )}
@@ -337,6 +364,24 @@ export default function Subscription() {
           onOpenChange={setShowPlansModal} 
           isPremium={isPremium} 
         />
+
+        <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancelar assinatura?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Ao confirmar, você será redirecionado para o portal do Stripe para concluir o cancelamento do plano ativo.
+                Seus benefícios premium continuarão disponíveis até o fim do período atual.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Manter assinatura</AlertDialogCancel>
+              <AlertDialogAction onClick={() => void openCustomerPortal("cancel")}>
+                Continuar para o cancelamento
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
   );
 }
