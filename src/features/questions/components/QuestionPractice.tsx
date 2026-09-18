@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import { CheckCircle2, XCircle, ChevronRight, Loader2, ThumbsUp, HelpCircle } from "lucide-react";
+import { CheckCircle2, XCircle, ChevronRight, Loader2, ThumbsUp, HelpCircle, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDisciplineName, cleanMarkdownArtifacts, separateTextAndReference } from "@/lib/formatters";
 import QuestionExplanation from "./QuestionExplanation";
@@ -12,6 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { StudyQuestion, QuestionAlternative } from "../types";
+import QuestionMedia from "./question-media";
+import { getAlternativeImages, getQuestionImages } from "./question-media-utils";
 
 // ============= Cache de Dificuldade (localStorage) =============
 // Usado para questões da API externa (2009-2023) que não têm banco de dados
@@ -124,6 +126,17 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
     if (!question.context) return null;
     return separateTextAndReference(question.context);
   }, [question.context]);
+
+  const questionTitle = useMemo(() => {
+    const title = question.title ? cleanMarkdownArtifacts(question.title) : "";
+    if (/^Questão\s+\d+\s+-\s+ENEM\s+\d{4}$/i.test(title)) return null;
+    return title || null;
+  }, [question.title]);
+
+  const questionImages = useMemo(
+    () => getQuestionImages(question),
+    [question.files, question.images],
+  );
 
   /**
    * Analisa dificuldade via IA Groq
@@ -263,9 +276,9 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-      <Card className="overflow-hidden border-border/60 bg-card shadow-sm">
+      <Card className="mx-auto max-w-5xl overflow-hidden rounded-2xl border-border/70 bg-card shadow-card">
         {/* Header da questão */}
-        <div className="border-b border-border bg-muted/20 px-5 py-4 sm:px-8 sm:py-5">
+        <div className="border-b border-border/70 bg-muted/15 px-5 py-5 sm:px-8 sm:py-6">
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Lado esquerdo: Número da questão + badge de avaliação anterior */}
             <div className="flex items-center gap-2">
@@ -333,47 +346,47 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
         <div className="px-5 py-6 sm:px-8 sm:py-8">
           {/* Contexto da questão */}
           {processedContext && (
-            <div className="mb-6 rounded-r-xl border-l-4 border-primary bg-muted/35 px-5 py-4">
-              <p className="text-sm italic leading-relaxed text-foreground sm:text-base whitespace-pre-wrap">
+            <blockquote className="mb-6 rounded-r-2xl border-l-2 border-primary bg-muted/35 px-4 py-4 text-sm leading-relaxed text-muted-foreground sm:px-5 sm:py-4 sm:text-[0.9375rem]">
+              <p className="whitespace-pre-wrap italic">
                 {processedContext.mainText}
               </p>
               {processedContext.reference && (
-                <p className="mt-3 border-l border-primary/30 pl-3 text-xs italic text-muted-foreground sm:text-sm">
+                <footer className="mt-4 border-l border-primary/25 pl-3 text-xs italic text-muted-foreground sm:text-sm">
                   {processedContext.reference}
-                </p>
+                </footer>
               )}
-            </div>
+            </blockquote>
+          )}
+
+          {questionTitle && (
+            <p className="mb-6 text-base font-semibold leading-relaxed text-foreground sm:text-lg">
+              {questionTitle}
+            </p>
           )}
 
           {/* Imagens da questão */}
-        {question.files && question.files.length > 0 && (
-          <div className="mb-6 space-y-4">
-            {question.files.map((file: string, idx: number) => (
-              <img
-                key={idx}
-                src={file}
-                alt={`Imagem da questão ${idx + 1}`}
-                className="w-full rounded-lg border border-border"
-              />
-            ))}
+        {questionImages.length > 0 && (
+          <div className="mb-6">
+            <QuestionMedia images={questionImages} altPrefix="Imagem do enunciado" />
           </div>
         )}
 
         {/* Introdução das alternativas */}
           {question.alternativesIntroduction && (
-            <div className="mb-4">
-              <p className="font-medium text-foreground">{cleanMarkdownArtifacts(question.alternativesIntroduction)}</p>
-            </div>
+            <p className="mb-5 text-base font-semibold leading-relaxed text-foreground">
+              {cleanMarkdownArtifacts(question.alternativesIntroduction)}
+            </p>
           )}
 
         {/* Alternativas */}
-        <div className="mb-6 space-y-3">
+        <div className="space-y-2.5" role="radiogroup" aria-label="Alternativas da questão">
           {question.alternatives.map((alt: QuestionAlternative) => {
             const isSelected = selectedAlternative === alt.letter;
             const isCorrectAlt = alt.letter === question.correctAlternative;
+            const alternativeImages = getAlternativeImages(alt);
 
             // Define cor da alternativa
-            let bgColor = "bg-card hover:bg-muted/40";
+            let bgColor = "bg-card";
             let borderColor = "border-border";
             let textColor = "text-foreground";
 
@@ -396,13 +409,17 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
             return (
               <button
                 key={alt.letter}
+                type="button"
                 onClick={() => handleSelectAlternative(alt.letter)}
                 disabled={showResult}
+                role="radio"
+                aria-checked={isSelected}
                 className={cn(
-                  "w-full text-left rounded-xl border px-4 py-4 transition-colors duration-200 sm:px-5",
+                  "w-full rounded-xl border px-3.5 py-3.5 text-left transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:px-4 sm:py-4",
                   bgColor,
                   borderColor,
-                  !showResult && "cursor-pointer hover:shadow-md",
+                  !showResult && "cursor-pointer hover:border-primary/45 hover:bg-muted/20",
+                  !showResult && isSelected && "shadow-sm",
                   showResult && "cursor-default",
                 )}
               >
@@ -410,7 +427,7 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
                   {/* Letra da alternativa */}
                   <div
                     className={cn(
-                      "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border text-sm font-bold",
+                      "mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border text-xs font-bold transition-colors sm:h-8 sm:w-8 sm:text-sm",
                       showResult && isCorrectAlt && "bg-green-500 border-green-500 text-white",
                       showResult && isSelected && !isCorrect && "bg-red-500 border-red-500 text-white",
                       !showResult && isSelected && "bg-primary border-primary text-white",
@@ -422,19 +439,16 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
 
                   {/* Texto da alternativa */}
                   <div className="flex-1">
-                    <p className={cn("text-sm sm:text-base", textColor)}>{cleanMarkdownArtifacts(alt.text)}</p>
+                    <p className={cn("text-sm leading-relaxed sm:text-[0.9375rem]", textColor)}>{cleanMarkdownArtifacts(alt.text)}</p>
 
                     {/* Imagens da alternativa */}
-                    {alt.files && alt.files.length > 0 && (
-                      <div className="mt-2 space-y-2">
-                        {alt.files.map((file: string, idx: number) => (
-                          <img
-                            key={idx}
-                            src={file}
-                            alt={`Alternativa ${alt.letter} - Imagem ${idx + 1}`}
-                            className="w-full max-w-md rounded border border-border"
-                          />
-                        ))}
+                    {alternativeImages.length > 0 && (
+                      <div className="mt-4">
+                        <QuestionMedia
+                          images={alternativeImages}
+                          altPrefix={`Alternativa ${alt.letter} - imagem`}
+                          compact
+                        />
                       </div>
                     )}
                   </div>
@@ -465,7 +479,7 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
               isCorrect ? "bg-green-500/10 border border-green-500" : "bg-red-500/10 border border-red-500",
             )}
           >
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
               <div className="flex items-center gap-3">
                 {isCorrect ? (
                   <>
@@ -544,29 +558,38 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
           selectedAlternative={selectedAlternative}
         />
 
-        {/* Botões de ação */}
-        <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
-          {!showResult ? (
-            <>
-              <Button onClick={handleNextQuestion} variant="outline" size="lg" className="w-full sm:w-auto">
-                Pular Questão
-              </Button>
-              <Button
-                onClick={handleConfirmAnswer}
-                disabled={!selectedAlternative}
-                className="gap-2 w-full sm:w-auto"
-                size="lg"
-              >
-                Confirmar Resposta
+        {/* Rodapé de ação no mesmo ritmo visual da landing page */}
+        <div className="mt-8 flex flex-col gap-4 border-t border-border/60 pt-5 sm:flex-row sm:items-center sm:justify-between">
+          {!showResult && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Lightbulb className="h-4 w-4 flex-shrink-0 text-warning" aria-hidden="true" />
+              <span>Selecione uma alternativa para habilitar o envio.</span>
+            </div>
+          )}
+
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end sm:gap-3">
+            {!showResult ? (
+              <>
+                <Button onClick={handleNextQuestion} variant="outline" size="lg" className="w-full sm:w-auto">
+                  Pular Questão
+                </Button>
+                <Button
+                  onClick={handleConfirmAnswer}
+                  disabled={!selectedAlternative}
+                  className="w-full gap-2 sm:w-auto"
+                  size="lg"
+                >
+                  Confirmar Resposta
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <Button onClick={handleNextQuestion} className="w-full gap-2 sm:w-auto" size="lg">
+                Próxima Questão
                 <ChevronRight className="h-4 w-4" />
               </Button>
-            </>
-          ) : (
-            <Button onClick={handleNextQuestion} className="gap-2 w-full sm:w-auto" size="lg">
-              Próxima Questão
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          )}
+            )}
+          </div>
         </div>
         </div>
       </Card>
