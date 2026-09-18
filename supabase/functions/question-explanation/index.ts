@@ -229,7 +229,7 @@ REGRAS:
           method: "POST",
           headers: { "Authorization": `Bearer ${groqApiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "llama-3.2-11b-vision-preview",
+            model: "meta-llama/llama-4-scout-17b-16e-instruct",
             messages: [
               { role: "system", content: systemInstruction },
               { role: "user", content: [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: targetImageUrl } }] }
