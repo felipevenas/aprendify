@@ -9,6 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "test:unit": "node --experimental-strip-types --test src/features/questions/components/question-media.test.ts",
     "test": "node --test supabase/functions/_shared/*.test.mjs",
     "preview": "vite preview"
   },
