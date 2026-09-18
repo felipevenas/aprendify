@@ -151,3 +151,5 @@ export const SimuladoTimer = ({ durationMinutes, startedAt, onTimeUp }: Simulado
     </motion.div>
   );
 };
+
+export default SimuladoTimer;

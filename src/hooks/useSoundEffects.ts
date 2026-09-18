@@ -11,7 +11,10 @@ export const useSoundEffects = () => {
   // Inicializa o AudioContext (lazy)
   const getAudioContext = useCallback(() => {
     if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextConstructor = window.AudioContext ??
+        (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextConstructor) return null;
+      audioContextRef.current = new AudioContextConstructor();
     }
     return audioContextRef.current;
   }, []);

@@ -19,7 +19,7 @@ export const useFlashcards = (subjectFilter?: string) => {
       const data = await flashcardService.getFlashcards(user.id, subjectFilter);
       setFlashcards(data);
       setFlashcardCount(data.length);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao carregar flashcards");
     } finally {
       setLoading(false);

@@ -15,7 +15,7 @@ export function useTasks() {
 
       const data = await tasksService.getTasks(user.id);
       setTasks(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao carregar tarefas");
     } finally {
       setLoading(false);
@@ -29,7 +29,7 @@ export function useTasks() {
         prev.map((t) => (t.id === task.id ? { ...t, completed: !t.completed } : t))
       );
       toast.success(task.completed ? "Tarefa reaberta" : "Tarefa concluída!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao atualizar tarefa");
     }
   }, []);
@@ -39,7 +39,7 @@ export function useTasks() {
       await tasksService.deleteTask(taskId);
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
       toast.success("Tarefa excluída com sucesso");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao excluir tarefa");
     }
   }, []);

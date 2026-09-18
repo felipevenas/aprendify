@@ -46,6 +46,47 @@ import { usePremium } from "@/hooks/usePremium";
 import PremiumLockScreen from "@/components/PremiumLockScreen";
 import WeeklyComparison from "@/components/statistics/WeeklyComparison";
 
+interface DisciplineStat {
+  name: string;
+  correct: number;
+  wrong: number;
+  total: number;
+  accuracy: string;
+}
+
+interface ErrorStat {
+  name: string;
+  count: number;
+}
+
+interface SpecificTopicStat {
+  topic: string;
+  discipline: string;
+  correct: number;
+  wrong: number;
+  total: number;
+  accuracy: string;
+}
+
+interface DailyStat {
+  date: string;
+  questões: number;
+}
+
+interface EssayEvolutionStat {
+  redacao: string;
+  nota: number;
+  data: string;
+}
+
+interface EssayCompetencyStat {
+  competencia: string;
+  media: number;
+  fullMark: number;
+}
+
+type PeriodFilter = "all" | "week" | "month" | "today";
+
 /**
  * Dashboard de estatísticas de desempenho do usuário
  * Mostra acertos, erros, disciplinas com mais erros/acertos e sugestões
@@ -58,17 +99,17 @@ const Statistics = () => {
   const [totalAttempts, setTotalAttempts] = useState(0);
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [wrongAnswers, setWrongAnswers] = useState(0);
-  const [disciplineStats, setDisciplineStats] = useState<any[]>([]);
-  const [topicStats, setTopicStats] = useState<any[]>([]);
-  const [specificTopicStats, setSpecificTopicStats] = useState<any[]>([]); // Tópicos específicos extraídos por IA
+  const [disciplineStats, setDisciplineStats] = useState<DisciplineStat[]>([]);
+  const [topicStats, setTopicStats] = useState<ErrorStat[]>([]);
+  const [specificTopicStats, setSpecificTopicStats] = useState<SpecificTopicStat[]>([]); // Tópicos específicos extraídos por IA
   const [topicDisciplineFilter, setTopicDisciplineFilter] = useState<string>("all"); // Filtro de disciplina para tópicos
-  const [periodFilter, setPeriodFilter] = useState<"all" | "week" | "month" | "today">("all");
-  const [monthlyStats, setMonthlyStats] = useState<any[]>([]);
-  const [disciplineChartData, setDisciplineChartData] = useState<any[]>([]);
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
+  const [monthlyStats, setMonthlyStats] = useState<DailyStat[]>([]);
+  const [disciplineChartData, setDisciplineChartData] = useState<Array<{ disciplina: string; questões: number }>>([]);
   
   // Novos estados para redações
-  const [essayStats, setEssayStats] = useState<any[]>([]);
-  const [essayCompetencyData, setEssayCompetencyData] = useState<any[]>([]);
+  const [essayStats, setEssayStats] = useState<EssayEvolutionStat[]>([]);
+  const [essayCompetencyData, setEssayCompetencyData] = useState<EssayCompetencyStat[]>([]);
   const [averageEssayScore, setAverageEssayScore] = useState(0);
   const [totalEssays, setTotalEssays] = useState(0);
   
@@ -163,7 +204,7 @@ const Statistics = () => {
 
   const fetchEssayStats = async (userId: string) => {
     try {
-      let query = supabase
+      const query = supabase
         .from("essays")
         .select("*")
         .eq("user_id", userId)
@@ -269,7 +310,7 @@ const Statistics = () => {
       setWrongAnswers(wrong);
 
       // Agrupa por disciplina
-      const disciplineMap = new Map();
+      const disciplineMap = new Map<string, { correct: number; wrong: number; total: number }>();
       attempts.forEach((attempt) => {
         const disc = attempt.discipline;
         if (!disciplineMap.has(disc)) {
@@ -284,7 +325,7 @@ const Statistics = () => {
         }
       });
 
-      const disciplines = Array.from(disciplineMap.entries()).map(([name, stats]: any) => ({
+      const disciplines: DisciplineStat[] = Array.from(disciplineMap.entries()).map(([name, stats]) => ({
         name: formatDisciplineName(name),
         correct: stats.correct,
         wrong: stats.wrong,
@@ -297,7 +338,7 @@ const Statistics = () => {
       setDisciplineStats(disciplines);
 
       // Agrupa erros por disciplina (não por topic/assunto)
-      const errorsByDiscipline = new Map();
+      const errorsByDiscipline = new Map<string, number>();
       attempts
         .filter((a) => !a.is_correct)
         .forEach((attempt) => {
@@ -308,7 +349,7 @@ const Statistics = () => {
           errorsByDiscipline.set(disc, errorsByDiscipline.get(disc) + 1);
         });
 
-      const disciplineErrors = Array.from(errorsByDiscipline.entries()).map(([name, count]: any) => ({
+      const disciplineErrors: ErrorStat[] = Array.from(errorsByDiscipline.entries()).map(([name, count]) => ({
         name: formatDisciplineName(name),
         count,
       }));
@@ -368,7 +409,7 @@ const Statistics = () => {
       setMonthlyStats(dailyAttempts);
 
       // Prepara dados para gráfico por disciplina
-      const disciplineChartMap = new Map();
+      const disciplineChartMap = new Map<string, number>();
       attempts.forEach((attempt) => {
         const disc = formatDisciplineName(attempt.discipline);
         if (!disciplineChartMap.has(disc)) {
@@ -377,7 +418,7 @@ const Statistics = () => {
         disciplineChartMap.set(disc, disciplineChartMap.get(disc) + 1);
       });
 
-      const disciplineChart = Array.from(disciplineChartMap.entries()).map(([name, count]: any) => ({
+      const disciplineChart = Array.from(disciplineChartMap.entries()).map(([name, count]) => ({
         disciplina: name,
         questões: count,
       }));
@@ -553,7 +594,7 @@ const Statistics = () => {
             </div>
 
             {/* Filtro de período */}
-            <Tabs value={periodFilter} onValueChange={(v) => setPeriodFilter(v as any)} className="w-full sm:w-auto" data-tour="stats-period">
+            <Tabs value={periodFilter} onValueChange={(v) => setPeriodFilter(v as PeriodFilter)} className="w-full sm:w-auto" data-tour="stats-period">
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="today" className="text-xs sm:text-sm">
                   Hoje

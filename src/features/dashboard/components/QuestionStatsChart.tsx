@@ -12,6 +12,17 @@ interface ChartData {
   total: number;
 }
 
+interface ChartTooltipEntry {
+  dataKey?: string;
+  value?: number;
+}
+
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: ChartTooltipEntry[];
+  label?: string;
+}
+
 /**
  * Componente de gráfico para o dashboard
  * Mostra quantidade de questões respondidas com acertos e erros por dia
@@ -136,10 +147,10 @@ const QuestionStatsChart = ({ embedded = false }: QuestionStatsChartProps = {}) 
   }, []);
 
   // Custom tooltip com mais informações
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
     if (active && payload && payload.length) {
-      const acertos = payload.find((p: any) => p.dataKey === "acertos")?.value || 0;
-      const erros = payload.find((p: any) => p.dataKey === "erros")?.value || 0;
+      const acertos = payload.find((p) => p.dataKey === "acertos")?.value || 0;
+      const erros = payload.find((p) => p.dataKey === "erros")?.value || 0;
       const total = acertos + erros;
       const taxa = total > 0 ? Math.round((acertos / total) * 100) : 0;
 

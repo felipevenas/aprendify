@@ -32,10 +32,11 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new ApiError(503, "PAYMENT_UNAVAILABLE", "Pagamento temporariamente indisponível");
     const { user, serviceClient } = await authenticateRequest(req, corsHeaders);
     logStep("User authenticated", { userId: user.id });
+
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) throw new ApiError(503, "PAYMENT_UNAVAILABLE", "Pagamento temporariamente indisponível");
 
     const limit = await consumeRateLimit(serviceClient, req, user.id, "customer-portal", RATE_LIMIT_MAX_CALLS, RATE_LIMIT_WINDOW_MINUTES);
     if (!limit.allowed) {
@@ -63,7 +64,7 @@ serve(async (req) => {
       customer: customerId,
       return_url: `${origin}/dashboard`,
     });
-    logStep("Customer portal session created", { sessionId: portalSession.id, url: portalSession.url });
+    logStep("Customer portal session created", { sessionId: portalSession.id });
 
     return new Response(JSON.stringify({ url: portalSession.url }), {
       headers: { ...corsHeaders, ...rateLimitHeaders(limit), "Content-Type": "application/json" },

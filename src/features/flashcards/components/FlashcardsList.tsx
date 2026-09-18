@@ -12,7 +12,11 @@ import { getSubjectById } from "@/lib/subjects";
  * Lista todos os flashcards do usuário em formato de grid
  * Permite editar e excluir flashcards
  */
-const FlashcardsList = () => {
+interface FlashcardsListProps {
+  subjectFilter?: string;
+}
+
+const FlashcardsList = ({ subjectFilter = "all" }: FlashcardsListProps) => {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [loading, setLoading] = useState(true);
   const [editFlashcard, setEditFlashcard] = useState<Flashcard | null>(null);
@@ -23,15 +27,21 @@ const FlashcardsList = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("flashcards")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
+      if (subjectFilter !== "all") {
+        query = query.eq("subject_id", subjectFilter);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
       setFlashcards(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao carregar flashcards");
     } finally {
       setLoading(false);
@@ -60,7 +70,7 @@ const FlashcardsList = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [subjectFilter]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -71,7 +81,7 @@ const FlashcardsList = () => {
 
       if (error) throw error;
       toast.success("Flashcard removido!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao remover flashcard");
     }
   };
@@ -130,7 +140,8 @@ const FlashcardsList = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="h-10 w-10 p-0 opacity-100 sm:h-8 sm:w-8 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity"
+                  aria-label="Editar flashcard"
                   onClick={() => {
                     setEditFlashcard(flashcard);
                     setDialogOpen(true);
@@ -141,7 +152,8 @@ const FlashcardsList = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="h-10 w-10 p-0 opacity-100 sm:h-8 sm:w-8 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity"
+                  aria-label="Excluir flashcard"
                   onClick={() => handleDelete(flashcard.id)}
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />

@@ -13,6 +13,8 @@ interface PremiumModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isPremium?: boolean;
+  title?: string;
+  description?: string;
 }
 
 type PlanType = "monthly" | "annual";
@@ -30,7 +32,7 @@ const PLANS = {
   },
 };
 
-export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumModalProps) => {
+export const PremiumModal = ({ open, onOpenChange, isPremium = false, title, description }: PremiumModalProps) => {
   const [selectedPlan, setSelectedPlan] = useState<PlanType>("annual");
   const [isLoading, setIsLoading] = useState(false);
   
@@ -112,10 +114,10 @@ export const PremiumModal = ({ open, onOpenChange, isPremium = false }: PremiumM
             </div>
           </div>
           <DialogTitle className="text-center text-xl sm:text-2xl">
-            {isPremium ? "Você é Premium!" : "Assine o Plano Premium"}
+            {isPremium ? "Você é Premium!" : title || "Assine o Plano Premium"}
           </DialogTitle>
           <DialogDescription className="text-center text-sm sm:text-base">
-            {isPremium ? "Confira todos os benefícios que você possui" : "Desbloqueie todo o potencial do Aprendify"}
+            {isPremium ? "Confira todos os benefícios que você possui" : description || "Desbloqueie todo o potencial do Aprendify"}
           </DialogDescription>
         </DialogHeader>
 

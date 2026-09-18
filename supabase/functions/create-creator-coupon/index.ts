@@ -12,7 +12,7 @@ const corsHeaders = {
 const RATE_LIMIT_MAX_CALLS = 20; // 20 coupon creations per hour
 const RATE_LIMIT_WINDOW_MINUTES = 60;
 
-const logStep = (step: string, details?: any) => {
+const logStep = (step: string, details?: Record<string, unknown>) => {
   // Redact sensitive information from logs
   const safeDetails = details ? { ...details } : undefined;
   if (safeDetails?.email) safeDetails.email = "[REDACTED]";

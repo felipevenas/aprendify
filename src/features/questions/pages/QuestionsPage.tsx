@@ -131,8 +131,8 @@ const Questions = () => {
     }
   };
 
-  // Salva resposta do usuário no banco
-  const handleAnswerSubmit = async (questionId: string, selectedAnswer: string, correctAnswer: string, isCorrect: boolean) => {
+  // O servidor deriva o gabarito, a correção e os dados da questão.
+  const handleAnswerSubmit = async (questionId: string, selectedAnswer: string) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
     if (userError || !user) {
@@ -159,23 +159,10 @@ const Questions = () => {
       const questionToExtract = currentQuestion;
       const topicPromise = extractQuestionTopic(questionToExtract);
       
-      const attemptData = {
-        user_id: user.id,
-        question_id: questionId,
-        discipline: currentQuestion?.discipline || "desconhecida",
-        year: selectedYear === "all" ? (currentQuestion?.year || new Date().getFullYear().toString()) : selectedYear,
-        selected_answer: selectedAnswer,
-        correct_answer: correctAnswer,
-        is_correct: isCorrect,
-        topic: null,
-        language: currentQuestion?.language || null,
-      };
-      
-      const { data: insertedAttempt, error } = await supabase
-        .from("question_attempts")
-        .insert(attemptData)
-        .select("id")
-        .single();
+      const { data: insertedAttempt, error } = await supabase.rpc("record_question_attempt", {
+        _question_id: questionId,
+        _selected_answer: selectedAnswer,
+      });
       
       if (error) {
         console.error("Erro ao salvar tentativa:", error);
@@ -190,11 +177,11 @@ const Questions = () => {
       studyActivityTracker.recordAction(user.id, "question");
 
       const extractedTopic = await topicPromise;
-      if (extractedTopic && insertedAttempt?.id) {
+      if (extractedTopic && insertedAttempt) {
         const { error: updateError } = await supabase
           .from("question_attempts")
           .update({ topic: extractedTopic })
-          .eq("id", insertedAttempt.id);
+          .eq("id", insertedAttempt);
         
         if (updateError) {
           // Silently fail - topic extraction is not critical

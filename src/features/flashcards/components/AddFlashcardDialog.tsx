@@ -25,13 +25,14 @@ interface AddFlashcardDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editFlashcard?: Flashcard | null;
+  defaultSubjectId?: string;
 }
 
 /**
  * Dialog para adicionar ou editar flashcards
  * Campos: frente (pergunta), verso (resposta), matéria (fixa do sistema)
  */
-const AddFlashcardDialog = ({ open, onOpenChange, editFlashcard }: AddFlashcardDialogProps) => {
+const AddFlashcardDialog = ({ open, onOpenChange, editFlashcard, defaultSubjectId }: AddFlashcardDialogProps) => {
   const [frontContent, setFrontContent] = useState("");
   const [backContent, setBackContent] = useState("");
   const [subjectId, setSubjectId] = useState<string>("");
@@ -45,15 +46,15 @@ const AddFlashcardDialog = ({ open, onOpenChange, editFlashcard }: AddFlashcardD
         setBackContent(editFlashcard.back_content);
         setSubjectId(editFlashcard.subject_id || "");
       } else {
-        resetForm();
+        resetForm(defaultSubjectId);
       }
     }
-  }, [open, editFlashcard]);
+  }, [open, editFlashcard, defaultSubjectId]);
 
-  const resetForm = () => {
+  const resetForm = (initialSubjectId = "") => {
     setFrontContent("");
     setBackContent("");
-    setSubjectId("");
+    setSubjectId(initialSubjectId);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -92,8 +93,8 @@ const AddFlashcardDialog = ({ open, onOpenChange, editFlashcard }: AddFlashcardD
 
       resetForm();
       onOpenChange(false);
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao salvar flashcard");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Erro ao salvar flashcard");
     } finally {
       setLoading(false);
     }

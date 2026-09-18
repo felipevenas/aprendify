@@ -229,7 +229,7 @@ Retorne APENAS o JSON, sem explicações adicionais.`;
     console.log(`[format-question] Dificuldade: ${difficulty}`);
 
     // Prepara atualização para o banco
-    const updateData: Record<string, any> = {
+    const updateData: Record<string, string> = {
       difficulty,
     };
 

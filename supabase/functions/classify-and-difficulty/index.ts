@@ -27,15 +27,20 @@ interface ClassificationResult {
   difficulty: "easy" | "medium" | "hard";
 }
 
+interface QuestionAlternative {
+  letter: string;
+  text: string;
+}
+
 async function classifyAndAnalyzeQuestion(
   groqApiKey: string,
   title: string,
   context: string | null,
-  alternatives: any[],
+  alternatives: QuestionAlternative[],
   discipline: string
 ): Promise<ClassificationResult | null> {
   const alternativesText = alternatives
-    .map((alt: any) => `${alt.letter}: ${alt.text}`)
+    .map((alt) => `${alt.letter}: ${alt.text}`)
     .join("\n");
 
   const prompt = `Você é um classificador educacional especializado em questões do ENEM. Sua função é:

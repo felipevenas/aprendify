@@ -8,16 +8,17 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CardGridSkeleton } from "@/components/ui/page-skeletons";
+import { Essay } from "../types";
 
 /**
  * Lista de redações do usuário com histórico
  */
 interface EssayListProps {
-  onSelectEssay: (essay: any) => void;
+  onSelectEssay: (essay: Essay) => void;
 }
 
 const EssayList = ({ onSelectEssay }: EssayListProps) => {
-  const [essays, setEssays] = useState<any[]>([]);
+  const [essays, setEssays] = useState<Essay[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Carregar redações do usuário

@@ -186,3 +186,5 @@ export const SimuladoQuestion = ({
     </motion.div>
   );
 };
+
+export default SimuladoQuestion;

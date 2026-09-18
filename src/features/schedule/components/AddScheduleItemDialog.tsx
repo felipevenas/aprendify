@@ -156,8 +156,8 @@ const AddScheduleItemDialog = ({ open, onOpenChange, editItem, selectedDate, pre
 
       onOpenChange(false);
       resetForm();
-    } catch (error: any) {
-      toast.error(error.message || `Erro ao ${editItem ? "atualizar" : "adicionar"} sessão`);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : `Erro ao ${editItem ? "atualizar" : "adicionar"} sessão`);
     } finally {
       setLoading(false);
     }

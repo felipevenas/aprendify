@@ -97,3 +97,5 @@ export const SimuladoHistoryCard = ({ simulado, onClick }: SimuladoHistoryCardPr
     </Card>
   );
 };
+
+export default SimuladoHistoryCard;

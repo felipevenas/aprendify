@@ -63,7 +63,7 @@ export const GitHubStudyHeatmap: React.FC<GitHubStudyHeatmapProps> = ({ userId, 
       dayOfWeek: number;
     }>> = [];
 
-    let currentDate = new Date(startDate);
+    const currentDate = new Date(startDate);
     let activeDays = 0;
     let totalActs = 0;
 

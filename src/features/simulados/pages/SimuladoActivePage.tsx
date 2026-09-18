@@ -37,6 +37,23 @@ interface QuestionData {
   correct_alternative: string;
 }
 
+interface ExternalAlternative {
+  letter?: string;
+  text?: string;
+}
+
+interface ExternalQuestion {
+  title?: string;
+  context?: string | null;
+  alternatives?: ExternalAlternative[];
+  alternativesIntroduction?: string | null;
+  discipline: string;
+  year?: string | number;
+  index: number;
+  files?: string[];
+  correctAlternative?: string;
+}
+
 /**
  * Active simulado page
  * As questões já foram pré-carregadas pelo useSimuladoPreparation antes da navegação
@@ -220,7 +237,7 @@ const SimuladoActive = () => {
         let offset = 0;
         const pageSize = 50;
         let hasMore = true;
-        const yearQuestions: any[] = [];
+        const yearQuestions: ExternalQuestion[] = [];
 
         // Paginar para buscar todas as questões do ano
         while (hasMore) {
@@ -233,7 +250,7 @@ const SimuladoActive = () => {
             break;
           }
 
-          const data = await response.json();
+          const data = await response.json() as { questions?: ExternalQuestion[] };
           
           if (!data.questions || data.questions.length === 0) {
             hasMore = false;
@@ -260,7 +277,7 @@ const SimuladoActive = () => {
               title: q.title || "",
               context: q.context || null,
               alternatives: Array.isArray(q.alternatives)
-                ? q.alternatives.map((alt: any) => ({ letter: alt.letter || "", text: alt.text || "" }))
+                ? q.alternatives.map((alt) => ({ letter: alt.letter || "", text: alt.text || "" }))
                 : [],
               alternatives_introduction: q.alternativesIntroduction || null,
               discipline: mapAPIToLocal(q.discipline),

@@ -18,6 +18,49 @@ const EXTERNAL_API_BASE = "https://api.enem.dev/v1";
 const RATE_LIMIT_MAX_CALLS = 5; // 5 sync operations per hour
 const RATE_LIMIT_WINDOW_MINUTES = 60;
 
+interface ExternalAlternative {
+  letter?: string;
+  text?: string;
+  content?: string;
+  file?: string;
+  files?: string[];
+}
+
+interface ExternalQuestion {
+  index?: number;
+  number?: number;
+  context?: string;
+  discipline?: string;
+  title?: string;
+  files?: string[];
+  alternatives?: ExternalAlternative[] | Record<string, ExternalAlternative>;
+  alternativesIntroduction?: string;
+  correctAlternative?: string;
+}
+
+interface EnemQuestionInsert {
+  year: string;
+  index: number;
+  title: string;
+  discipline: string;
+  language: string | null;
+  context: string;
+  files: string[] | null;
+  alternatives_introduction: string | null;
+  alternatives: Array<{ letter: string; text: string; files?: string[] }>;
+  correct_alternative: string;
+  origin: string;
+  classification_status: string;
+}
+
+interface SyncYearResult {
+  year: string;
+  success: boolean;
+  inserted?: number;
+  skipped?: number;
+  error?: string;
+}
+
 // Mapeia número da questão para disciplina (baseado na estrutura do ENEM)
 function getDisciplineFromNumber(questionNumber: number): string {
   if (questionNumber >= 1 && questionNumber <= 45) {
@@ -48,7 +91,7 @@ function getLanguageFromQuestion(questionNumber: number, content: string): strin
 }
 
 // Transforma questão do formato da API externa para o formato do banco
-function transformQuestion(raw: any, year: string): any {
+function transformQuestion(raw: ExternalQuestion, year: string): EnemQuestionInsert {
   const questionNumber = raw.index || raw.number || 1;
   const context = raw.context || "";
   const discipline = raw.discipline || getDisciplineFromNumber(questionNumber);
@@ -61,10 +104,10 @@ function transformQuestion(raw: any, year: string): any {
   }
   
   // Normaliza alternativas
-  const normalizedAlternatives = alternativesArray.map((alt: any, idx: number) => ({
+  const normalizedAlternatives = alternativesArray.map((alt: ExternalAlternative, idx: number) => ({
     letter: alt.letter || String.fromCharCode(65 + idx),
     text: alt.text || alt.content || "",
-    files: alt.files || alt.file ? [alt.file] : undefined
+    files: alt.files || (alt.file ? [alt.file] : undefined)
   }));
   
   return {
@@ -191,7 +234,7 @@ serve(async (req) => {
     let totalInserted = 0;
     let totalSkipped = 0;
     let totalErrors = 0;
-    const results: any[] = [];
+    const results: SyncYearResult[] = [];
 
     for (const year of years) {
       console.log(`📥 Fetching year ${year}...`);
@@ -210,7 +253,7 @@ serve(async (req) => {
         console.log(`  Already have ${existingKeys.size} questions for ${year}`);
 
         // Fetch questions from external API - paginate to get all
-        let allQuestions: any[] = [];
+        let allQuestions: ExternalQuestion[] = [];
         let offset = 0;
         const pageSize = 50;
         let retryCount = 0;
@@ -244,7 +287,7 @@ serve(async (req) => {
           }
 
           retryCount = 0; // Reset retry count on success
-          const data = await response.json();
+          const data = await response.json() as { questions?: ExternalQuestion[]; metadata?: { total?: number } };
           const questions = data?.questions || [];
           
           if (questions.length === 0) {
@@ -273,17 +316,17 @@ serve(async (req) => {
         console.log(`  Found ${allQuestions.length} questions from API`);
 
         // Transform all questions first
-        const transformedQuestions = allQuestions.map((q: any) => transformQuestion(q, year));
+        const transformedQuestions = allQuestions.map((q) => transformQuestion(q, year));
 
         // Filter out questions we already have (by index + language pair)
-        const newQuestions = transformedQuestions.filter((q: any) => {
+        const newQuestions = transformedQuestions.filter((q) => {
           const key = `${q.index}:${q.language || 'null'}`;
           return !existingKeys.has(key);
         });
 
         // Also deduplicate within the batch (API might return duplicates)
         const seenKeys = new Set<string>();
-        const uniqueNewQuestions = newQuestions.filter((q: any) => {
+        const uniqueNewQuestions = newQuestions.filter((q) => {
           const key = `${q.index}:${q.language || 'null'}`;
           if (seenKeys.has(key)) {
             return false;

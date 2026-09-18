@@ -107,7 +107,7 @@ const ReviewStatistics = ({ userId, refreshTrigger }: ReviewStatisticsProps) => 
 
       let totalReviewed = 0;
       let totalPending = 0;
-      let allResolutionDays: number[] = [];
+      const allResolutionDays: number[] = [];
 
       // Dados semanais
       const weeklyData = new Map<string, { resolved: number; newErrors: number }>();

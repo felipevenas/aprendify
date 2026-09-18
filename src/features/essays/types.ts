@@ -15,12 +15,16 @@ export interface Essay {
   id: string;
   user_id: string;
   title: string;
-  theme: string;
   content: string;
-  total_score: number | null;
-  status: "draft" | "submitted" | "correcting" | "corrected" | "error";
-  correction_data: EssayCorrection | null;
-  word_count: number | null;
+  feedback: string | null;
+  score_competency_1: number | null;
+  score_competency_2: number | null;
+  score_competency_3: number | null;
+  score_competency_4: number | null;
+  score_competency_5: number | null;
+  score_total: number | null;
+  status: string;
+  tips: string | null;
   created_at: string;
-  updated_at?: string;
+  updated_at: string;
 }

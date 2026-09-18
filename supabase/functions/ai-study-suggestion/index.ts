@@ -10,6 +10,34 @@ const corsHeaders = {
 const RATE_LIMIT_MAX_CALLS = 10; // 10 calls per hour
 const RATE_LIMIT_WINDOW_MINUTES = 60;
 
+interface DisciplineStat {
+  name: string;
+  accuracy: string;
+  total: number;
+}
+
+interface TopicStat {
+  name: string;
+  count: number;
+}
+
+interface EssayCompetencyStat {
+  competencia: string;
+  media: number;
+}
+
+interface StudyStats {
+  totalQuestions: number;
+  correctAnswers: number;
+  wrongAnswers: number;
+  successRate: number;
+  disciplineStats?: DisciplineStat[];
+  topicStats?: TopicStat[];
+  totalEssays: number;
+  averageEssayScore: number;
+  essayCompetencyData?: EssayCompetencyStat[];
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -73,7 +101,7 @@ serve(async (req) => {
       );
     }
 
-    const { stats } = await req.json();
+    const { stats } = await req.json() as { stats: StudyStats };
 
     const groqApiKey = Deno.env.get("GROQ_API_KEY");
     if (!groqApiKey) {
@@ -95,17 +123,17 @@ Questões:
 - Taxa de acerto geral: ${stats.successRate}%
 
 Desempenho por disciplina:
-${stats.disciplineStats?.map((d: any) => `- ${d.name}: ${d.accuracy}% de acerto (${d.total} questões)`).join('\n') || 'Sem dados'}
+${stats.disciplineStats?.map((d) => `- ${d.name}: ${d.accuracy}% de acerto (${d.total} questões)`).join('\n') || 'Sem dados'}
 
 Disciplinas com mais erros:
-${stats.topicStats?.map((t: any) => `- ${t.name}: ${t.count} erros`).join('\n') || 'Sem dados'}
+${stats.topicStats?.map((t) => `- ${t.name}: ${t.count} erros`).join('\n') || 'Sem dados'}
 
 Redações:
 - Total de redações enviadas: ${stats.totalEssays}
 - Média de nota: ${stats.averageEssayScore}/1000
 
 Média por competência das redações:
-${stats.essayCompetencyData?.map((c: any) => `- ${c.competencia}: ${c.media}/200`).join('\n') || 'Sem dados'}
+${stats.essayCompetencyData?.map((c) => `- ${c.competencia}: ${c.media}/200`).join('\n') || 'Sem dados'}
 
 INSTRUÇÕES:
 1. Faça uma análise breve do desempenho geral

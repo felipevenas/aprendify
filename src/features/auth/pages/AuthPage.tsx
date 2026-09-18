@@ -178,6 +178,9 @@ const Auth = () => {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [forgotMessage, setForgotMessage] = useState<string | null>(null);
+  const [mfaChallenge, setMfaChallenge] = useState<{ factorId: string; challengeId: string } | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaLoading, setMfaLoading] = useState(false);
 
   // Estado para reCAPTCHA V2 - apenas para cadastro (opcional se a chave não estiver configurada)
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
@@ -262,27 +265,28 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        // Verificar se é email ou username
-        const isEmail = loginIdentifier.includes("@");
-        let loginEmail = loginIdentifier;
-
-        if (!isEmail) {
-          const normalizedUsername = loginIdentifier.trim();
-          const { data: resolvedEmail, error: resolveError } = await supabase.rpc(
-            "resolve_login_email",
-            { _username: normalizedUsername },
-          );
-
-          if (resolveError || !resolvedEmail) throw new Error("Authentication failed");
-          loginEmail = resolvedEmail;
+        const { data, error } = await supabase.functions.invoke("auth-login", {
+          body: { identifier: loginIdentifier, password },
+        });
+        if (error || !data?.session?.access_token || !data?.session?.refresh_token) {
+          throw error || new Error("Authentication failed");
         }
 
-        const { error } = await supabase.auth.signInWithPassword({
-          email: loginEmail,
-          password,
-        });
+        const { error: sessionError } = await supabase.auth.setSession(data.session);
+        if (sessionError) throw sessionError;
 
-        if (error) throw error;
+        const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (assurance?.nextLevel === "aal2" && assurance.currentLevel !== "aal2") {
+          const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+          const factor = factors?.totp?.find((candidate) => candidate.status === "verified");
+          if (factorsError || !factor) throw new Error("MFA_REQUIRED");
+          const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: factor.id });
+          if (challengeError) throw challengeError;
+          setMfaChallenge({ factorId: factor.id, challengeId: challenge.id });
+          setLoading(false);
+          return;
+        }
+
         toast.success("Login realizado com sucesso!");
         navigate(checkoutRedirect);
       } else {
@@ -501,6 +505,30 @@ const Auth = () => {
     }
   };
 
+  const handleMfaVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaChallenge || !/^\d{6}$/.test(mfaCode)) return;
+    setMfaLoading(true);
+    try {
+      const { error } = await supabase.auth.mfa.verify({
+        factorId: mfaChallenge.factorId,
+        challengeId: mfaChallenge.challengeId,
+        code: mfaCode,
+      });
+      if (error) throw error;
+      const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (assurance?.currentLevel !== "aal2") throw new Error("MFA_REQUIRED");
+      setMfaChallenge(null);
+      setMfaCode("");
+      toast.success("Autenticação adicional concluída!");
+      navigate(checkoutRedirect);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error && error.message === "MFA_REQUIRED" ? "Autenticação adicional necessária." : "Código inválido. Tente novamente.");
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
   return (
     <MotionConfig reducedMotion="user">
     <div className="relative flex min-h-screen flex-col gap-0 bg-muted/50 p-0 lg:h-screen lg:flex-row lg:gap-4 lg:overflow-hidden lg:p-4 xl:p-6">
@@ -603,6 +631,9 @@ const Auth = () => {
             {dynamicContent.map((_, idx) => (
               <button
                 key={idx}
+                type="button"
+                aria-label={`Ir para benefício ${idx + 1}`}
+                aria-current={idx === contentIndex ? "true" : undefined}
                 onClick={() => setContentIndex(idx)}
                 className={`w-2 h-2 rounded-full transition-all duration-300 ${
                   idx === contentIndex ? "bg-white w-6" : "bg-white/50"
@@ -1236,6 +1267,43 @@ const Auth = () => {
         {forgotMessage && (
           <p role="status" aria-live="polite" className="sr-only">{forgotMessage}</p>
         )}
+      </Dialog>
+
+      <Dialog open={Boolean(mfaChallenge)} onOpenChange={(open) => {
+        if (!open && !mfaLoading) {
+          setMfaChallenge(null);
+          setMfaCode("");
+          void supabase.auth.signOut({ scope: "local" });
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirme sua identidade</DialogTitle>
+            <DialogDescription>
+              Digite o código de 6 dígitos exibido no seu aplicativo autenticador para continuar.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleMfaVerify} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="mfaCode">Código do autenticador</Label>
+              <Input
+                id="mfaCode"
+                name="mfaCode"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={mfaCode}
+                onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                disabled={mfaLoading}
+                autoFocus
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={mfaLoading || mfaCode.length !== 6}>
+              {mfaLoading ? "Verificando..." : "Confirmar código"}
+            </Button>
+          </form>
+        </DialogContent>
       </Dialog>
     </div>
     </MotionConfig>

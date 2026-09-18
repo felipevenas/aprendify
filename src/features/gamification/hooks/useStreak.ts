@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useSoundEffects } from './useSoundEffects';
+import { useSoundEffects } from '@/hooks/useSoundEffects';
 
 // Constantes do sistema de streak
 const REQUIRED_DAILY_QUESTIONS = 5;
@@ -75,11 +75,13 @@ export const useStreak = (): UseStreakReturn => {
       }
 
       // Busca ou cria registro de streak
-      let { data, error } = await supabase
+      const streakResponse = await supabase
         .from('user_streaks')
         .select('*')
         .eq('user_id', user.id)
         .single();
+      let { data } = streakResponse;
+      const { error } = streakResponse;
 
       if (error && error.code === 'PGRST116') {
         // Registro não existe, cria um novo
@@ -295,3 +297,5 @@ export const useStreak = (): UseStreakReturn => {
     checkAndUpdateStreak,
   };
 };
+
+export default useStreak;

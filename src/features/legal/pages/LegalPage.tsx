@@ -184,9 +184,16 @@ const termsSections: Section[] = [
 ];
 
 function SectionContent({ section }: { section: Section }) {
+  const sectionId = `secao-${section.title
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")}`;
+
   return (
-    <section className="space-y-3" aria-labelledby={section.title}>
-      <h2 id={section.title} className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+    <section className="space-y-3" aria-labelledby={sectionId}>
+      <h2 id={sectionId} className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
         {section.title}
       </h2>
       {section.paragraphs?.map((paragraph) => (

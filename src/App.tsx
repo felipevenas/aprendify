@@ -15,6 +15,7 @@ const Auth = lazy(pageLoaders.Auth);
 const PrivacyPolicy = lazy(pageLoaders.PrivacyPolicy);
 const TermsOfService = lazy(pageLoaders.TermsOfService);
 const SalesPage = lazy(pageLoaders.SalesPage);
+const CheckoutPage = lazy(pageLoaders.CheckoutPage);
 
 // Heavy app layout with providers - only loaded when navigating to app routes
 const AppLayout = lazy(() => import("./components/AppLayout"));
@@ -36,7 +37,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter future={{ v7_startTransition: true }}>
+        <BrowserRouter>
           <Suspense fallback={<SuspenseFallback />}>
             <Routes>
               {/* Light routes - no heavy providers loaded */}
@@ -44,7 +45,7 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
               <Route path="/termos-de-servico" element={<TermsOfService />} />
-              <Route path="/planos" element={<SalesPage />} />
+              <Route path="/planos" element={<CheckoutPage />} />
               <Route path="/oferta" element={<SalesPage />} />
               {/* All other routes go through AppLayout which loads providers */}
               <Route path="/*" element={<AppLayout />} />

@@ -11,6 +11,7 @@ import DifficultyIndicator from "./DifficultyIndicator";
 import { supabase } from "@/integrations/supabase/client";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { StudyQuestion, QuestionAlternative } from "../types";
 
 // ============= Cache de Dificuldade (localStorage) =============
 // Usado para questões da API externa (2009-2023) que não têm banco de dados
@@ -26,7 +27,7 @@ interface DifficultyCache {
 /**
  * Gera uma chave única para a questão (funciona para banco local e API externa)
  */
-const getQuestionKey = (question: any): string => {
+const getQuestionKey = (question: StudyQuestion): string => {
   // Se tem ID do banco, usa ele
   if (question.id) return `db_${question.id}`;
   // Caso contrário, gera chave baseada em ano-disciplina-index
@@ -66,9 +67,9 @@ const setCachedDifficulty = (questionKey: string, difficulty: "easy" | "medium" 
  * Exibe a questão, alternativas e feedback visual após resposta
  */
 interface QuestionPracticeProps {
-  question: any;
+  question: StudyQuestion;
   onNext: () => void;
-  onAnswer?: (questionId: string, selectedAnswer: string, correctAnswer: string, isCorrect: boolean, hadDoubt?: boolean) => void;
+  onAnswer?: (questionId: string, selectedAnswer: string, correctAnswer?: string, isCorrect?: boolean, hadDoubt?: boolean) => void;
   isPremium?: boolean;
 }
 
@@ -92,7 +93,7 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        const questionId = `${question.year}-${question.discipline}-${question.index}`;
+        const questionId = question.id || `${question.year}-${question.discipline}-${question.index}`;
         
         const { data } = await supabase
           .from("question_attempts")
@@ -200,8 +201,8 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
 
     // Salva a resposta se a callback foi fornecida (sem hadDoubt ainda)
     if (onAnswer) {
-      const questionId = `${question.year}-${question.discipline}-${question.index}`;
-      onAnswer(questionId, selectedAlternative, correctAlt, isCorrectAnswer);
+      const questionId = question.id || `${question.year}-${question.discipline}-${question.index}`;
+      onAnswer(questionId, selectedAlternative);
     }
   };
 
@@ -367,7 +368,7 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
 
         {/* Alternativas */}
         <div className="mb-6 space-y-3">
-          {question.alternatives.map((alt: any) => {
+          {question.alternatives.map((alt: QuestionAlternative) => {
             const isSelected = selectedAlternative === alt.letter;
             const isCorrectAlt = alt.letter === question.correctAlternative;
 

@@ -163,8 +163,10 @@ const QuestionFilters = ({
 
       {/* Busca por palavra-chave */}
       <div className="relative">
+        <Label htmlFor="question-keyword" className="sr-only">Buscar questões</Label>
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
+          id="question-keyword"
           placeholder="Faça uma busca por palavra chave"
           value={searchKeyword}
           onChange={(e) => onSearchChange(e.target.value)}

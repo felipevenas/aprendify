@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Upload, FileJson, CheckCircle, AlertCircle, PenLine, CloudDownload, RefreshCw, Clock, Database } from "lucide-react";
+import { ArrowLeft, Upload, FileJson, FileText, PlusCircle, CheckCircle, AlertCircle, PenLine, CloudDownload, RefreshCw, Clock, Database } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
@@ -19,6 +19,30 @@ const AVAILABLE_YEARS = [
   "2014", "2013", "2012", "2011", "2010", "2009"
 ];
 
+interface ImportResult {
+  inserted: number;
+  total: number;
+  skipped?: number;
+  errors?: Array<{ batch: number; error: string }>;
+  error?: string;
+}
+
+interface SyncYearResult {
+  year: string;
+  success: boolean;
+  inserted?: number;
+  error?: string;
+}
+
+interface SyncResult {
+  success?: boolean;
+  totalInserted?: number;
+  totalSkipped?: number;
+  totalErrors?: number;
+  results?: SyncYearResult[];
+  error?: string;
+}
+
 /**
  * Painel Administrativo de Importação de Questões
  * Suporta sincronização automatizada via API pública, inserção manual ou carga via arquivo JSON
@@ -29,12 +53,12 @@ const AdminImport = () => {
   const [year, setYear] = useState("2024");
   const [jsonFile, setJsonFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
   
   // Estado para sincronização da API
   const [syncing, setSyncing] = useState(false);
   const [selectedYears, setSelectedYears] = useState<string[]>(["2023"]);
-  const [syncResult, setSyncResult] = useState<any>(null);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   
   // Estado para progresso em tempo real
   const [syncProgress, setSyncProgress] = useState({
@@ -150,10 +174,10 @@ const AdminImport = () => {
       setResult(response.data);
       toast.success(`Importação concluída! ${response.data.inserted} questões importadas.`);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro na importação:", error);
-      toast.error(error.message || "Erro ao importar questões");
-      setResult({ error: error.message });
+      toast.error(error instanceof Error ? error.message : "Erro ao importar questões");
+      setResult({ inserted: 0, total: 0, error: error instanceof Error ? error.message : "Erro inesperado" });
     } finally {
       setImporting(false);
     }
@@ -179,7 +203,7 @@ const AdminImport = () => {
     try {
       console.log(`🔄 Sincronizando anos: ${selectedYears.join(", ")}`);
 
-      const results: any[] = [];
+      const results: SyncYearResult[] = [];
       let totalInserted = 0;
       let totalSkipped = 0;
       let totalErrors = 0;
@@ -213,8 +237,8 @@ const AdminImport = () => {
               questionsImported: prev.questionsImported + (data.totalInserted || 0),
             }));
           }
-        } catch (error: any) {
-          results.push({ year: yearToSync, success: false, error: error.message });
+        } catch (error: unknown) {
+          results.push({ year: yearToSync, success: false, error: error instanceof Error ? error.message : "Erro inesperado" });
           totalErrors++;
         }
 
@@ -241,10 +265,10 @@ const AdminImport = () => {
         toast.warning(`Sincronização concluída com ${totalErrors} erros.`);
       }
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro na sincronização:", error);
-      toast.error(error.message || "Erro ao sincronizar questões");
-      setSyncResult({ error: error.message });
+      toast.error(error instanceof Error ? error.message : "Erro ao sincronizar questões");
+      setSyncResult({ error: error instanceof Error ? error.message : "Erro inesperado" });
     } finally {
       setSyncing(false);
       setSyncProgress(prev => ({
@@ -301,16 +325,16 @@ const AdminImport = () => {
 
             {/* Tabs para alternar entre métodos de adição */}
             <Tabs defaultValue="sync" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mb-6">
-                <TabsTrigger value="sync" className="flex items-center gap-2 text-xs sm:text-sm">
+              <TabsList className="grid w-full grid-cols-1 gap-1 mb-6 sm:grid-cols-3">
+                <TabsTrigger value="sync" className="flex min-w-0 items-center justify-center gap-2 whitespace-normal text-center text-xs sm:text-sm">
                   <RefreshCw className="h-4 w-4" />
                   Sincronizar API
                 </TabsTrigger>
-                <TabsTrigger value="manual" className="flex items-center gap-2 text-xs sm:text-sm">
+                <TabsTrigger value="manual" className="flex min-w-0 items-center justify-center gap-2 whitespace-normal text-center text-xs sm:text-sm">
                   <PlusCircle className="h-4 w-4" />
                   Adicionar Manual
                 </TabsTrigger>
-                <TabsTrigger value="batch" className="flex items-center gap-2 text-xs sm:text-sm">
+                <TabsTrigger value="batch" className="flex min-w-0 items-center justify-center gap-2 whitespace-normal text-center text-xs sm:text-sm">
                   <FileText className="h-4 w-4" />
                   Importar JSON
                 </TabsTrigger>
@@ -334,7 +358,8 @@ const AdminImport = () => {
                     
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                       {AVAILABLE_YEARS.map((y) => (
-                        <div
+                        <button
+                          type="button"
                           key={y}
                           className={`flex items-center justify-center p-2 rounded-lg border cursor-pointer transition-colors ${
                             selectedYears.includes(y)
@@ -342,9 +367,11 @@ const AdminImport = () => {
                               : 'bg-muted/50 hover:bg-muted border-border'
                           } ${syncing ? 'opacity-50 cursor-not-allowed' : ''}`}
                           onClick={() => !syncing && toggleYear(y)}
+                          aria-pressed={selectedYears.includes(y)}
+                          aria-label={`Selecionar ano ${y}`}
                         >
                           <span className="text-sm font-medium">{y}</span>
-                        </div>
+                        </button>
                       ))}
                     </div>
                     
@@ -448,7 +475,7 @@ const AdminImport = () => {
                             <div className="mt-3 pt-3 border-t border-border/50">
                               <p className="text-xs font-medium text-muted-foreground mb-2">Detalhes por ano:</p>
                               <div className="grid grid-cols-2 gap-2">
-                                {syncResult.results.map((r: any) => (
+                                {syncResult.results.map((r) => (
                                   <div 
                                     key={r.year}
                                     className={`text-xs p-2 rounded flex items-center justify-between ${
@@ -494,7 +521,7 @@ const AdminImport = () => {
               </TabsContent>
 
               {/* Tab: Importação via JSON */}
-              <TabsContent value="json">
+              <TabsContent value="batch">
                 <Card className="p-6 space-y-6">
                   {/* Ano */}
                   <div className="space-y-2">

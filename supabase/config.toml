@@ -48,6 +48,9 @@ verify_jwt = false
 [functions.verify-recaptcha]
 verify_jwt = false
 
+[functions.auth-login]
+verify_jwt = false
+
 [functions.create-checkout]
 verify_jwt = false
 

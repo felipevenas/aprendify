@@ -1269,6 +1269,10 @@ export type Database = {
         Returns: boolean
       }
       is_user_premium: { Args: { _user_id: string }; Returns: boolean }
+      record_question_attempt: {
+        Args: { _question_id: string; _selected_answer: string }
+        Returns: string
+      }
       resolve_login_email: { Args: { _username: string }; Returns: string }
       unlock_achievement: {
         Args: { _achievement_type: string; _user_id: string }

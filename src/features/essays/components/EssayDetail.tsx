@@ -9,12 +9,13 @@ import { ptBR } from "date-fns/locale";
 import { useMemo } from "react";
 import { AnnotatedEssayContent, AnnotatedSnippet, getRenderableAnnotatedSnippetCount } from "./AnnotatedEssayContent";
 import { InterventionChecklist, InterventionChecklistData } from "./InterventionChecklist";
+import { Essay } from "../types";
 
 /**
  * Componente para exibir detalhes completos de uma redação corrigida
  */
 interface EssayDetailProps {
-  essay: any;
+  essay: Essay;
   onBack: () => void;
 }
 

@@ -48,6 +48,7 @@ const AdminFeedback = lazy(pageLoaders.AdminFeedback);
 const ReviewErrors = lazy(pageLoaders.ReviewErrors);
 const TRICalculator = lazy(pageLoaders.TRICalculator);
 const SalesPage = lazy(pageLoaders.SalesPage);
+const CheckoutPage = lazy(pageLoaders.CheckoutPage);
 const NotFound = lazy(pageLoaders.NotFound);
 
 /**
@@ -88,7 +89,7 @@ const AppLayout = () => {
                   <Route path="/essays" element={<Essays />} />
                   <Route path="/subscription" element={<Subscription />} />
                   <Route path="/subscription/success" element={<SubscriptionSuccess />} />
-                  <Route path="/planos" element={<SalesPage />} />
+                  <Route path="/planos" element={<CheckoutPage />} />
                   <Route path="/oferta" element={<SalesPage />} />
                   <Route path="/admin/import" element={<AdminImport />} />
                   <Route path="/admin/users" element={<AdminUsers />} />

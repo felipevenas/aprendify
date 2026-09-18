@@ -95,9 +95,9 @@ const Settings = () => {
       });
 
       toast.success("Perfil atualizado com sucesso!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao atualizar perfil:", error);
-      toast.error(error.message || "Erro ao atualizar perfil");
+      toast.error(error instanceof Error ? error.message : "Erro ao atualizar perfil");
     } finally {
       setSaving(false);
     }
@@ -130,9 +130,9 @@ const Settings = () => {
       toast.success("Senha atualizada com sucesso!");
       setNewPassword("");
       setConfirmPassword("");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao atualizar senha:", error);
-      toast.error(error.message || "Erro ao atualizar senha");
+      toast.error(error instanceof Error ? error.message : "Erro ao atualizar senha");
     } finally {
       setSaving(false);
     }
@@ -169,9 +169,9 @@ const Settings = () => {
 
       setAvatarUrl(publicUrl);
       toast.success("Foto de perfil atualizada!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao atualizar avatar:", error);
-      toast.error(error.message || "Erro ao atualizar foto");
+      toast.error(error instanceof Error ? error.message : "Erro ao atualizar foto");
     } finally {
       setSaving(false);
     }

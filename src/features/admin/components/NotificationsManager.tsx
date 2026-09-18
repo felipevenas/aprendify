@@ -18,6 +18,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogDescription,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -181,12 +182,13 @@ export const NotificationsManager = () => {
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Criar Nova Notificação</DialogTitle>
+              <DialogDescription>Publique uma atualização visível aos usuários da plataforma.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Tipo</label>
+                <label htmlFor="notification-type" className="text-sm font-medium">Tipo</label>
                 <Select value={notificationType} onValueChange={setNotificationType}>
-                  <SelectTrigger>
+                  <SelectTrigger id="notification-type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -206,8 +208,9 @@ export const NotificationsManager = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Título</label>
+                <label htmlFor="notification-title" className="text-sm font-medium">Título</label>
                 <Input
+                  id="notification-title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Ex: Nova funcionalidade disponível!"
@@ -215,8 +218,9 @@ export const NotificationsManager = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Conteúdo</label>
+                <label htmlFor="notification-content" className="text-sm font-medium">Conteúdo</label>
                 <Textarea
+                  id="notification-content"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="Descreva os detalhes da notificação..."
@@ -327,3 +331,5 @@ export const NotificationsManager = () => {
     </Card>
   );
 };
+
+export default NotificationsManager;
