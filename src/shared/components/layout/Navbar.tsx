@@ -322,9 +322,9 @@ const NavbarContent = () => {
         aria-label="Navegação principal"
         className="app-sidebar fixed bottom-0 left-0 top-0 z-40 hidden flex-col overflow-hidden border-r border-border/50 bg-card shadow-sm lg:flex"
       >
-        <div className={`relative flex h-20 shrink-0 items-center border-b border-border/50 ${sidebarCollapsed ? "justify-center px-3" : "justify-between px-5"}`}>
-          <Link to="/dashboard" className={`flex min-w-0 cursor-pointer items-center gap-2.5 ${sidebarCollapsed ? "justify-center" : ""}`}>
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-dark shadow-sm shadow-primary/20">
+        <div className={`relative flex h-20 shrink-0 items-center border-b border-border/50 ${sidebarCollapsed ? "flex-col justify-center gap-1 px-2 py-1" : "justify-between px-5"}`}>
+          <Link to="/dashboard" className={`flex min-w-0 cursor-pointer items-center gap-2.5 ${sidebarCollapsed ? "order-2 justify-center" : ""}`}>
+            <div className={`flex shrink-0 items-center justify-center bg-gradient-to-br from-primary to-primary-dark shadow-sm shadow-primary/20 ${sidebarCollapsed ? "h-8 w-8 rounded-lg" : "h-9 w-9 rounded-xl"}`}>
               <BookOpen className="h-5 w-5 text-primary-foreground" />
             </div>
             <span className={sidebarCollapsed ? "sr-only" : "truncate text-xl font-bold tracking-tight text-foreground"}>Aprendify</span>
@@ -336,9 +336,7 @@ const NavbarContent = () => {
             aria-label={sidebarCollapsed ? "Expandir sidebar" : "Recolher sidebar"}
             title={sidebarCollapsed ? "Expandir sidebar" : "Recolher sidebar"}
             onClick={() => setSidebarCollapsed((current) => !current)}
-            className={`h-9 w-9 shrink-0 rounded-lg text-muted-foreground hover:bg-muted/70 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/50 ${
-              sidebarCollapsed ? "absolute right-2 top-2" : ""
-            }`}
+            className={`h-9 w-9 shrink-0 rounded-lg text-muted-foreground hover:bg-muted/70 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/50 ${sidebarCollapsed ? "order-1 h-8 w-8" : ""}`}
           >
             {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </Button>
@@ -355,7 +353,7 @@ const NavbarContent = () => {
       </aside>
 
       <header className="app-header fixed right-0 top-0 z-30 flex h-16 items-center border-b border-border/50 bg-background/80 shadow-sm backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="flex w-full items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 lg:hidden">
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
