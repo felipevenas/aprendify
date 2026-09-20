@@ -74,6 +74,7 @@ const Settings = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [showOnlineStatus, setShowOnlineStatus] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const { soundEnabled, setSoundEnabled } = useSoundPreferences();
   const { playClickSound } = useSoundEffects();
@@ -102,11 +103,12 @@ const Settings = () => {
       setAvatarUrl(currentUser.user_metadata?.avatar_url || "");
 
       const [{ data: profile }, { data: roleData }] = await Promise.all([
-        supabase.from("profiles").select("full_name").eq("id", currentUser.id).single(),
+        supabase.from("profiles").select("full_name, show_online_status").eq("id", currentUser.id).single(),
         supabase.from("user_roles").select("role").eq("user_id", currentUser.id).eq("role", "admin").maybeSingle(),
       ]);
 
       setFullName(profile?.full_name || "");
+      setShowOnlineStatus(profile?.show_online_status ?? true);
       setIsAdmin(!!roleData);
       setLoading(false);
     };
@@ -128,7 +130,7 @@ const Settings = () => {
 
     setSaving(true);
     try {
-      const { error } = await supabase.from("profiles").update({ full_name: fullName }).eq("id", user.id);
+      const { error } = await supabase.from("profiles").update({ full_name: fullName, show_online_status: showOnlineStatus }).eq("id", user.id);
       if (error) throw error;
 
       await supabase.auth.updateUser({ data: { full_name: fullName } });
@@ -380,6 +382,33 @@ const Settings = () => {
                       <div className="flex items-center justify-between gap-4 rounded-xl border border-border/40 bg-muted/30 p-3">
                         <div className="space-y-0.5"><Label htmlFor="sound-toggle" className="cursor-pointer text-sm font-semibold">Sons Interativos</Label><p className="text-xs leading-relaxed text-muted-foreground">Tocar sons ao acertar questões, completar streaks e bater metas diárias.</p></div>
                         <Switch id="sound-toggle" checked={soundEnabled} onCheckedChange={(checked) => { setSoundEnabled(checked); if (checked) playClickSound(); toast.success(checked ? "Efeitos sonoros ativados" : "Efeitos sonoros silenciados"); }} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-border/60 shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base"><Users className="h-5 w-5 text-primary" /> Conexões</CardTitle>
+                      <CardDescription>Escolha se seus amigos podem saber quando você está online.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between gap-4 rounded-xl border border-border/40 bg-muted/30 p-3">
+                        <div className="space-y-0.5"><Label htmlFor="online-status-toggle" className="cursor-pointer text-sm font-semibold">Mostrar meu status online</Label><p className="text-xs leading-relaxed text-muted-foreground">Quando desativado, seus amigos verão você como offline.</p></div>
+                        <Switch
+                          id="online-status-toggle"
+                          checked={showOnlineStatus}
+                          onCheckedChange={(checked) => {
+                            setShowOnlineStatus(checked);
+                            if (!user) return;
+                            void supabase.from("profiles").update({ show_online_status: checked }).eq("id", user.id).then(({ error }) => {
+                              if (error) {
+                                setShowOnlineStatus(!checked);
+                                toast.error("Não foi possível atualizar sua visibilidade online.");
+                              } else {
+                                toast.success(checked ? "Status online visível para amigos." : "Status online oculto.");
+                              }
+                            });
+                          }}
+                        />
                       </div>
                     </CardContent>
                   </Card>

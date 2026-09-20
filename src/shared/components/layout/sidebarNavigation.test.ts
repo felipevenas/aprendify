@@ -7,6 +7,7 @@ test("mantém a sidebar principal organizada em Estudos e Prática", () => {
   assert.equal(SIDEBAR_GROUPS.flatMap((group) => group.items).some((item) => item.name === "Estatísticas"), false);
   assert.equal(SIDEBAR_GROUPS.flatMap((group) => group.items).some((item) => item.name === "Minha Assinatura"), false);
   assert.equal(SIDEBAR_GROUPS.flatMap((group) => group.items).some((item) => item.name.includes("Feedback")), false);
+  assert.equal(SIDEBAR_GROUPS.flatMap((group) => group.items).some((item) => item.path === "/amigos"), false);
 });
 
 test("preserva a área administrativa fora da navegação principal", () => {

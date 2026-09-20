@@ -14,6 +14,7 @@ import { pageLoaders } from "@/lib/pageLoaders";
 import { RouteContent } from "@/components/RouteContent";
 import { MotionConfig } from "framer-motion";
 import { OnboardingGate } from "@/features/onboarding/components/OnboardingGate";
+import { usePresenceHeartbeat } from "@/features/friends/hooks/usePresenceHeartbeat";
 
 const SuspenseFallback = () => <PageContentSkeleton />;
 
@@ -45,6 +46,9 @@ const Feedback = lazy(pageLoaders.Feedback);
 const AdminFeedback = lazy(pageLoaders.AdminFeedback);
 const ReviewErrors = lazy(pageLoaders.ReviewErrors);
 const TRICalculator = lazy(pageLoaders.TRICalculator);
+const Friends = lazy(pageLoaders.Friends);
+const DirectChat = lazy(pageLoaders.DirectChat);
+const FocusChallenge = lazy(pageLoaders.FocusChallenge);
 const SalesPage = lazy(pageLoaders.SalesPage);
 const CheckoutPage = lazy(pageLoaders.CheckoutPage);
 const NotFound = lazy(pageLoaders.NotFound);
@@ -55,6 +59,7 @@ const NotFound = lazy(pageLoaders.NotFound);
  * This reduces the initial JS payload for the landing page significantly.
  */
 const AppLayout = () => {
+  usePresenceHeartbeat();
   const location = useLocation();
   const isSimuladoRunning =
     location.pathname.startsWith("/simulados/") &&
@@ -102,6 +107,9 @@ const AppLayout = () => {
                   <Route path="/admin/feedback" element={<AdminFeedback />} />
                   <Route path="/review-errors" element={<ReviewErrors />} />
                   <Route path="/calculadora-tri" element={<TRICalculator />} />
+                  <Route path="/amigos" element={<Friends />} />
+                  <Route path="/amigos/conversa/:friendId" element={<DirectChat />} />
+                  <Route path="/amigos/desafio/:challengeId" element={<FocusChallenge />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
