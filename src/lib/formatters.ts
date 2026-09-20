@@ -129,6 +129,10 @@ export const separateTextAndReference = (text: string): { mainText: string; refe
   return { mainText, reference };
 };
 
+export const hasContextContent = (
+  context: { mainText: string; reference: string | null } | null,
+): boolean => Boolean(context && (context.mainText.trim() || context.reference?.trim()));
+
 /**
  * Processa texto com markdown simples para negrito
  * Converte **texto** em <strong>texto</strong>
