@@ -283,14 +283,37 @@ All colors MUST be HSL.
 }
 
 /* Regras de Layout para a Sidebar Clássica do Aprendify */
+:root {
+  --app-sidebar-width: 16rem;
+}
+
+:root[data-sidebar-collapsed="true"] {
+  --app-sidebar-width: 5rem;
+}
+
+.app-sidebar {
+  width: var(--app-sidebar-width);
+  transition: width var(--transition-smooth);
+}
+
+.app-header {
+  left: 0;
+  transition: left var(--transition-smooth);
+}
+
 .app-layout-container {
   padding-top: 4rem; /* altura do header (h-16 = 64px) */
+  transition: padding-left var(--transition-smooth);
 }
 
 @media (min-width: 1024px) {
   .app-layout-container {
-    padding-left: 16rem; /* largura da sidebar (w-64 = 256px) */
+    padding-left: var(--app-sidebar-width);
     padding-top: 4rem; /* altura do header */
+  }
+
+  .app-header {
+    left: var(--app-sidebar-width);
   }
 
   /* Mantém o conteúdo encostado à área da sidebar, sem centralização dupla. */

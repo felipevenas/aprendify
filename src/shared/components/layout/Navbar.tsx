@@ -21,24 +21,15 @@ import {
   Shield,
   Menu,
   MessageSquarePlus,
-  LayoutDashboard,
-  Calendar,
-  CheckSquare,
-  FileText,
-  Layers,
-  PenTool,
-  Upload,
-  Users,
-  Settings2,
   HelpCircle,
-  RotateCcw,
-  Calculator,
   ChevronDown,
   UserRound,
   LockKeyhole,
   SlidersHorizontal,
   TrendingUp,
   CreditCard,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { usePremiumContext } from "@/contexts/PremiumContext";
@@ -50,42 +41,16 @@ import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useHelpTooltips } from "@/contexts/HelpTooltipsContext";
 import { preloadRoute } from "@/lib/pageLoaders";
+import { ADMIN_SIDEBAR_GROUP, SIDEBAR_GROUPS, type SidebarGroup, SIDEBAR_WIDTHS } from "./sidebarNavigation";
 
 export const NavbarLayoutContext = createContext<boolean>(false);
 
-const MENU_GROUPS = [
-  {
-    title: "Estudos",
-    items: [
-      { name: "Painel Geral", path: "/dashboard", icon: LayoutDashboard },
-      { name: "Cronograma", path: "/schedule", icon: Calendar },
-      { name: "Minhas Tarefas", path: "/tasks", icon: CheckSquare },
-      { name: "Minhas Anotações", path: "/notes", icon: FileText },
-    ],
-  },
-  {
-    title: "Prática",
-    items: [
-      { name: "Banco de Questões", path: "/questions", icon: BookOpen },
-      { name: "Simulados ENEM", path: "/simulados", icon: Trophy },
-      { name: "Caderno de Erros", path: "/review-errors", icon: RotateCcw },
-      { name: "Redações", path: "/essays", icon: PenTool },
-      { name: "Flashcards", path: "/flashcards", icon: Layers },
-      { name: "Simulador SISU", path: "/calculadora-tri", icon: Calculator },
-    ],
-  },
-] as const;
+const SIDEBAR_STORAGE_KEY = "aprendify:sidebar-collapsed";
 
-const ADMIN_GROUP = {
-  title: "Administração",
-  items: [
-    { name: "Notificações", path: "/admin/notifications", icon: Shield },
-    { name: "Gerenciar Feedbacks", path: "/admin/feedback", icon: MessageSquarePlus },
-    { name: "Gerenciar Questões", path: "/admin/questions", icon: Settings2 },
-    { name: "Importar Questões", path: "/admin/import", icon: Upload },
-    { name: "Gerenciar Usuários", path: "/admin/users", icon: Users },
-  ],
-} as const;
+const getInitialSidebarCollapsed = () => {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === "true";
+};
 
 interface NavbarProps {
   isLayoutRoot?: boolean;
@@ -123,6 +88,7 @@ const NavbarContent = () => {
   const [userName, setUserName] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(getInitialSidebarCollapsed);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     Estudos: true,
     Prática: true,
@@ -131,6 +97,20 @@ const NavbarContent = () => {
   const { isPremium, isLoading, planType } = usePremiumContext();
   const { streakData, loading: streakLoading } = useStreakContext();
   const planVisual = getPlanVisual(isLoading ? null : planType, isLoading ? false : isPremium);
+
+  useEffect(() => {
+    document.documentElement.dataset.sidebarCollapsed = String(sidebarCollapsed);
+    document.documentElement.style.setProperty(
+      "--app-sidebar-width",
+      sidebarCollapsed ? SIDEBAR_WIDTHS.collapsed : SIDEBAR_WIDTHS.expanded,
+    );
+    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarCollapsed));
+
+    return () => {
+      delete document.documentElement.dataset.sidebarCollapsed;
+      document.documentElement.style.removeProperty("--app-sidebar-width");
+    };
+  }, [sidebarCollapsed]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -178,7 +158,7 @@ const NavbarContent = () => {
   }, [location.pathname, location.search]);
 
   useEffect(() => {
-    const activeGroup = [...MENU_GROUPS, ADMIN_GROUP].find((group) =>
+    const activeGroup = [...SIDEBAR_GROUPS, ADMIN_SIDEBAR_GROUP].find((group) =>
       group.items.some((item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)),
     );
 
@@ -196,50 +176,111 @@ const NavbarContent = () => {
 
   const isPathActive = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`);
 
-  const renderGroup = (group: typeof MENU_GROUPS[number] | typeof ADMIN_GROUP, mobile = false) => {
+  const toggleGroup = (groupTitle: string, isExpanded: boolean, isMobile: boolean) => {
+    if (sidebarCollapsed && !isMobile) {
+      setSidebarCollapsed(false);
+      setExpandedGroups((current) => ({ ...current, [groupTitle]: true }));
+      return;
+    }
+
+    setExpandedGroups((current) => ({ ...current, [groupTitle]: !isExpanded }));
+  };
+
+  const renderGroup = (group: SidebarGroup, mobile = false) => {
     const isExpanded = expandedGroups[group.title] ?? true;
+    const isCompact = sidebarCollapsed && !mobile;
+    const GroupIcon = group.icon;
+
+    if (isCompact) {
+      return (
+        <div key={group.title} className="space-y-1">
+          {group.items.map((item) => {
+            const isActive = isPathActive(item.path);
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                title={item.name}
+                onPointerEnter={() => preloadRoute(item.path)}
+                onFocus={() => preloadRoute(item.path)}
+                aria-current={isActive ? "page" : undefined}
+                className={`group flex h-10 w-full items-center justify-center rounded-xl transition-[background-color,color,box-shadow] duration-200 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                    : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                }`}
+              >
+                <item.icon
+                  className={`h-[18px] w-[18px] ${isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"}`}
+                  aria-hidden="true"
+                />
+                <span className="sr-only">{item.name}</span>
+              </Link>
+            );
+          })}
+        </div>
+      );
+    }
 
     return (
       <div key={group.title} className="space-y-1">
         <button
           type="button"
-          aria-expanded={isExpanded}
-          onClick={() => setExpandedGroups((current) => ({ ...current, [group.title]: !isExpanded }))}
-          className="group flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-semibold text-foreground/60 transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+          aria-expanded={!isCompact && isExpanded}
+          aria-label={isCompact ? `${isExpanded ? "Abrir" : "Exibir"} ${group.title}` : undefined}
+          title={isCompact ? group.title : undefined}
+          onClick={() => toggleGroup(group.title, isExpanded, mobile)}
+          className={`group flex h-10 w-full items-center rounded-xl text-left text-xs font-semibold transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+            isCompact ? "justify-center px-2" : "justify-between px-3"
+          }`}
         >
-          <span>{group.title}</span>
-          <ChevronDown
-            className={`h-3.5 w-3.5 transition-transform duration-200 motion-reduce:transition-none ${isExpanded ? "rotate-0" : "-rotate-90"}`}
-            aria-hidden="true"
-          />
+          <span className={`flex min-w-0 items-center gap-3 ${isCompact ? "justify-center" : ""}`}>
+            <GroupIcon className="h-[18px] w-[18px] shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className={isCompact ? "sr-only" : "truncate"}>{group.title}</span>
+          </span>
+          {!isCompact && (
+            <ChevronDown
+              className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none ${isExpanded ? "rotate-0" : "-rotate-90"}`}
+              aria-hidden="true"
+            />
+          )}
         </button>
-        {isExpanded && (
-          <div className="ml-3 space-y-0.5 border-l border-border/80 pl-2">
-            {group.items.map((item) => {
-              const isActive = isPathActive(item.path);
-              const link = (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onPointerEnter={() => preloadRoute(item.path)}
-                  onFocus={() => preloadRoute(item.path)}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 motion-reduce:transition-none ${
-                    isActive
-                      ? "bg-gradient-to-r from-primary to-primary-light text-primary-foreground shadow-md shadow-primary/20"
-                      : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                  }`}
-                >
-                  <item.icon
-                    className={`h-[18px] w-[18px] ${isActive ? "text-primary-foreground" : "text-muted-foreground"}`}
-                    aria-hidden="true"
-                  />
-                  <span className="font-medium">{item.name}</span>
-                </Link>
-              );
+        {!isCompact && (
+          <div
+            className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${
+              isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+            }`}
+            aria-hidden={!isExpanded}
+          >
+            <div className="min-h-0 overflow-hidden space-y-1 px-1 pt-1">
+              {group.items.map((item) => {
+                const isActive = isPathActive(item.path);
+                const link = (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    tabIndex={isExpanded ? undefined : -1}
+                    title={isCompact ? item.name : undefined}
+                    onPointerEnter={() => preloadRoute(item.path)}
+                    onFocus={() => preloadRoute(item.path)}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`group flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm transition-[background-color,color,box-shadow] duration-200 motion-reduce:transition-none ${
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                        : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                    }`}
+                  >
+                    <item.icon
+                      className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"}`}
+                      aria-hidden="true"
+                    />
+                    <span className="truncate font-medium">{item.name}</span>
+                  </Link>
+                );
 
-              return mobile ? <SheetClose asChild key={item.path}>{link}</SheetClose> : link;
-            })}
+                return mobile ? <SheetClose asChild key={item.path}>{link}</SheetClose> : link;
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -249,8 +290,8 @@ const NavbarContent = () => {
   const renderAdminGroup = (mobile = false) => {
     if (!isAdmin) return null;
     return (
-      <div className="space-y-1 border-t border-border/50 pt-3">
-        {renderGroup(ADMIN_GROUP, mobile)}
+      <div className="space-y-1 border-t border-border/60 pt-4">
+        {renderGroup(ADMIN_SIDEBAR_GROUP, mobile)}
       </div>
     );
   };
@@ -260,10 +301,13 @@ const NavbarContent = () => {
       <Link
         to="/feedback"
         aria-label="Falar com Suporte"
-        className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-3 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+        title={sidebarCollapsed && !mobile ? "Falar com Suporte" : undefined}
+        className={`flex h-10 w-full items-center rounded-xl border border-primary/20 bg-primary/10 text-sm font-semibold text-primary transition-[background-color,box-shadow] duration-200 hover:bg-primary/15 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+          sidebarCollapsed && !mobile ? "justify-center px-2" : "justify-center gap-2 px-3"
+        }`}
       >
         <MessageSquarePlus className="h-4 w-4" aria-hidden="true" />
-        <span>Falar com Suporte</span>
+        <span className={sidebarCollapsed && !mobile ? "sr-only" : ""}>Falar com Suporte</span>
       </Link>
     );
 
@@ -276,26 +320,41 @@ const NavbarContent = () => {
     <>
       <aside
         aria-label="Navegação principal"
-        className="sidebar-desktop fixed bottom-0 left-0 top-0 z-40 hidden w-64 flex-col border-r border-border/50 bg-card shadow-sm lg:flex"
+        className="app-sidebar fixed bottom-0 left-0 top-0 z-40 hidden flex-col overflow-hidden border-r border-border/50 bg-card shadow-sm lg:flex"
       >
-        <Link to="/dashboard" className="flex h-20 shrink-0 cursor-pointer items-center gap-2.5 border-b border-border/50 px-6">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-dark shadow-sm shadow-primary/20">
-            <BookOpen className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-bold tracking-tight text-foreground">Aprendify</span>
-        </Link>
+        <div className={`relative flex h-20 shrink-0 items-center border-b border-border/50 ${sidebarCollapsed ? "justify-center px-3" : "justify-between px-5"}`}>
+          <Link to="/dashboard" className={`flex min-w-0 cursor-pointer items-center gap-2.5 ${sidebarCollapsed ? "justify-center" : ""}`}>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-dark shadow-sm shadow-primary/20">
+              <BookOpen className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <span className={sidebarCollapsed ? "sr-only" : "truncate text-xl font-bold tracking-tight text-foreground"}>Aprendify</span>
+          </Link>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={sidebarCollapsed ? "Expandir sidebar" : "Recolher sidebar"}
+            title={sidebarCollapsed ? "Expandir sidebar" : "Recolher sidebar"}
+            onClick={() => setSidebarCollapsed((current) => !current)}
+            className={`h-9 w-9 shrink-0 rounded-lg text-muted-foreground hover:bg-muted/70 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/50 ${
+              sidebarCollapsed ? "absolute right-2 top-2" : ""
+            }`}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          </Button>
+        </div>
 
-        <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5">
-          {MENU_GROUPS.map((group) => renderGroup(group))}
+        <nav className={`min-h-0 flex-1 space-y-4 overflow-y-auto py-5 ${sidebarCollapsed ? "px-2" : "px-3"}`}>
+          {SIDEBAR_GROUPS.map((group) => renderGroup(group))}
           {renderAdminGroup()}
         </nav>
 
-        <div className="z-10 shrink-0 border-t border-border/60 bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className={`z-10 shrink-0 border-t border-border/60 bg-card pb-[max(1rem,env(safe-area-inset-bottom))] ${sidebarCollapsed ? "p-2" : "p-4"}`}>
           {renderSupportLink()}
         </div>
       </aside>
 
-      <header className="fixed left-0 right-0 top-0 z-30 flex h-16 items-center border-b border-border/50 bg-background/80 shadow-sm backdrop-blur-xl lg:left-64">
+      <header className="app-header fixed right-0 top-0 z-30 flex h-16 items-center border-b border-border/50 bg-background/80 shadow-sm backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 lg:hidden">
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -314,7 +373,7 @@ const NavbarContent = () => {
                   <span className="text-lg font-bold text-gradient">Aprendify</span>
                 </div>
                 <nav aria-label="Navegação mobile" className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-                  {MENU_GROUPS.map((group) => renderGroup(group, true))}
+                  {SIDEBAR_GROUPS.map((group) => renderGroup(group, true))}
                   {renderAdminGroup(true)}
                 </nav>
                 <div className="shrink-0 border-t border-border/60 bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
