@@ -26,6 +26,7 @@ import {
   UserRound,
   PanelLeftClose,
   PanelLeftOpen,
+  Users,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { usePremiumContext } from "@/contexts/PremiumContext";
@@ -273,14 +274,7 @@ const NavbarContent = () => {
                       className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"}`}
                       aria-hidden="true"
                     />
-                    <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-                      <span className="truncate font-medium">{item.name}</span>
-                      {item.path === "/amigos" && socialUnreadCount > 0 && (
-                        <span className="rounded-full bg-primary px-1.5 text-[10px] font-bold leading-5 text-primary-foreground" aria-label={`${socialUnreadCount} atividade${socialUnreadCount === 1 ? "" : "s"} não lida${socialUnreadCount === 1 ? "" : "s"}`}>
-                          {socialUnreadCount > 9 ? "9+" : socialUnreadCount}
-                        </span>
-                      )}
-                    </span>
+                    <span className="truncate font-medium">{item.name}</span>
                   </Link>
                 );
 
@@ -453,6 +447,21 @@ const NavbarContent = () => {
                     <UserRound className="mr-3 h-4 w-4 text-foreground/70" /> {label}
                   </DropdownMenuItem>
                 ))}
+
+                <DropdownMenuSeparator className="my-2" />
+                <DropdownMenuLabel className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">Conexões</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => navigate("/amigos")} className="cursor-pointer rounded-lg px-3 py-2.5">
+                  <Users className="mr-3 h-4 w-4 text-foreground/70" />
+                  <span className="min-w-0 flex-1">Amigos</span>
+                  {socialUnreadCount > 0 && (
+                    <span
+                      className="ml-auto rounded-full bg-primary px-1.5 text-[10px] font-bold leading-5 text-primary-foreground"
+                      aria-label={`${socialUnreadCount} atividade${socialUnreadCount === 1 ? "" : "s"} não lida${socialUnreadCount === 1 ? "" : "s"}`}
+                    >
+                      {socialUnreadCount > 9 ? "9+" : socialUnreadCount}
+                    </span>
+                  )}
+                </DropdownMenuItem>
 
                 <DropdownMenuSeparator className="my-2" />
                 <DropdownMenuItem onClick={() => navigate("/achievements")} className="cursor-pointer rounded-lg px-3 py-2.5">
