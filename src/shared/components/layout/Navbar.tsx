@@ -24,10 +24,6 @@ import {
   HelpCircle,
   ChevronDown,
   UserRound,
-  LockKeyhole,
-  SlidersHorizontal,
-  TrendingUp,
-  CreditCard,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
@@ -42,6 +38,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetTitle, SheetDescrip
 import { useHelpTooltips } from "@/contexts/HelpTooltipsContext";
 import { preloadRoute } from "@/lib/pageLoaders";
 import { ADMIN_SIDEBAR_GROUP, SIDEBAR_GROUPS, type SidebarGroup, SIDEBAR_WIDTHS } from "./sidebarNavigation";
+import { PROFILE_DROPDOWN_ITEMS } from "./profileMenu";
 
 export const NavbarLayoutContext = createContext<boolean>(false);
 
@@ -314,8 +311,6 @@ const NavbarContent = () => {
     return mobile ? <SheetClose asChild>{link}</SheetClose> : link;
   };
 
-  const goToProfileTab = (tab: string) => navigate(`/settings?tab=${tab}`);
-
   return (
     <>
       <aside
@@ -444,26 +439,11 @@ const NavbarContent = () => {
 
                 <DropdownMenuSeparator className="my-2" />
                 <DropdownMenuLabel className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">Perfil</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => goToProfileTab("profile")} className="cursor-pointer rounded-lg px-3 py-2.5">
-                  <UserRound className="mr-3 h-4 w-4 text-foreground/70" /> Meu Perfil
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => goToProfileTab("statistics")} className="cursor-pointer rounded-lg px-3 py-2.5">
-                  <TrendingUp className="mr-3 h-4 w-4 text-foreground/70" /> Estatísticas
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => goToProfileTab("subscription")} className="cursor-pointer rounded-lg px-3 py-2.5">
-                  <CreditCard className="mr-3 h-4 w-4 text-foreground/70" /> Minha Assinatura
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => goToProfileTab("security")} className="cursor-pointer rounded-lg px-3 py-2.5">
-                  <LockKeyhole className="mr-3 h-4 w-4 text-foreground/70" /> Segurança
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => goToProfileTab("preferences")} className="cursor-pointer rounded-lg px-3 py-2.5">
-                  <SlidersHorizontal className="mr-3 h-4 w-4 text-foreground/70" /> Preferências
-                </DropdownMenuItem>
-                {isAdmin && (
-                  <DropdownMenuItem onClick={() => goToProfileTab("admin")} className="cursor-pointer rounded-lg px-3 py-2.5 text-primary">
-                    <Shield className="mr-3 h-4 w-4" /> Administração
+                {PROFILE_DROPDOWN_ITEMS.map(({ key, label }) => (
+                  <DropdownMenuItem key={key} onClick={() => navigate(`/settings?tab=${key}`)} className="cursor-pointer rounded-lg px-3 py-2.5">
+                    <UserRound className="mr-3 h-4 w-4 text-foreground/70" /> {label}
                   </DropdownMenuItem>
-                )}
+                ))}
 
                 <DropdownMenuSeparator className="my-2" />
                 <DropdownMenuItem onClick={() => navigate("/achievements")} className="cursor-pointer rounded-lg px-3 py-2.5">
