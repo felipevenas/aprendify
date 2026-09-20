@@ -54,6 +54,11 @@ export const SIDEBAR_GROUPS: readonly SidebarGroup[] = [
       { name: "Simulador SISU", path: "/calculadora-tri", icon: Calculator },
     ],
   },
+  {
+    title: "Conexões",
+    icon: Users,
+    items: [{ name: "Amigos", path: "/amigos", icon: Users }],
+  },
 ] as const;
 
 export const ADMIN_SIDEBAR_GROUP: SidebarGroup = {

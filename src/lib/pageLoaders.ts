@@ -27,6 +27,9 @@ export const pageLoaders = {
   AdminFeedback: () => import("@/pages/AdminFeedback"),
   ReviewErrors: () => import("@/pages/ReviewErrors"),
   TRICalculator: () => import("@/pages/TRICalculator"),
+  Friends: () => import("@/features/friends/pages/FriendsPage"),
+  DirectChat: () => import("@/features/friends/pages/DirectChatPage"),
+  FocusChallenge: () => import("@/features/friends/pages/FocusChallengePage"),
   NotFound: () => import("@/pages/NotFound"),
 };
 
@@ -55,6 +58,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   "/admin/feedback": pageLoaders.AdminFeedback,
   "/review-errors": pageLoaders.ReviewErrors,
   "/calculadora-tri": pageLoaders.TRICalculator,
+  "/amigos": pageLoaders.Friends,
 };
 
 export function preloadRoute(pathname: string) {

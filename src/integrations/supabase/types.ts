@@ -14,6 +14,189 @@ export type Database = {
   }
   public: {
     Tables: {
+      friendships: {
+        Row: {
+          addressee_id: string
+          blocked_by: string | null
+          created_at: string
+          id: string
+          requester_id: string
+          responded_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          addressee_id: string
+          blocked_by?: string | null
+          created_at?: string
+          id?: string
+          requester_id: string
+          responded_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          addressee_id?: string
+          blocked_by?: string | null
+          created_at?: string
+          id?: string
+          requester_id?: string
+          responded_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      friend_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          read_at: string | null
+          recipient_id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          recipient_id: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          recipient_id?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
+      user_presence: {
+        Row: {
+          is_online: boolean
+          last_seen_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          is_online?: boolean
+          last_seen_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          is_online?: boolean
+          last_seen_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      focus_challenges: {
+        Row: {
+          accepted_at: string | null
+          completed_at: string | null
+          created_at: string
+          creator_completed_at: string | null
+          creator_id: string
+          duration_minutes: number
+          expires_at: string
+          id: string
+          invitee_completed_at: string | null
+          invitee_id: string
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          creator_completed_at?: string | null
+          creator_id: string
+          duration_minutes: number
+          expires_at?: string
+          id?: string
+          invitee_completed_at?: string | null
+          invitee_id: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          creator_completed_at?: string | null
+          creator_id?: string
+          duration_minutes?: number
+          expires_at?: string
+          id?: string
+          invitee_completed_at?: string | null
+          invitee_id?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      social_notifications: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          entity_id: string | null
+          id: string
+          metadata: Json
+          notification_type: string
+          read_at: string | null
+          recipient_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          id?: string
+          metadata?: Json
+          notification_type: string
+          read_at?: string | null
+          recipient_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          id?: string
+          metadata?: Json
+          notification_type?: string
+          read_at?: string | null
+          recipient_id?: string
+        }
+        Relationships: []
+      }
+      social_rate_limits: {
+        Row: {
+          action: string
+          calls_count: number
+          user_id: string
+          window_started_at: string
+        }
+        Insert: {
+          action: string
+          calls_count?: number
+          user_id: string
+          window_started_at?: string
+        }
+        Update: {
+          action?: string
+          calls_count?: number
+          user_id?: string
+          window_started_at?: string
+        }
+        Relationships: []
+      }
       achievements: {
         Row: {
           achievement_type: string
@@ -481,6 +664,7 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          show_online_status: boolean
           onboarding_completed: boolean | null
           primeiro_acesso: boolean
           tempo_estudo: string | null
@@ -508,6 +692,7 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          show_online_status?: boolean
           onboarding_completed?: boolean | null
           primeiro_acesso?: boolean
           tempo_estudo?: string | null
@@ -535,6 +720,7 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          show_online_status?: boolean
           onboarding_completed?: boolean | null
           primeiro_acesso?: boolean
           tempo_estudo?: string | null
@@ -1244,6 +1430,90 @@ export type Database = {
       }
     }
     Functions: {
+      social_search_users: {
+        Args: { _query: string }
+        Returns: { id: string; username: string | null; full_name: string | null }[]
+      }
+      social_list_friends: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          friendship_id: string
+          user_id: string
+          username: string | null
+          full_name: string | null
+          is_online: boolean
+          created_at: string
+        }[]
+      }
+      social_list_requests: {
+        Args: { _incoming?: boolean }
+        Returns: {
+          friendship_id: string
+          user_id: string
+          username: string | null
+          full_name: string | null
+          created_at: string
+        }[]
+      }
+      social_send_friend_request: { Args: { _target_user_id: string }; Returns: string }
+      social_respond_friend_request: { Args: { _friendship_id: string; _accept: boolean }; Returns: string }
+      social_cancel_friend_request: { Args: { _friendship_id: string }; Returns: boolean }
+      social_remove_friend: { Args: { _friendship_id: string }; Returns: boolean }
+      social_block_user: { Args: { _target_user_id: string }; Returns: string }
+      social_list_messages: {
+        Args: { _friend_id: string }
+        Returns: Database["public"]["Tables"]["friend_messages"]["Row"][]
+      }
+      social_send_message: {
+        Args: { _recipient_id: string; _body: string }
+        Returns: Database["public"]["Tables"]["friend_messages"]["Row"]
+      }
+      social_mark_messages_read: { Args: { _friend_id: string }; Returns: number }
+      social_set_presence: {
+        Args: { _is_online: boolean }
+        Returns: Database["public"]["Tables"]["user_presence"]["Row"]
+      }
+      social_create_focus_challenge: {
+        Args: { _friend_id: string; _duration_minutes: number }
+        Returns: Database["public"]["Tables"]["focus_challenges"]["Row"]
+      }
+      social_get_focus_challenge: {
+        Args: { _challenge_id: string }
+        Returns: {
+          id: string
+          creator_id: string
+          invitee_id: string
+          duration_minutes: number
+          status: string
+          creator_completed_at: string | null
+          invitee_completed_at: string | null
+          accepted_at: string | null
+          started_at: string | null
+          completed_at: string | null
+          expires_at: string
+          created_at: string
+          creator_name: string
+          invitee_name: string
+        }[]
+      }
+      social_update_focus_challenge: {
+        Args: { _challenge_id: string; _action: string }
+        Returns: Database["public"]["Tables"]["focus_challenges"]["Row"]
+      }
+      social_list_notifications: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          actor_id: string | null
+          actor_name: string
+          notification_type: string
+          entity_id: string | null
+          metadata: Json
+          read_at: string | null
+          created_at: string
+        }[]
+      }
+      social_mark_notification_read: { Args: { _notification_id: string }; Returns: boolean }
       check_rate_limit: {
         Args: {
           _function_name: string

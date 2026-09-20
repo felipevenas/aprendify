@@ -39,6 +39,7 @@ import { useHelpTooltips } from "@/contexts/HelpTooltipsContext";
 import { preloadRoute } from "@/lib/pageLoaders";
 import { ADMIN_SIDEBAR_GROUP, SIDEBAR_GROUPS, type SidebarGroup, SIDEBAR_WIDTHS } from "./sidebarNavigation";
 import { PROFILE_DROPDOWN_ITEMS } from "./profileMenu";
+import { useSocialUnreadCount } from "@/features/friends/hooks/useFriendsHub";
 
 export const NavbarLayoutContext = createContext<boolean>(false);
 
@@ -93,6 +94,7 @@ const NavbarContent = () => {
   });
   const { isPremium, isLoading, planType } = usePremiumContext();
   const { streakData, loading: streakLoading } = useStreakContext();
+  const socialUnreadCount = useSocialUnreadCount();
   const planVisual = getPlanVisual(isLoading ? null : planType, isLoading ? false : isPremium);
 
   useEffect(() => {
@@ -271,7 +273,14 @@ const NavbarContent = () => {
                       className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"}`}
                       aria-hidden="true"
                     />
-                    <span className="truncate font-medium">{item.name}</span>
+                    <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                      <span className="truncate font-medium">{item.name}</span>
+                      {item.path === "/amigos" && socialUnreadCount > 0 && (
+                        <span className="rounded-full bg-primary px-1.5 text-[10px] font-bold leading-5 text-primary-foreground" aria-label={`${socialUnreadCount} atividade${socialUnreadCount === 1 ? "" : "s"} não lida${socialUnreadCount === 1 ? "" : "s"}`}>
+                          {socialUnreadCount > 9 ? "9+" : socialUnreadCount}
+                        </span>
+                      )}
+                    </span>
                   </Link>
                 );
 
