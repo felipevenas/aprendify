@@ -24,6 +24,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { PageLoader } from "@/components/ui/page-loader";
 import { PremiumModal } from "@/components/PremiumModal";
+import { getPlanLabel as getCatalogPlanLabel } from "../catalog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,7 +49,11 @@ interface SubscriptionDetails {
  * Página de Assinatura do usuário
  * Permite assinar o Premium ou gerenciar a assinatura atual via Stripe
  */
-export default function Subscription() {
+interface SubscriptionPageProps {
+  embedded?: boolean;
+}
+
+export default function Subscription({ embedded = false }: SubscriptionPageProps) {
   const navigate = useNavigate();
   const { isPremium, isLoading: isPremiumLoading } = usePremium();
   const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null);
@@ -162,21 +167,23 @@ export default function Subscription() {
   const getPlanLabel = (planType: string | null) => {
     switch (planType) {
       case "annual":
-        return "Plano Anual";
+        return "Completo";
       case "monthly":
-        return "Plano Mensal";
+        return "Prática";
       case "god":
-        return "Plano Administrador";
+        return "Administrador";
+      case "creator":
+        return "Criador";
       default:
-        return "Plano Premium";
+        return getCatalogPlanLabel(planType);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background app-layout-container">
-      <Navbar />
+    <div className={embedded ? "w-full" : "min-h-screen bg-background app-layout-container"}>
+      {!embedded && <Navbar />}
       
-      <main className="max-w-7xl lg:ml-0 lg:mr-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className={embedded ? "w-full" : "mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8"}>
         <PageLoader loading={isLoading || isPremiumLoading} variant="default">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

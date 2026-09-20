@@ -183,7 +183,7 @@ export const PremiumLockScreen = ({ title, description, features }: PremiumLockS
           size="xl"
           variant="premium"
           className="gap-2 shadow-lg shadow-amber-500/25"
-          onClick={() => navigate("/subscription")}
+          onClick={() => navigate("/settings?tab=subscription")}
         >
           <Crown className="h-5 w-5" />
           Assinar Premium

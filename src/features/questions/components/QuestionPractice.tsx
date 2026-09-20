@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import { CheckCircle2, XCircle, ChevronRight, Loader2, ThumbsUp, HelpCircle, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDisciplineName, cleanMarkdownArtifacts, separateTextAndReference } from "@/lib/formatters";
+import { formatDisciplineName, cleanMarkdownArtifacts, hasContextContent, separateTextAndReference } from "@/lib/formatters";
 import QuestionExplanation from "./QuestionExplanation";
 import DifficultyIndicator from "./DifficultyIndicator";
 import { supabase } from "@/integrations/supabase/client";
@@ -124,7 +124,8 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
   // Processa o contexto para separar texto da referência
   const processedContext = useMemo(() => {
     if (!question.context) return null;
-    return separateTextAndReference(question.context);
+    const context = separateTextAndReference(question.context);
+    return hasContextContent(context) ? context : null;
   }, [question.context]);
 
   const questionTitle = useMemo(() => {

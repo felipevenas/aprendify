@@ -37,7 +37,7 @@ export const FeedbackForm = ({ onSubmit, submitting }: FeedbackFormProps) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Novo Feedback</CardTitle>
+        <CardTitle className="text-lg">Nova solicitação</CardTitle>
         <CardDescription>
           Sua opinião é muito importante para melhorarmos a plataforma
         </CardDescription>
@@ -45,7 +45,7 @@ export const FeedbackForm = ({ onSubmit, submitting }: FeedbackFormProps) => {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Tipo de feedback</Label>
+            <Label>Tipo de solicitação</Label>
             <RadioGroup
               value={ticketType}
               onValueChange={(value) => setTicketType(value as TicketType)}
@@ -79,7 +79,7 @@ export const FeedbackForm = ({ onSubmit, submitting }: FeedbackFormProps) => {
             <Label htmlFor="title">Título</Label>
             <Input
               id="title"
-              placeholder="Resumo do seu feedback"
+              placeholder="Resumo da sua solicitação"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={100}
@@ -108,7 +108,7 @@ export const FeedbackForm = ({ onSubmit, submitting }: FeedbackFormProps) => {
             ) : (
               <>
                 <Send className="h-4 w-4 mr-2" />
-                Enviar Feedback
+                Enviar solicitação
               </>
             )}
           </Button>

@@ -190,7 +190,7 @@ const GenerateScheduleButton = ({ onGenerated, lastGeneration }: GenerateSchedul
             className="w-full gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700"
             onClick={() => {
               setPremiumDialogOpen(false);
-              navigate("/subscription");
+              navigate("/settings?tab=subscription");
             }}
           >
             <Crown className="h-5 w-5" />

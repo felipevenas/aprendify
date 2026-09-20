@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createCheckoutSession } from "../services/checkoutService";
 import { RemoteFailure, retryAfterLabel } from "@/features/auth/services/remoteErrors";
+import { PLAN_CATALOG } from "../catalog";
 
 interface PremiumModalProps {
   open: boolean;
@@ -21,11 +22,11 @@ type PlanType = "monthly" | "annual";
 
 const PLANS = {
   monthly: {
-    price: 9.9,
+    price: PLAN_CATALOG.monthly.price,
     period: "mês",
   },
   annual: {
-    price: 95.04,
+    price: PLAN_CATALOG.annual.price,
     period: "ano",
     monthlyEquivalent: 7.92,
     discount: 20,

@@ -37,19 +37,20 @@ import {
 import { cn } from "@/lib/utils";
 import { createCheckoutSession } from "../services/checkoutService";
 import { RemoteFailure, retryAfterLabel } from "@/features/auth/services/remoteErrors";
+import { PLAN_CATALOG } from "../catalog";
 
 // Preços oficiais do Stripe
 const STRIPE_PRICES = {
   starter: {
-    name: "Prática",
-    price: 9.90,
+    name: PLAN_CATALOG.monthly.label,
+    price: PLAN_CATALOG.monthly.price,
     period: "/mês",
     description: "Ideal para estudar sem travas com questões ilimitadas e IA explicativa.",
   },
   annual: {
-    name: "Completo",
-    price: 95.04,
-    monthlyEquivalent: 7.92,
+    name: PLAN_CATALOG.annual.label,
+    price: PLAN_CATALOG.annual.price,
+    monthlyEquivalent: PLAN_CATALOG.annual.monthlyEquivalent,
     period: "/ano",
     discount: 20,
     description: "Preparação completa com simulados TRI e plano de estudos até o ENEM.",
