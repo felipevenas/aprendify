@@ -239,7 +239,7 @@ export const HelpTooltipsProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } else if (path === "/notes") {
       setTooltips(notesTooltips);
       setCurrentPage("notes");
-    } else if (path === "/statistics") {
+    } else if (path === "/statistics" || (path === "/settings" && location.search.includes("tab=statistics"))) {
       setTooltips(statisticsTooltips);
       setCurrentPage("statistics");
     } else if (path.startsWith("/questions")) {
@@ -258,7 +258,7 @@ export const HelpTooltipsProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setTooltips([]);
       setCurrentPage("other");
     }
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   // Get user ID on mount
   useEffect(() => {

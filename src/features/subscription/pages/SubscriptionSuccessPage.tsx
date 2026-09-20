@@ -154,7 +154,7 @@ export default function SubscriptionSuccessPage() {
                     <RefreshCw className="mr-2 h-4 w-4" /> Atualizar status
                   </Button>
                 )}
-                <Button type="button" onClick={() => navigate(paymentState === "confirmed" ? "/dashboard" : "/subscription")}>
+                <Button type="button" onClick={() => navigate(paymentState === "confirmed" ? "/dashboard" : "/settings?tab=subscription")}>
                   {isFailure ? "Voltar para assinatura" : paymentState === "confirmed" ? "Ir para o Dashboard" : "Voltar sem liberar acesso"}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>

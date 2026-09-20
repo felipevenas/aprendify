@@ -349,7 +349,7 @@ const Questions = () => {
                 {dailyQuestionCount >= freeDailyLimit && (
                   <Button 
                     size="sm" 
-                    onClick={() => navigate("/subscription")}
+                    onClick={() => navigate("/settings?tab=subscription")}
                     className="gap-1"
                   >
                     <Crown className="h-3 w-3" />
@@ -418,7 +418,7 @@ const Questions = () => {
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                 Você já respondeu o limite gratuito de {freeDailyLimit} questões por hoje. Assine o plano Premium para continuar praticando.
               </p>
-              <Button onClick={() => navigate("/subscription")} className="gap-2 bg-primary">
+              <Button onClick={() => navigate("/settings?tab=subscription")} className="gap-2 bg-primary">
                 <Crown className="h-4 w-4" />
                 Ver Planos Premium
               </Button>

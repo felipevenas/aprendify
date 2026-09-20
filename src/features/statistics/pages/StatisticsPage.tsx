@@ -92,7 +92,11 @@ type PeriodFilter = "all" | "week" | "month" | "today";
  * Mostra acertos, erros, disciplinas com mais erros/acertos e sugestões
  * Só exibe após usuário responder pelo menos 5 questões
  */
-const Statistics = () => {
+interface StatisticsPageProps {
+  embedded?: boolean;
+}
+
+const Statistics = ({ embedded = false }: StatisticsPageProps) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const { isPremium, isLoading: premiumLoading } = usePremium();
@@ -516,9 +520,9 @@ const Statistics = () => {
   // Mostra mensagem amigável se ainda não houver tentativas
   if (showEmptyState) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 app-layout-container">
-        <Navbar />
-        <main className="max-w-7xl lg:ml-0 lg:mr-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className={embedded ? "w-full" : "min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 app-layout-container"}>
+        {!embedded && <Navbar />}
+        <main className={embedded ? "w-full" : "mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8"}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -543,9 +547,9 @@ const Statistics = () => {
   // Bloqueia acesso para usuários free
   if (showLockState) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 app-layout-container">
-        <Navbar />
-        <main className="max-w-4xl lg:ml-0 lg:mr-auto px-4 sm:px-6 lg:px-8 py-20">
+      <div className={embedded ? "w-full" : "min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 app-layout-container"}>
+        {!embedded && <Navbar />}
+        <main className={embedded ? "w-full" : "mx-auto w-full max-w-4xl px-4 py-20 sm:px-6 lg:px-8"}>
           <PremiumLockScreen
             title="Estatísticas Premium"
             description="Assine o plano Premium para acessar estatísticas detalhadas do seu desempenho"
@@ -576,10 +580,10 @@ const Statistics = () => {
   const successRate = totalAttempts > 0 ? ((correctAnswers / totalAttempts) * 100).toFixed(1) : "0";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 app-layout-container">
-      <Navbar />
+    <div className={embedded ? "w-full" : "min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 app-layout-container"}>
+      {!embedded && <Navbar />}
 
-      <main className="max-w-7xl lg:ml-0 lg:mr-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className={embedded ? "w-full" : "mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8"}>
         <PageLoader loading={loading || premiumLoading} variant="cards">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">

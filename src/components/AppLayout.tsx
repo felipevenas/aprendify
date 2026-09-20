@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { StreakProvider } from "@/contexts/StreakContext";
 import { PremiumProvider } from "@/contexts/PremiumContext";
 import { HelpTooltipsProvider } from "@/contexts/HelpTooltipsContext";
@@ -29,14 +29,12 @@ const Tasks = lazy(pageLoaders.Tasks);
 const Notes = lazy(pageLoaders.Notes);
 const Questions = lazy(pageLoaders.Questions);
 const Settings = lazy(pageLoaders.Settings);
-const Statistics = lazy(pageLoaders.Statistics);
 const AdminImport = lazy(pageLoaders.AdminImport);
 const AdminUsers = lazy(pageLoaders.AdminUsers);
 const AdminQuestions = lazy(pageLoaders.AdminQuestions);
 const Flashcards = lazy(pageLoaders.Flashcards);
 const Essays = lazy(pageLoaders.Essays);
 const SubscriptionSuccess = lazy(pageLoaders.SubscriptionSuccess);
-const Subscription = lazy(pageLoaders.Subscription);
 const Simulados = lazy(pageLoaders.Simulados);
 const SimuladoActive = lazy(pageLoaders.SimuladoActive);
 const SimuladoResults = lazy(pageLoaders.SimuladoResults);
@@ -84,10 +82,10 @@ const AppLayout = () => {
                   <Route path="/notes" element={<Notes />} />
                   <Route path="/questions" element={<Questions />} />
                   <Route path="/settings" element={<Settings />} />
-                  <Route path="/statistics" element={<Statistics />} />
+                  <Route path="/statistics" element={<Navigate to="/settings?tab=statistics" replace />} />
                   <Route path="/flashcards" element={<Flashcards />} />
                   <Route path="/essays" element={<Essays />} />
-                  <Route path="/subscription" element={<Subscription />} />
+                  <Route path="/subscription" element={<Navigate to="/settings?tab=subscription" replace />} />
                   <Route path="/subscription/success" element={<SubscriptionSuccess />} />
                   <Route path="/planos" element={<CheckoutPage />} />
                   <Route path="/oferta" element={<SalesPage />} />

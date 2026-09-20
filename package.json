@@ -9,7 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "test:unit": "node --experimental-strip-types --test src/features/questions/components/question-media.test.ts supabase/functions/question-explanation/question-explanation.test.mjs",
+    "test:unit": "node --experimental-strip-types --test src/features/questions/components/question-media.test.ts src/features/subscription/catalog.test.ts src/features/settings/profileTabs.test.ts supabase/functions/question-explanation/question-explanation.test.mjs",
     "test": "node --test supabase/functions/_shared/*.test.mjs",
     "preview": "vite preview"
   },

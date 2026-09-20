@@ -12,18 +12,19 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { createCheckoutSession } from "../services/checkoutService";
 import { RemoteFailure, retryAfterLabel } from "@/features/auth/services/remoteErrors";
+import { PLAN_CATALOG } from "../catalog";
 
 const PLANS = {
   starter: {
-    name: "Prática",
-    price: 9.9,
-    period: "/mês",
+    name: PLAN_CATALOG.monthly.label,
+    price: PLAN_CATALOG.monthly.price,
+    period: PLAN_CATALOG.monthly.period,
     description: "Questões ilimitadas, IA explicativa e 4 redações por mês.",
   },
   annual: {
-    name: "Completo",
-    price: 95.04,
-    period: "/ano",
+    name: PLAN_CATALOG.annual.label,
+    price: PLAN_CATALOG.annual.price,
+    period: PLAN_CATALOG.annual.period,
     description: "Tudo do Prática, simulados TRI, cronograma IA e 12 redações por mês.",
   },
 } as const;

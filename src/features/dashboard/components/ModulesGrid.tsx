@@ -49,7 +49,7 @@ const primaryModules: ModuleCard[] = [
     title: "Desempenho",
     description: "Acompanhe sua evolução",
     icon: Sparkles,
-    path: "/statistics",
+    path: "/settings?tab=statistics",
     isPremium: true,
   },
 ];
