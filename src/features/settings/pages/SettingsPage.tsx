@@ -353,8 +353,9 @@ const Settings = () => {
                   </Suspense>
                 </TabsContent>
 
-                <TabsContent value="security" className="mt-0 space-y-6">
-                  <Card className="border-border/60 shadow-sm">
+                <TabsContent value="security" className="mt-0">
+                  <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+                  <Card className="h-full border-border/60 shadow-sm">
                     <CardHeader>
                       <CardTitle className="text-base">Alterar Senha de Acesso</CardTitle>
                       <CardDescription>Mantenha sua conta protegida com uma senha forte.</CardDescription>
@@ -366,6 +367,7 @@ const Settings = () => {
                     </CardContent>
                   </Card>
                   {user && <TwoFactorAuth userId={user.id} />}
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="preferences" className="mt-0 space-y-6">
