@@ -277,7 +277,7 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-      <Card className="mx-auto max-w-5xl overflow-hidden rounded-2xl border-border/70 bg-card shadow-card">
+      <Card className="w-full overflow-hidden rounded-2xl border-border/70 bg-card shadow-card">
         {/* Header da questão */}
         <div className="border-b border-border/70 bg-muted/15 px-5 py-5 sm:px-8 sm:py-6">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -568,7 +568,7 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
             </div>
           )}
 
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end sm:gap-3">
+          <div className="flex w-full flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row sm:justify-end sm:gap-3">
             {!showResult ? (
               <>
                 <Button onClick={handleNextQuestion} variant="outline" size="lg" className="w-full sm:w-auto">
