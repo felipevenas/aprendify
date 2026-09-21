@@ -15,6 +15,7 @@ import Confetti from "react-confetti";
 import { useWindowSize } from "@/hooks/useWindowSize";
 import { MotionConfig } from "framer-motion";
 import { getSafeAuthMessage } from "../services/authMessages";
+import { validatePassword, usernameSchema } from "../services/authValidation";
 import { useTheme } from "next-themes";
 
 /**
@@ -36,15 +37,6 @@ const emailSchema = z
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     return emailRegex.test(email);
   }, "E-mail inválido. Verifique o formato");
-
-const usernameSchema = z
-  .string()
-  .trim()
-  .min(3, "Nome de usuário deve ter no mínimo 3 caracteres")
-  .max(30, "Nome de usuário deve ter no máximo 30 caracteres")
-  .regex(/^[a-zA-Z]/, "Nome de usuário deve começar com uma letra")
-  .regex(/^[a-zA-Z0-9_]+$/, "Apenas letras, números e underscore (_) são permitidos")
-  .refine((username) => !username.includes("__"), "Não pode ter underscores consecutivos");
 
 const fullNameSchema = z
   .string()
@@ -130,19 +122,6 @@ const dynamicContent = [
     ],
   },
 ];
-
-/**
- * Validação de senha forte
- */
-const validatePassword = (password: string) => {
-  return {
-    minLength: password.length >= 8,
-    hasUpperCase: /[A-Z]/.test(password),
-    hasLowerCase: /[a-z]/.test(password),
-    hasNumber: /[0-9]/.test(password),
-    hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password),
-  };
-};
 
 /**
  * Página de autenticação com design moderno split-screen
@@ -787,7 +766,7 @@ const Auth = () => {
                     <Input
                       id="username"
                       type="text"
-                      placeholder="seunome123"
+                      placeholder="seu.nome_123"
                       value={username}
                       name="username"
                       autoComplete="username"
@@ -796,6 +775,8 @@ const Auth = () => {
                       onBlur={() => setFocusedInput(null)}
                       required={!isLogin}
                       disabled={loading}
+                      maxLength={30}
+                      spellCheck={false}
                       className="pl-11 h-12 text-base transition-all duration-300"
                     />
                   </div>
