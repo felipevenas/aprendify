@@ -516,6 +516,63 @@ export type Database = {
         }
         Relationships: []
       }
+      repertorios_socioculturais: {
+        Row: {
+          application_example: string
+          category: string
+          created_at: string
+          id: string
+          niches: string[]
+          origin: string
+          purpose: string
+          source_author: string | null
+          source_title: string | null
+          source_url: string | null
+          source_year: string | null
+          summary: string
+          themes: string[]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          application_example: string
+          category: string
+          created_at?: string
+          id?: string
+          niches?: string[]
+          origin?: string
+          purpose: string
+          source_author?: string | null
+          source_title?: string | null
+          source_url?: string | null
+          source_year?: string | null
+          summary: string
+          themes?: string[]
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          application_example?: string
+          category?: string
+          created_at?: string
+          id?: string
+          niches?: string[]
+          origin?: string
+          purpose?: string
+          source_author?: string | null
+          source_title?: string | null
+          source_url?: string | null
+          source_year?: string | null
+          summary?: string
+          themes?: string[]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       flashcards: {
         Row: {
           back_content: string

@@ -17,6 +17,7 @@ import {
   Calculator,
   GraduationCap,
   Target,
+  BookMarked,
 } from "lucide-react";
 
 export type SidebarItem = {
@@ -50,6 +51,7 @@ export const SIDEBAR_GROUPS: readonly SidebarGroup[] = [
       { name: "Simulados ENEM", path: "/simulados", icon: Trophy },
       { name: "Caderno de Erros", path: "/review-errors", icon: RotateCcw },
       { name: "Redações", path: "/essays", icon: PenTool },
+      { name: "Repertórios", path: "/repertorios", icon: BookMarked },
       { name: "Flashcards", path: "/flashcards", icon: Layers },
       { name: "Simulador SISU", path: "/calculadora-tri", icon: Calculator },
     ],

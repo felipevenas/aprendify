@@ -8,6 +8,9 @@ test("mantém a sidebar principal organizada em Estudos e Prática", () => {
   assert.equal(SIDEBAR_GROUPS.flatMap((group) => group.items).some((item) => item.name === "Minha Assinatura"), false);
   assert.equal(SIDEBAR_GROUPS.flatMap((group) => group.items).some((item) => item.name.includes("Feedback")), false);
   assert.equal(SIDEBAR_GROUPS.flatMap((group) => group.items).some((item) => item.path === "/amigos"), false);
+  assert.equal(SIDEBAR_GROUPS.flatMap((group) => group.items).some((item) => item.path === "/repertorios"), true);
+  const practiceItems = SIDEBAR_GROUPS[1].items;
+  assert.equal(practiceItems.findIndex((item) => item.path === "/repertorios"), practiceItems.findIndex((item) => item.path === "/essays") + 1);
 });
 
 test("preserva a área administrativa fora da navegação principal", () => {

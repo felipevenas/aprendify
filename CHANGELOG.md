@@ -4,7 +4,11 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
 ## Não lançado
 
+### Adicionado
+- **Repertórios socioculturais:** biblioteca privada para criar e salvar referências, com geração assistida por IA, seleção de temas de redações salvas ou opção de tema manual, exemplos de aplicação, temas relacionados e nichos.
+
 ### Corrigido
+- **Explicação de questões:** removida a notificação duplicada quando o erro já está visível no painel, com espaçamento ajustado.
 - **Proteção das funções de IA com Groq:** padronizada a aplicação do rate-limit atômico nas 11 funções presentes nesta branch, com resposta `429`, cabeçalhos de uso e falha fechada quando o controle de quota está indisponível.
 - **Navbar em celulares:** removidos o indicador de streak e as notificações do topo; menu hambúrguer mantido à esquerda, marca centralizada e perfil acessível à direita.
 - **Validação das funções:** adicionados testes do helper de rate-limit e verificação estática para impedir regressões de cobertura nas funções Groq.

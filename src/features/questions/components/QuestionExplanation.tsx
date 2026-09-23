@@ -164,11 +164,6 @@ const QuestionExplanation = ({ question, isPremium, showResult, selectedAlternat
     } catch (error) {
       const failure = error instanceof RemoteFailure ? error : normalizeRemoteFailure(error, { operation: "explanation" });
       setRemoteError(failure);
-      toast({
-        title: "Não foi possível carregar a explicação",
-        description: failure.message,
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }
@@ -225,7 +220,7 @@ const QuestionExplanation = ({ question, isPremium, showResult, selectedAlternat
             transition={{ duration: 0.3 }}
             className="overflow-hidden"
           >
-            <div className="mt-4 p-4 sm:p-5 bg-card border border-border/80 rounded-xl shadow-sm space-y-4">
+            <div className="mt-3 p-4 sm:p-5 bg-card border border-border/80 rounded-xl shadow-sm space-y-4">
               {loading ? (
                 <div className="flex items-center justify-center gap-3 py-6 text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin text-primary" />
