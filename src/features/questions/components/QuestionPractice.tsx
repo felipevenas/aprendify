@@ -476,7 +476,7 @@ const QuestionPractice = ({ question, onNext, onAnswer, isPremium = false }: Que
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className={cn(
-              "p-4 rounded-lg mb-6",
+              "mt-4 p-4 rounded-lg mb-6",
               isCorrect ? "bg-green-500/10 border border-green-500" : "bg-red-500/10 border border-red-500",
             )}
           >
