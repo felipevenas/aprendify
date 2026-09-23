@@ -59,7 +59,9 @@ serve(async (req) => {
             { role: "user", content: prompt },
           ],
           response_format: { type: "json_object" },
-          max_completion_tokens: 1100,
+          // GPT-OSS completion tokens include its internal reasoning tokens.
+          reasoning_effort: "low",
+          max_completion_tokens: 1800,
           temperature: 0.35,
         }),
         signal: AbortSignal.timeout(25_000),
@@ -84,11 +86,21 @@ serve(async (req) => {
     } catch {
       throw new ApiError(502, "AI_INVALID_RESPONSE", "A resposta da IA veio em formato inválido.");
     }
-    const content = (groqPayload as { choices?: Array<{ message?: { content?: unknown } }> })
-      ?.choices?.[0]?.message?.content;
+    const choice = (groqPayload as {
+      choices?: Array<{ finish_reason?: unknown; message?: { content?: unknown } }>;
+      usage?: { completion_tokens?: unknown };
+    })?.choices?.[0];
+    const content = choice?.message?.content;
     const repertoire = parseGeneratedRepertoire(content);
     if (!repertoire.ok) {
-      console.warn("[generate-sociocultural-repertoire] Groq returned invalid structured content");
+      const completionTokens = (groqPayload as { usage?: { completion_tokens?: unknown } })?.usage?.completion_tokens;
+      console.warn("[generate-sociocultural-repertoire] Groq returned invalid structured content", {
+        reason: repertoire.reason ?? "unknown",
+        finishReason: choice?.finish_reason ?? null,
+        contentType: typeof content,
+        contentLength: typeof content === "string" ? content.length : null,
+        completionTokens: typeof completionTokens === "number" ? completionTokens : null,
+      });
       throw new ApiError(502, "AI_INVALID_RESPONSE", "A IA não conseguiu montar um repertório válido. Tente novamente.");
     }
 

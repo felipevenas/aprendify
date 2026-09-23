@@ -21,7 +21,7 @@ export type GeneratedRepertoire = {
 
 export type ValidationResult<T> =
   | { ok: true; value: T }
-  | { ok: false; code: "INVALID_INPUT" | "INVALID_AI_OUTPUT"; message: string };
+  | { ok: false; code: "INVALID_INPUT" | "INVALID_AI_OUTPUT"; message: string; reason?: string };
 
 function boundedText(value: unknown, maxLength: number, required = true): string | null {
   if (typeof value !== "string") return required ? null : "";
@@ -52,7 +52,9 @@ export function validateRepertoireInput(value: unknown): ValidationResult<Repert
 
 function optionalSourceText(value: unknown, maxLength: number): string | null | undefined {
   if (value === undefined || value === null || value === "") return null;
-  const text = boundedText(value, maxLength);
+  // Some model responses encode years as JSON numbers (for example, 2020).
+  const normalized = typeof value === "number" && Number.isFinite(value) ? String(value) : value;
+  const text = boundedText(normalized, maxLength);
   return text === null ? undefined : text;
 }
 
@@ -65,17 +67,18 @@ function stringList(value: unknown): string[] | null {
 
 export function parseGeneratedRepertoire(raw: unknown): ValidationResult<GeneratedRepertoire> {
   if (typeof raw !== "string" || raw.length > 16_000) {
-    return { ok: false, code: "INVALID_AI_OUTPUT", message: "A IA retornou uma resposta inválida." };
+    const reason = typeof raw !== "string" ? "content_not_string" : "content_too_large";
+    return { ok: false, code: "INVALID_AI_OUTPUT", message: "A IA retornou uma resposta inválida.", reason };
   }
   const jsonText = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   let parsed: unknown;
   try {
     parsed = JSON.parse(jsonText);
   } catch {
-    return { ok: false, code: "INVALID_AI_OUTPUT", message: "A IA não retornou JSON válido." };
+    return { ok: false, code: "INVALID_AI_OUTPUT", message: "A IA não retornou JSON válido.", reason: "invalid_json" };
   }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    return { ok: false, code: "INVALID_AI_OUTPUT", message: "A IA retornou um formato inesperado." };
+    return { ok: false, code: "INVALID_AI_OUTPUT", message: "A IA retornou um formato inesperado.", reason: "invalid_shape" };
   }
   const source = parsed as Record<string, unknown>;
   const title = boundedText(source.title, 180);
@@ -94,10 +97,10 @@ export function parseGeneratedRepertoire(raw: unknown): ValidationResult<Generat
     applicationExample === null || themes === null || niches === null ||
     sourceTitle === undefined || sourceAuthor === undefined || sourceYear === undefined || sourceUrl === undefined
   ) {
-    return { ok: false, code: "INVALID_AI_OUTPUT", message: "A IA retornou campos incompletos ou fora dos limites." };
+    return { ok: false, code: "INVALID_AI_OUTPUT", message: "A IA retornou campos incompletos ou fora dos limites.", reason: "invalid_fields" };
   }
   if (sourceUrl && !/^https?:\/\//i.test(sourceUrl)) {
-    return { ok: false, code: "INVALID_AI_OUTPUT", message: "A referência retornada contém uma URL inválida." };
+    return { ok: false, code: "INVALID_AI_OUTPUT", message: "A referência retornada contém uma URL inválida.", reason: "invalid_source_url" };
   }
   return {
     ok: true,
