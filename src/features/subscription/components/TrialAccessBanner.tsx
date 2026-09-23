@@ -29,11 +29,13 @@ export function TrialAccessBanner() {
           </span>
           <div className="min-w-0">
             <h2 id="trial-access-heading" className="text-sm font-semibold text-foreground">
-              {active ? "Seu acesso Completo grátis está ativo" : "Seu período de teste terminou"}
+              {active ? "Seu teste grátis de 3 dias do Completo está ativo" : "Seu período de teste terminou"}
             </h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {active
-                ? deadline ? `Aproveite todos os recursos até ${deadline}.` : "Aproveite todos os recursos do plano Completo."
+                ? deadline
+                  ? `Aproveite todos os recursos até ${deadline}. Sem cartão e sem cobrança automática.`
+                  : "Aproveite os recursos do plano Completo por 3 dias, sem cartão e sem cobrança automática."
                 : "Escolha um plano mensal ou anual para continuar com os recursos Premium."}
             </p>
           </div>
