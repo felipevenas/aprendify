@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +12,7 @@ import {
   Crown, 
   CreditCard, 
   Calendar, 
+  Clock3,
   Settings, 
   Loader2,
   ExternalLink,
@@ -25,6 +26,7 @@ import { ptBR } from "date-fns/locale";
 import { PageLoader } from "@/components/ui/page-loader";
 import { PremiumModal } from "@/components/PremiumModal";
 import { getPlanLabel as getCatalogPlanLabel } from "../catalog";
+import { formatTrialDeadline } from "../trialPresentation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,18 +57,17 @@ interface SubscriptionPageProps {
 
 export default function Subscription({ embedded = false }: SubscriptionPageProps) {
   const navigate = useNavigate();
-  const { isPremium, isLoading: isPremiumLoading } = usePremium();
+  const { isPremium, isLoading: isPremiumLoading, trialStatus, trialEndsAt, isSubscribed } = usePremium();
   const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [subscriptionError, setSubscriptionError] = useState(false);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
   const [showPlansModal, setShowPlansModal] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
 
-  useEffect(() => {
-    fetchSubscription();
-  }, []);
-
-  const fetchSubscription = async () => {
+  const fetchSubscription = useCallback(async () => {
+    setIsLoading(true);
+    setSubscriptionError(false);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -84,10 +85,15 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
       setSubscription(data);
     } catch (error) {
       console.error("Error fetching subscription:", error);
+      setSubscriptionError(true);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [navigate]);
+
+  useEffect(() => {
+    void fetchSubscription();
+  }, [fetchSubscription]);
 
   const openCustomerPortal = async (mode: "manage" | "cancel" = "manage") => {
     setIsPortalLoading(true);
@@ -201,7 +207,56 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
               </div>
             </div>
 
-            {!isPremium && !subscription ? (
+            {subscriptionError ? (
+              <Card role="alert" className="border-destructive/30">
+                <CardContent className="space-y-4 p-6">
+                  <div>
+                    <h2 className="font-semibold">Não foi possível carregar sua assinatura</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">Tente novamente. Seu acesso e suas informações de pagamento não foram alterados.</p>
+                  </div>
+                  <Button type="button" onClick={() => void fetchSubscription()} disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Tentar novamente
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : trialStatus === "active" && !isSubscribed ? (
+              <Card className="border-primary/30 bg-primary/[0.04] shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Crown className="h-5 w-5 text-primary" />
+                    Teste grátis do plano Completo
+                  </CardTitle>
+                  <CardDescription>Você tem acesso aos recursos do Completo sem cobrança e sem cadastrar cartão.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  <div className="rounded-lg border border-border/60 bg-background p-4">
+                    <p className="text-sm text-muted-foreground">Seu acesso de teste termina em</p>
+                    <p className="mt-1 font-semibold text-foreground">{formatTrialDeadline(trialEndsAt) ?? "A data de encerramento será atualizada em instantes."}</p>
+                  </div>
+                  <p className="text-sm text-muted-foreground">O teste não inicia uma assinatura nem gera cobrança automática. Se quiser continuar depois, escolha um plano mensal ou anual.</p>
+                  <Button size="lg" onClick={() => navigate("/planos")}>
+                    Conhecer os planos
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : trialStatus === "expired" && !isSubscribed ? (
+              <Card className="border-amber-500/30 bg-amber-500/[0.04] shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock3 className="h-5 w-5 text-amber-600" />
+                    Seu período de teste terminou
+                  </CardTitle>
+                  <CardDescription>Seu acesso voltou ao plano Básico. Contrate quando quiser continuar com os recursos do Completo.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">Escolha entre o plano Prática mensal ou Completo anual. Nenhuma cobrança é feita sem você iniciar uma contratação.</p>
+                  <Button size="lg" onClick={() => navigate("/planos")}>
+                    Ver planos mensais e anuais
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : !isPremium && !subscription ? (
               <Card className="border-2 border-primary/20 shadow-lg">
                 <CardContent className="p-8 text-center">
                   <div className="inline-flex p-3 rounded-2xl bg-primary/10 text-primary mb-4">

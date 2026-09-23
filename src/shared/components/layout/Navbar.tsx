@@ -7,7 +7,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
+  DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -27,14 +27,13 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Users,
+  Flame,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { usePremiumContext } from "@/contexts/PremiumContext";
-import { getPlanVisual } from "@/features/subscription/catalog";
+import { getAccountPlanVisual, type PlanVisual } from "@/features/subscription/catalog";
 import { useStreakContext } from "@/contexts/StreakContext";
-import { StreakIndicator } from "@/components/streak/StreakIndicator";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useHelpTooltips } from "@/contexts/HelpTooltipsContext";
 import { preloadRoute } from "@/lib/pageLoaders";
@@ -58,7 +57,7 @@ interface NavbarProps {
 interface PlanAvatarProps {
   userName: string;
   avatarUrl?: string;
-  planVisual: ReturnType<typeof getPlanVisual>;
+  planVisual: PlanVisual;
   sizeClassName: string;
 }
 
@@ -93,10 +92,10 @@ const NavbarContent = () => {
     Prática: true,
     Administração: false,
   });
-  const { isPremium, isLoading, planType } = usePremiumContext();
+  const { isPremium, isLoading, planType, trialStatus, isSubscribed } = usePremiumContext();
   const { streakData, loading: streakLoading } = useStreakContext();
   const socialUnreadCount = useSocialUnreadCount();
-  const planVisual = getPlanVisual(isLoading ? null : planType, isLoading ? false : isPremium);
+  const planVisual = getAccountPlanVisual(isLoading ? null : planType, isLoading ? false : isPremium, trialStatus, isSubscribed);
 
   useEffect(() => {
     document.documentElement.dataset.sidebarCollapsed = String(sidebarCollapsed);
@@ -394,24 +393,23 @@ const NavbarContent = () => {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-md">
               <BookOpen className="h-4 w-4 text-primary-foreground" aria-hidden="true" />
             </div>
-            <span className="text-md whitespace-nowrap font-bold text-gradient">Aprendify</span>
+            <span className="hidden whitespace-nowrap text-md font-bold text-gradient sm:inline">Aprendify</span>
           </Link>
 
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2 md:gap-3">
-            <div className="hidden md:block">
-              {!streakLoading && streakData && (
-                <StreakIndicator
-                  currentStreak={streakData.currentStreak}
-                  questionsToday={streakData.questionsToday}
-                  streakCompletedToday={streakData.streakCompletedToday}
-                  longestStreak={streakData.longestStreak}
-                />
-              )}
-
-            </div>
-            <div className="hidden md:block">
-              <NotificationBell />
-            </div>
+            <NotificationBell />
+            <button
+              type="button"
+              aria-label={`Ativar tema ${theme === "dark" ? "claro" : "escuro"}`}
+              aria-pressed={theme === "dark"}
+              title={`Tema ${theme === "dark" ? "escuro" : "claro"}`}
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background/70 text-muted-foreground transition-[background-color,border-color,color,transform] duration-200 hover:border-primary/25 hover:bg-accent hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45 focus-visible:ring-offset-2 motion-reduce:transition-none md:inline-flex"
+            >
+              {theme === "dark"
+                ? <Sun className="h-4 w-4" aria-hidden="true" />
+                : <Moon className="h-4 w-4" aria-hidden="true" />}
+            </button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -429,78 +427,87 @@ const NavbarContent = () => {
                   <span className="hidden max-w-[100px] truncate text-sm font-medium md:inline">{userName}</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 rounded-xl border-border/50 p-2 shadow-xl">
-                <div className="mb-2 flex items-center gap-3 rounded-lg bg-muted/50 px-3 py-3">
-                  <PlanAvatar
-                    userName={userName}
-                    avatarUrl={user.user_metadata?.avatar_url}
-                    planVisual={planVisual}
-                    sizeClassName="h-10 w-10"
-                  />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">Olá, {userName}</p>
-                    <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-                    <p className="mt-1 text-[11px] font-medium text-primary">{planVisual.label}</p>
+              <DropdownMenuContent align="end" className="max-h-[min(34rem,calc(100dvh-5rem))] w-72 overflow-y-auto rounded-2xl border-border/60 bg-popover/95 p-2.5 shadow-xl shadow-black/10 backdrop-blur-xl">
+                <div className="rounded-xl border border-border/50 bg-muted/30 p-3">
+                  <div className="flex items-center gap-3">
+                    <PlanAvatar
+                      userName={userName}
+                      avatarUrl={user.user_metadata?.avatar_url}
+                      planVisual={planVisual}
+                      sizeClassName="h-10 w-10"
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{userName}</p>
+                      <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                    </div>
                   </div>
-                </div>
-
-                <div className="flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-accent">
-                  <div className="flex items-center">
-                    {theme === "dark" ? <Moon className="mr-3 h-4 w-4 text-foreground/70" /> : <Sun className="mr-3 h-4 w-4 text-foreground/70" />}
-                    <span className="text-sm">Tema Escuro</span>
-                  </div>
-                  <Switch
-                    aria-label="Tema escuro"
-                    checked={theme === "dark"}
-                    onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
-                  />
-                </div>
-
-                <DropdownMenuSeparator className="my-2" />
-                <DropdownMenuLabel className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">Perfil</DropdownMenuLabel>
-                {PROFILE_DROPDOWN_ITEMS.map(({ key, label }) => (
-                  <DropdownMenuItem key={key} onClick={() => navigate(`/settings?tab=${key}`)} className="cursor-pointer rounded-lg px-3 py-2.5">
-                    <UserRound className="mr-3 h-4 w-4 text-foreground/70" /> {label}
-                  </DropdownMenuItem>
-                ))}
-
-                <DropdownMenuSeparator className="my-2" />
-                <DropdownMenuLabel className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">Conexões</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => navigate("/amigos")} className="cursor-pointer rounded-lg px-3 py-2.5">
-                  <Users className="mr-3 h-4 w-4 text-foreground/70" />
-                  <span className="min-w-0 flex-1">Amigos</span>
-                  {socialUnreadCount > 0 && (
-                    <span
-                      className="ml-auto rounded-full bg-primary px-1.5 text-[10px] font-bold leading-5 text-primary-foreground"
-                      aria-label={`${socialUnreadCount} atividade${socialUnreadCount === 1 ? "" : "s"} não lida${socialUnreadCount === 1 ? "" : "s"}`}
-                    >
-                      {socialUnreadCount > 9 ? "9+" : socialUnreadCount}
+                  <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/50 pt-3">
+                    <span className="min-w-0 truncate rounded-full bg-background/80 px-2.5 py-1 text-[11px] font-medium text-primary ring-1 ring-border/50">
+                      {planVisual.label}
                     </span>
-                  )}
-                </DropdownMenuItem>
+                    {!streakLoading && streakData && (
+                      <div
+                        role="group"
+                        aria-label={`Sequência de ${streakData.currentStreak} dias. ${streakData.streakCompletedToday ? "Meta de hoje concluída" : `${streakData.questionsToday} questões hoje`}.`}
+                        className="flex shrink-0 items-center gap-1.5 text-xs"
+                      >
+                        <Flame className="h-4 w-4 text-orange-500" aria-hidden="true" />
+                        <span className="font-semibold tabular-nums text-foreground">{streakData.currentStreak}</span>
+                        <span className="text-muted-foreground">dias</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-                <DropdownMenuSeparator className="my-2" />
-                <DropdownMenuItem onClick={() => navigate("/achievements")} className="cursor-pointer rounded-lg px-3 py-2.5">
-                  <Trophy className="mr-3 h-4 w-4 text-foreground/70" /> Conquistas
-                </DropdownMenuItem>
-                {tooltips && tooltips.length > 0 && (
-                  <DropdownMenuItem onClick={() => startTour()} className="cursor-pointer rounded-lg px-3 py-2.5">
-                    <HelpCircle className="mr-3 h-4 w-4 text-foreground/70" /> Ajuda
-                  </DropdownMenuItem>
-                )}
-                {isAdmin && (
-                  <>
-                    <DropdownMenuSeparator className="my-2" />
-                    <DropdownMenuLabel className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">Ferramentas de Admin</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={() => navigate("/admin/feedback")} className="cursor-pointer rounded-lg px-3 py-2.5 text-primary">
-                      <MessageSquarePlus className="mr-3 h-4 w-4" /> Gerenciar Feedbacks
+                <DropdownMenuCheckboxItem
+                  checked={theme === "dark"}
+                  onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+                  className="h-10 rounded-lg pr-3 text-sm font-medium md:hidden"
+                >
+                  {theme === "dark"
+                    ? <Moon className="mr-3 h-4 w-4 text-foreground/70" aria-hidden="true" />
+                    : <Sun className="mr-3 h-4 w-4 text-foreground/70" aria-hidden="true" />}
+                  Tema escuro
+                </DropdownMenuCheckboxItem>
+
+                <div className="mt-2 space-y-0.5">
+                  {PROFILE_DROPDOWN_ITEMS.map(({ key, label }) => (
+                    <DropdownMenuItem key={key} onClick={() => navigate(`/settings?tab=${key}`)} className="h-10 cursor-pointer rounded-lg px-3 text-sm font-medium focus:bg-accent">
+                      <UserRound className="mr-3 h-4 w-4 text-foreground/70" /> {label}
                     </DropdownMenuItem>
-                  </>
-                )}
-                <DropdownMenuSeparator className="my-2" />
+                  ))}
+
+                  <DropdownMenuItem onClick={() => navigate("/amigos")} className="h-10 cursor-pointer rounded-lg px-3 text-sm font-medium focus:bg-accent">
+                    <Users className="mr-3 h-4 w-4 text-foreground/70" />
+                    <span className="min-w-0 flex-1">Amigos</span>
+                    {socialUnreadCount > 0 && (
+                      <span
+                        className="ml-auto rounded-full bg-primary px-1.5 text-[10px] font-bold leading-5 text-primary-foreground"
+                        aria-label={`${socialUnreadCount} atividade${socialUnreadCount === 1 ? "" : "s"} não lida${socialUnreadCount === 1 ? "" : "s"}`}
+                      >
+                        {socialUnreadCount > 9 ? "9+" : socialUnreadCount}
+                      </span>
+                    )}
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onClick={() => navigate("/achievements")} className="h-10 cursor-pointer rounded-lg px-3 text-sm font-medium focus:bg-accent">
+                    <Trophy className="mr-3 h-4 w-4 text-foreground/70" /> Conquistas
+                  </DropdownMenuItem>
+                  {tooltips && tooltips.length > 0 && (
+                    <DropdownMenuItem onClick={() => startTour()} className="h-10 cursor-pointer rounded-lg px-3 text-sm font-medium focus:bg-accent">
+                      <HelpCircle className="mr-3 h-4 w-4 text-foreground/70" /> Ajuda
+                    </DropdownMenuItem>
+                  )}
+                  {isAdmin && (
+                    <DropdownMenuItem onClick={() => navigate("/admin/feedback")} className="h-10 cursor-pointer rounded-lg px-3 text-sm font-medium text-primary focus:bg-primary/10 focus:text-primary">
+                      <MessageSquarePlus className="mr-3 h-4 w-4" /> Gerenciar feedbacks
+                    </DropdownMenuItem>
+                  )}
+                </div>
+                <DropdownMenuSeparator className="my-2 bg-border/60" />
                 <DropdownMenuItem
                   onClick={handleLogout}
-                  className="cursor-pointer rounded-lg px-3 py-2.5 text-destructive focus:bg-destructive/10 focus:text-destructive"
+                  className="h-10 cursor-pointer rounded-lg px-3 text-sm font-medium text-destructive focus:bg-destructive/10 focus:text-destructive"
                 >
                   <LogOut className="mr-3 h-4 w-4" /> Sair
                 </DropdownMenuItem>

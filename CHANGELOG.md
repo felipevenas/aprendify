@@ -6,11 +6,13 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
 ### Adicionado
 - **Repertórios socioculturais:** biblioteca privada para criar e salvar referências, com geração assistida por IA, seleção de temas de redações salvas ou opção de tema manual, exemplos de aplicação, temas relacionados e nichos.
+- **Teste grátis do Completo:** novas contas ganham 72 horas de acesso Premium, iniciado após a confirmação de e-mail no primeiro acesso, sem cartão ou cobrança automática. A expiração é controlada pelo servidor e direciona para os planos.
+- **Entitlement Premium no servidor:** trial e assinatura paga usam uma fonte única de autorização; limites de flashcards e gravação de simulados são aplicados no banco, além das funções de IA premium.
 
 ### Corrigido
 - **Explicação de questões:** removida a notificação duplicada quando o erro já está visível no painel, com espaçamento ajustado.
 - **Proteção das funções de IA com Groq:** padronizada a aplicação do rate-limit atômico nas 11 funções presentes nesta branch, com resposta `429`, cabeçalhos de uso e falha fechada quando o controle de quota está indisponível.
-- **Navbar em celulares:** removidos o indicador de streak e as notificações do topo; menu hambúrguer mantido à esquerda, marca centralizada e perfil acessível à direita.
+- **Navbar responsiva e menu da conta:** sino disponível também em telas mobile; toggle de tema no menu da conta em mobile e na barra em desktop; sequência de estudos junto ao perfil e ações do dropdown sem rótulos de seção.
 - **Validação das funções:** adicionados testes do helper de rate-limit e verificação estática para impedir regressões de cobertura nas funções Groq.
 
 ## [0.4.0] - 15-07-2026

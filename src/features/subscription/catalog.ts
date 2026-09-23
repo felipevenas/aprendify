@@ -97,6 +97,23 @@ export function getPlanVisual(planType: string | null, isPremium: boolean): Plan
   };
 }
 
+export function getAccountPlanVisual(
+  planType: string | null,
+  hasPremiumAccess: boolean,
+  trialStatus: "not_started" | "active" | "expired" | "ineligible",
+  isSubscribed = false,
+): PlanVisual {
+  if (trialStatus === "active" && !isSubscribed) {
+    return {
+      label: "Teste grátis do Completo",
+      billingLabel: "Acesso gratuito por 3 dias",
+      ringClassName: RING_CLASSES.annual,
+      isPremium: true,
+    };
+  }
+  return getPlanVisual(planType, hasPremiumAccess);
+}
+
 export function getPlanLabel(planType: string | null, isPremium = false): string {
   return getPlanVisual(planType, isPremium).label;
 }

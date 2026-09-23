@@ -33,7 +33,7 @@ import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { PageLoader } from "@/components/ui/page-loader";
 import { GitHubStudyHeatmap } from "@/features/gamification/components/GitHubStudyHeatmap";
 import { usePremiumContext } from "@/contexts/PremiumContext";
-import { getPlanVisual } from "@/features/subscription/catalog";
+import { getAccountPlanVisual } from "@/features/subscription/catalog";
 import { getProfileTab, type ProfileTab } from "../profileTabs";
 
 const StatisticsPanel = lazy(() => import("@/features/statistics/pages/StatisticsPage"));
@@ -78,9 +78,9 @@ const Settings = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const { soundEnabled, setSoundEnabled } = useSoundPreferences();
   const { playClickSound } = useSoundEffects();
-  const { isPremium, isLoading: premiumLoading, planType, subscriptionEnd } = usePremiumContext();
+  const { isPremium, isLoading: premiumLoading, planType, subscriptionEnd, trialStatus, trialEndsAt, isSubscribed } = usePremiumContext();
   const activeTab = getProfileTab(searchParams.get("tab"), isAdmin);
-  const planVisual = getPlanVisual(premiumLoading ? null : planType, premiumLoading ? false : isPremium);
+  const planVisual = getAccountPlanVisual(premiumLoading ? null : planType, premiumLoading ? false : isPremium, trialStatus, isSubscribed);
 
   useEffect(() => {
     if (!loading && !isAdmin && searchParams.get("tab") === "admin") {
@@ -334,7 +334,7 @@ const Settings = () => {
                         </button>
                         <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-background/70 p-3">
                           <CalendarDays className="h-5 w-5 text-primary" />
-                          <span><strong className="block text-sm">Acesso à plataforma</strong><small className="text-xs text-muted-foreground">{subscriptionEnd ? `Ativo até ${new Date(subscriptionEnd).toLocaleDateString("pt-BR")}` : "Use seus recursos de estudo todos os dias"}</small></span>
+                          <span><strong className="block text-sm">Acesso à plataforma</strong><small className="text-xs text-muted-foreground">{trialStatus === "active" && !isSubscribed && trialEndsAt ? `Teste grátis até ${new Date(trialEndsAt).toLocaleDateString("pt-BR")}` : subscriptionEnd ? `Ativo até ${new Date(subscriptionEnd).toLocaleDateString("pt-BR")}` : trialStatus === "expired" && !isSubscribed ? "Teste grátis encerrado · veja os planos" : "Use seus recursos de estudo todos os dias"}</small></span>
                         </div>
                       </CardContent>
                     </Card>

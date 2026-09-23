@@ -20,37 +20,49 @@ serve(async (req) => {
     const limit = await consumeRateLimit(auth.serviceClient, req, auth.user.id, "check-subscription", 200, 60);
     if (!limit.allowed) return jsonResponse({ error: "Muitas solicitações. Tente novamente em breve.", code: "RATE_LIMITED", rateLimited: true }, 429, corsHeaders, rateLimitHeaders(limit));
 
-    // The local projection is the server-owned entitlement source. Stripe is
-    // synchronized by the signed webhook; this read must not search by email
-    // or grant access based on a client-provided identity.
-    const [{ data: subscription, error }, { data: redacaoCredits, error: creditsError }] = await Promise.all([
-      auth.serviceClient
-        .from("subscriptions")
-        .select("status, plan_type, end_date, updated_at")
-        .eq("user_id", auth.user.id)
-        .eq("status", "authorized")
-        .or("end_date.is.null,end_date.gt." + new Date().toISOString())
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+    // Trial activation is only allowed after email confirmation. The RPC also
+    // verifies this against auth.users and uses the database clock, so this
+    // check only avoids an unnecessary call for unconfirmed sessions.
+    if (auth.user.email_confirmed_at || auth.user.confirmed_at) {
+      const { error: activationError } = await auth.serviceClient.rpc("start_free_trial", { _user_id: auth.user.id });
+      if (activationError) throw new Error("trial activation unavailable");
+    }
+
+    // Stripe remains the paid source of truth; trial state is stored separately
+    // and combined by one database entitlement function.
+    const [{ data: entitlementRows, error }, { data: redacaoCredits, error: creditsError }] = await Promise.all([
+      auth.serviceClient.rpc("get_user_entitlement", { _user_id: auth.user.id }),
       auth.serviceClient.rpc("get_essay_addon_credit_balance", { _user_id: auth.user.id }),
     ]);
-    if (error) throw new Error("subscription projection unavailable");
+    if (error) throw new Error("subscription entitlement unavailable");
     if (creditsError || typeof redacaoCredits !== "number" || !Number.isSafeInteger(redacaoCredits) || redacaoCredits < 0) {
       throw new Error("essay add-on credit balance unavailable");
     }
 
-    const planType = subscription?.plan_type ?? null;
-    const essayLimit = planType === "annual" || planType === "god" || planType === "creator"
-      ? 12
-      : planType === "monthly" ? 4 : 1;
+    const entitlement = Array.isArray(entitlementRows) ? entitlementRows[0] : entitlementRows;
+    if (!entitlement || typeof entitlement.subscribed !== "boolean" || typeof entitlement.has_premium_access !== "boolean") {
+      throw new Error("subscription entitlement unavailable");
+    }
+    const trialStatus = entitlement.subscribed
+      ? "ineligible"
+      : entitlement.trial_status === "active"
+        ? "active"
+        : entitlement.trial_status === "expired"
+          ? "expired"
+          : entitlement.trial_status === "eligible"
+            ? "not_started"
+            : "ineligible";
     return jsonResponse({
-      subscribed: Boolean(subscription),
-      plan_type: planType,
-      tier: !subscription ? "free" : (planType === "annual" || planType === "god" || planType === "creator") ? "complete" : "starter",
-      monthly_essay_limit: essayLimit,
+      // `subscribed` intentionally keeps its historical paid-subscription meaning.
+      subscribed: entitlement.subscribed,
+      has_premium_access: entitlement.has_premium_access,
+      trial_status: trialStatus,
+      trial_ends_at: entitlement.trial_ends_at,
+      plan_type: entitlement.plan_type ?? null,
+      tier: entitlement.tier,
+      monthly_essay_limit: entitlement.monthly_essay_limit,
       redacao_combo_credits: redacaoCredits,
-      subscription_end: subscription?.end_date ?? null,
+      subscription_end: entitlement.subscription_end ?? null,
       source: "server_projection",
     }, 200, corsHeaders, rateLimitHeaders(limit));
   } catch (error) {
