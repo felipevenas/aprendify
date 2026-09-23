@@ -33,6 +33,9 @@ test("parseia JSON válido e normaliza referências opcionais", () => {
   assert.equal(parsed.value.origin, "ai");
   assert.deepEqual(parsed.value.themes, validOutput.themes);
   assert.equal(parsed.value.source_year, "2020");
+  const numericYear = parseGeneratedRepertoire(JSON.stringify({ ...validOutput, source_year: 2020 }));
+  assert.equal(numericYear.ok, true);
+  if (numericYear.ok) assert.equal(numericYear.value.source_year, "2020");
   assert.equal(parseGeneratedRepertoire(JSON.stringify({ ...validOutput, source_title: null, source_author: null, source_year: null, source_url: null })).ok, true);
 });
 
@@ -40,6 +43,9 @@ test("aceita fence JSON e rejeita conteúdo que não seja JSON", () => {
   assert.equal(parseGeneratedRepertoire(`\`\`\`json\n${JSON.stringify(validOutput)}\n\`\`\``).ok, true);
   assert.equal(parseGeneratedRepertoire("texto livre sem objeto").ok, false);
   assert.equal(parseGeneratedRepertoire("null").ok, false);
+  const invalidJson = parseGeneratedRepertoire("texto livre sem objeto");
+  assert.equal(invalidJson.ok, false);
+  if (!invalidJson.ok) assert.equal(invalidJson.reason, "invalid_json");
 });
 
 test("rejeita campos ausentes, listas inválidas, URL insegura e saída excessiva", () => {
