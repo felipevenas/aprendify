@@ -35,6 +35,7 @@ const AdminUsers = lazy(pageLoaders.AdminUsers);
 const AdminQuestions = lazy(pageLoaders.AdminQuestions);
 const Flashcards = lazy(pageLoaders.Flashcards);
 const Essays = lazy(pageLoaders.Essays);
+const Repertoires = lazy(pageLoaders.Repertoires);
 const SubscriptionSuccess = lazy(pageLoaders.SubscriptionSuccess);
 const Simulados = lazy(pageLoaders.Simulados);
 const SimuladoActive = lazy(pageLoaders.SimuladoActive);
@@ -90,6 +91,7 @@ const AppLayout = () => {
                   <Route path="/statistics" element={<Navigate to="/settings?tab=statistics" replace />} />
                   <Route path="/flashcards" element={<Flashcards />} />
                   <Route path="/essays" element={<Essays />} />
+                  <Route path="/repertorios" element={<Repertoires />} />
                   <Route path="/subscription" element={<Navigate to="/settings?tab=subscription" replace />} />
                   <Route path="/subscription/success" element={<SubscriptionSuccess />} />
                   <Route path="/planos" element={<CheckoutPage />} />

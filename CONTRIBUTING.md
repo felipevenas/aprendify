@@ -20,11 +20,11 @@ Este projeto segue o modelo de **Trunk-Based Development**. A branch principal e
 2.  **Crie sua branch de trabalho:**
     Use branches curtas e com nomenclaturas semânticas de acordo com o tipo de alteração:
     ```bash
-    git checkout -b <tipo>/<nome-curto-da-tarefa>
+    git checkout -b <tipo>/<nome-curto-em-portugues>
     # Exemplos:
-    # git checkout -b feat/add-notifications
-    # git checkout -b fix/auth-token-refresh
-    # git checkout -b chore/update-dependencies
+    # git checkout -b feat/repertorios-socioculturais
+    # git checkout -b fix/corrigir-redirecionamento-da-sessao
+    # git checkout -b chore/atualizar-dependencias
     ```
 
 3.  **Desenvolva e valide localmente:**
@@ -52,7 +52,7 @@ Este projeto segue o modelo de **Trunk-Based Development**. A branch principal e
 
 ## 🏷️ Convenções de Commit
 
-Adotamos a especificação de **Conventional Commits** para manter as mensagens do Git legíveis e padronizar o versionamento semântico (SemVer):
+Adotamos a especificação de **Conventional Commits** para manter as mensagens do Git legíveis e padronizar o versionamento semântico (SemVer). Escreva as descrições das branches e dos commits em português brasileiro. Use `feat/` para funcionalidades e `fix/` para correções; mantenha o nome curto, minúsculo e em kebab-case:
 
 | Prefixo | Significado / Uso | Exemplo de Mensagem |
 | :--- | :--- | :--- |
