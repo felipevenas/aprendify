@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
-import { normalizeRemoteFailure } from "@/features/auth/services/remoteErrors";
+import { normalizeRemoteFailure, RemoteFailure } from "@/features/auth/services/remoteErrors";
+import { readCheckoutDiagnosticCode } from "./checkoutFailure";
 
 export type CheckoutPlan = "starter" | "annual";
 
@@ -20,7 +21,19 @@ export async function createCheckoutSession(
     },
   });
 
-  if (error) throw normalizeRemoteFailure(error, { operation: "checkout" });
+  if (error) {
+    const failure = normalizeRemoteFailure(error, { operation: "checkout" });
+    const diagnosticCode = failure.status === 503 ? await readCheckoutDiagnosticCode(error) : null;
+    if (diagnosticCode) {
+      throw new RemoteFailure(
+        failure.status,
+        `${failure.message} Código de suporte: ${diagnosticCode}.`,
+        failure.kind,
+        failure.retryAfterSeconds,
+      );
+    }
+    throw failure;
+  }
 
   if (!data || typeof data.url !== "string" || !data.url.startsWith("https://")) {
     throw normalizeRemoteFailure({ status: 502 }, { operation: "checkout" });

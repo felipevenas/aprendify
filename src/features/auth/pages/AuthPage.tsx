@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, Mail, Lock, User, ArrowRight, Eye, EyeOff, Check, X, ShieldCheck, PartyPopper, Moon, Sun } from "lucide-react";
+import { BookOpen, Mail, Lock, User, ArrowRight, Eye, EyeOff, Check, X, ShieldCheck, PartyPopper, Moon, Sun, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { z } from "zod";
 import ReCAPTCHA from "react-google-recaptcha";
@@ -678,6 +678,16 @@ const Auth = () => {
               {isLogin ? "Entre com suas credenciais para continuar" : "Preencha os dados para começar sua jornada"}
             </p>
           </motion.div>
+
+          <div
+            role="note"
+            className="mb-6 flex gap-3 rounded-xl border border-primary/15 bg-primary/[0.04] px-4 py-3 text-sm text-muted-foreground"
+          >
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+            <p>
+              Novas contas recebem 3 dias grátis do Completo. O período começa no primeiro acesso após a confirmação do e-mail, sem cartão e sem cobrança automática.
+            </p>
+          </div>
 
           {/* Formulário */}
           {authMessage && (

@@ -10,6 +10,8 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 - **Entitlement Premium no servidor:** trial e assinatura paga usam uma fonte única de autorização; limites de flashcards e gravação de simulados são aplicados no banco, além das funções de IA premium.
 
 ### Corrigido
+- **Divulgação do trial e assinatura:** aviso dos 3 dias grátis apresentado antes das opções de autenticação, inclusive Google; banner do trial esclarece que não há cartão ou cobrança automática; removida a ação secundária de modal rápido e adicionada transição acessível na aba de assinatura.
+- **Diagnóstico de checkout:** respostas 503 reconhecidas exibem um código técnico permitido para facilitar a identificação da configuração indisponível, sem mostrar detalhes arbitrários do servidor.
 - **Explicação de questões:** removida a notificação duplicada quando o erro já está visível no painel, com espaçamento ajustado.
 - **Proteção das funções de IA com Groq:** padronizada a aplicação do rate-limit atômico nas 11 funções presentes nesta branch, com resposta `429`, cabeçalhos de uso e falha fechada quando o controle de quota está indisponível.
 - **Navbar responsiva e menu da conta:** sino disponível também em telas mobile; toggle de tema no menu da conta em mobile e na barra em desktop; sequência de estudos junto ao perfil e ações do dropdown sem rótulos de seção.

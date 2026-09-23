@@ -6,7 +6,8 @@ const source = readFileSync(new URL("./TrialAccessBanner.tsx", import.meta.url),
 
 test("banner anuncia o estado e encaminha para os planos por controle acessível", () => {
   assert.match(source, /role="status"/);
-  assert.match(source, /Seu acesso Completo grátis está ativo/);
+  assert.match(source, /Seu teste grátis de 3 dias do Completo está ativo/);
+  assert.match(source, /Sem cartão e sem cobrança automática/);
   assert.match(source, /Seu período de teste terminou/);
   assert.match(source, /<Link to="\/planos">/);
   assert.match(source, /isSubscribed \|\| !noticeState/);

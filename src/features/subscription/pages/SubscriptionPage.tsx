@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { usePremium } from "@/hooks/usePremium";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,6 @@ import Navbar from "@/components/Navbar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { PageLoader } from "@/components/ui/page-loader";
-import { PremiumModal } from "@/components/PremiumModal";
 import { getPlanLabel as getCatalogPlanLabel } from "../catalog";
 import { formatTrialDeadline } from "../trialPresentation";
 import {
@@ -57,13 +56,23 @@ interface SubscriptionPageProps {
 
 export default function Subscription({ embedded = false }: SubscriptionPageProps) {
   const navigate = useNavigate();
+  const prefersReducedMotion = useReducedMotion();
   const { isPremium, isLoading: isPremiumLoading, trialStatus, trialEndsAt, isSubscribed } = usePremium();
   const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [subscriptionError, setSubscriptionError] = useState(false);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
-  const [showPlansModal, setShowPlansModal] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+
+  const subscriptionViewState = subscriptionError
+    ? "error"
+    : trialStatus === "active" && !isSubscribed
+      ? "trial-active"
+      : trialStatus === "expired" && !isSubscribed
+        ? "trial-expired"
+        : !isPremium && !subscription
+          ? "free"
+          : "subscription";
 
   const fetchSubscription = useCallback(async () => {
     setIsLoading(true);
@@ -191,11 +200,7 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
       
       <main className={embedded ? "w-full" : "mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8"}>
         <PageLoader loading={isLoading || isPremiumLoading} variant="default">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
+          <div>
             {/* Header */}
             <div className="flex items-center gap-3 mb-8">
               <div className="p-2 bg-primary/10 rounded-lg text-primary shrink-0">
@@ -207,6 +212,12 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
               </div>
             </div>
 
+            <motion.div
+              key={subscriptionViewState}
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: prefersReducedMotion ? 0 : 0.18, ease: "easeOut" }}
+            >
             {subscriptionError ? (
               <Card role="alert" className="border-destructive/30">
                 <CardContent className="space-y-4 p-6">
@@ -273,14 +284,6 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
                       onClick={() => navigate("/planos")}
                     >
                       Ver Página de Ofertas & Combos
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="lg" 
-                      className="w-full sm:w-auto"
-                      onClick={() => setShowPlansModal(true)}
-                    >
-                      Ver no Modal Rápido
                     </Button>
                   </div>
                 </CardContent>
@@ -417,16 +420,11 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
                 </Card>
               </div>
             )}
-          </motion.div>
+            </motion.div>
+          </div>
         </PageLoader>
         </main>
         
-        <PremiumModal 
-          open={showPlansModal} 
-          onOpenChange={setShowPlansModal} 
-          isPremium={isPremium} 
-        />
-
         <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
