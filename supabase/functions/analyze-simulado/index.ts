@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.84.0";
 import { consumeRateLimit, rateLimitHeaders } from "../_shared/rate-limit.ts";
+import { hasPremiumAccess } from "../_shared/authorize.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -85,6 +86,22 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Limite de análises atingido. Tente novamente em 1 hora.", code: "RATE_LIMITED", rateLimited: true }), {
         status: 429,
         headers: { ...corsHeaders, ...rateLimitHeaders(rateLimit), "Content-Type": "application/json" },
+      });
+    }
+
+    let premiumAccess: boolean;
+    try {
+      premiumAccess = await hasPremiumAccess(supabaseRateLimit, user.id);
+    } catch {
+      return new Response(JSON.stringify({ error: "NÃ£o foi possÃ­vel verificar o acesso Premium", code: "ENTITLEMENT_UNAVAILABLE" }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!premiumAccess) {
+      return new Response(JSON.stringify({ error: "Este recurso exige acesso Premium", code: "PREMIUM_REQUIRED" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 

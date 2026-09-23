@@ -29,3 +29,14 @@ export async function authorizeAI(req: Request, headers: Record<string, string>,
     return reject(error instanceof ApiError ? error : new ApiError(503, "AUTH_UNAVAILABLE", "Autenticação temporariamente indisponível"));
   }
 }
+
+// Keep premium authorization server-owned and fail closed when the entitlement
+// projection is unavailable. Callers pass a service client only after authenticating
+// the user's bearer token and applying their endpoint's rate limit.
+export async function hasPremiumAccess(serviceClient: ReturnType<typeof createClient>, userId: string): Promise<boolean> {
+  const { data, error } = await serviceClient.rpc("is_user_premium", { _user_id: userId });
+  if (error || typeof data !== "boolean") {
+    throw new ApiError(503, "ENTITLEMENT_UNAVAILABLE", "NÃ£o foi possÃ­vel verificar o acesso Premium");
+  }
+  return data;
+}

@@ -1,12 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeRemoteFailure, type RemoteFailure } from "@/features/auth/services/remoteErrors";
+import { FREE_DAILY_QUESTION_LIMIT, FREE_MONTHLY_ESSAY_LIMIT, readPremiumSnapshot, type TrialStatus } from "../premiumSnapshot";
 
 export type EntitlementStatus = "loading" | "ready" | "unavailable";
 
 export interface PremiumContextValue {
-  /** Only true after the server has authoritatively returned subscribed=true. */
+  /** Effective access returned by the server: paid subscription or active trial. */
   isPremium: boolean;
+  /** Paid subscription state only. A free trial never sets this to true. */
+  isSubscribed: boolean;
+  trialStatus: TrialStatus;
+  trialEndsAt: string | null;
   isLoading: boolean;
   entitlementStatus: EntitlementStatus;
   entitlementError: RemoteFailure | null;
@@ -18,64 +23,14 @@ export interface PremiumContextValue {
   subscriptionEnd: string | null;
   refreshPremiumStatus: () => void;
 }
-
 const PremiumContext = createContext<PremiumContextValue | undefined>(undefined);
-const FREE_DAILY_QUESTION_LIMIT = 10;
-const FREE_MONTHLY_ESSAY_LIMIT = 1;
-
 interface PremiumProviderProps {
   children: ReactNode;
 }
 
-type RecordValue = Record<string, unknown>;
-
-const asRecord = (value: unknown): RecordValue => (
-  value !== null && typeof value === "object" ? value as RecordValue : {}
+const asRecord = (value: unknown): Record<string, unknown> => (
+  value !== null && typeof value === "object" ? value as Record<string, unknown> : {}
 );
-
-const firstRecord = (...values: unknown[]): RecordValue => values
-  .map(asRecord)
-  .find((value) => Object.keys(value).length > 0) ?? {};
-
-const getFiniteNonNegative = (...values: unknown[]): number | null => {
-  const value = values.find((candidate) => (
-    typeof candidate === "number" && Number.isFinite(candidate) && candidate >= 0
-  ));
-  return typeof value === "number" ? Math.floor(value) : null;
-};
-
-const readEntitlements = (payload: RecordValue, subscribed: boolean) => {
-  const entitlements = asRecord(payload.entitlements);
-  const limits = firstRecord(payload.limits, payload.quota, entitlements.limits);
-  const usage = firstRecord(payload.usage, entitlements.usage);
-
-  const dailyQuestionLimit = getFiniteNonNegative(
-    limits.daily_questions,
-    limits.dailyQuestionLimit,
-    limits.questions_per_day,
-    payload.daily_question_limit,
-  );
-  const monthlyEssayLimit = getFiniteNonNegative(
-    limits.monthly_essays,
-    limits.monthlyEssayLimit,
-    limits.essays_per_month,
-    payload.monthly_essay_limit,
-  );
-  const dailyQuestionCount = getFiniteNonNegative(
-    usage.daily_questions,
-    usage.dailyQuestionCount,
-    payload.daily_question_count,
-  );
-
-  return {
-    dailyQuestionLimit: dailyQuestionLimit ?? (subscribed ? null : FREE_DAILY_QUESTION_LIMIT),
-    monthlyEssayLimit: monthlyEssayLimit ?? FREE_MONTHLY_ESSAY_LIMIT,
-    dailyQuestionCount,
-    tier: typeof payload.tier === "string"
-      ? payload.tier
-      : typeof entitlements.tier === "string" ? entitlements.tier : null,
-  };
-};
 
 export const usePremiumContext = (): PremiumContextValue => {
   const context = useContext(PremiumContext);
@@ -85,6 +40,9 @@ export const usePremiumContext = (): PremiumContextValue => {
 
 export const PremiumProvider = ({ children }: PremiumProviderProps) => {
   const [isPremium, setIsPremium] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [trialStatus, setTrialStatus] = useState<TrialStatus>("ineligible");
+  const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [entitlementStatus, setEntitlementStatus] = useState<EntitlementStatus>("loading");
   const [entitlementError, setEntitlementError] = useState<RemoteFailure | null>(null);
@@ -99,6 +57,9 @@ export const PremiumProvider = ({ children }: PremiumProviderProps) => {
 
   const clearEntitlement = useCallback(() => {
     setIsPremium(false);
+    setIsSubscribed(false);
+    setTrialStatus("ineligible");
+    setTrialEndsAt(null);
     setEntitlementStatus("unavailable");
     setDailyQuestionLimit(FREE_DAILY_QUESTION_LIMIT);
     setMonthlyEssayLimit(FREE_MONTHLY_ESSAY_LIMIT);
@@ -130,20 +91,23 @@ export const PremiumProvider = ({ children }: PremiumProviderProps) => {
       }
 
       const payload = asRecord(subscriptionResult.data);
-      if (typeof payload.subscribed !== "boolean") {
+      const snapshot = readPremiumSnapshot(payload);
+      if (!snapshot) {
         throw normalizeRemoteFailure({ status: 503 }, { operation: "entitlement" });
       }
 
-      const entitlement = readEntitlements(payload, payload.subscribed);
-      setIsPremium(payload.subscribed);
+      setIsSubscribed(snapshot.isSubscribed);
+      setIsPremium(snapshot.hasPremiumAccess);
+      setTrialStatus(snapshot.trialStatus);
+      setTrialEndsAt(snapshot.trialEndsAt);
       setEntitlementStatus("ready");
-      setPlanType(typeof payload.plan_type === "string" ? payload.plan_type : entitlement.tier);
-      setTier(entitlement.tier ?? (typeof payload.plan_type === "string" ? payload.plan_type : null));
-      setSubscriptionEnd(typeof payload.subscription_end === "string" ? payload.subscription_end : null);
-      setDailyQuestionLimit(entitlement.dailyQuestionLimit);
-      setMonthlyEssayLimit(entitlement.monthlyEssayLimit);
-      if (entitlement.dailyQuestionCount !== null) {
-        setDailyQuestionCount(entitlement.dailyQuestionCount);
+      setPlanType(snapshot.planType);
+      setTier(snapshot.tier ?? snapshot.planType);
+      setSubscriptionEnd(snapshot.subscriptionEnd);
+      setDailyQuestionLimit(snapshot.dailyQuestionLimit);
+      setMonthlyEssayLimit(snapshot.monthlyEssayLimit);
+      if (snapshot.dailyQuestionCount !== null) {
+        setDailyQuestionCount(snapshot.dailyQuestionCount);
       } else if (!attemptsResult.error && typeof attemptsResult.count === "number") {
         setDailyQuestionCount(attemptsResult.count);
       }
@@ -156,6 +120,28 @@ export const PremiumProvider = ({ children }: PremiumProviderProps) => {
       if (requestId === requestIdRef.current) setIsLoading(false);
     }
   }, [clearEntitlement]);
+
+  // Reconcile against the authoritative endpoint as soon as the server-provided
+  // trial deadline is reached. The client deadline is presentation-only.
+  useEffect(() => {
+    if (trialStatus !== "active" || !trialEndsAt || !userId) return;
+    const remaining = Date.parse(trialEndsAt) - Date.now();
+    if (!Number.isFinite(remaining)) return;
+    const timeout = window.setTimeout(
+      () => void checkPremiumStatus(userId),
+      remaining <= 0 ? 30_000 : Math.min(remaining, 2_147_000_000),
+    );
+    return () => window.clearTimeout(timeout);
+  }, [checkPremiumStatus, trialEndsAt, trialStatus, userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void checkPremiumStatus(userId);
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => document.removeEventListener("visibilitychange", refreshWhenVisible);
+  }, [checkPremiumStatus, userId]);
 
   useEffect(() => {
     let mounted = true;
@@ -224,6 +210,9 @@ export const PremiumProvider = ({ children }: PremiumProviderProps) => {
   return (
     <PremiumContext.Provider value={{
       isPremium,
+      isSubscribed,
+      trialStatus,
+      trialEndsAt,
       isLoading,
       entitlementStatus,
       entitlementError,

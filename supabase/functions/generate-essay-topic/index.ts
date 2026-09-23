@@ -56,6 +56,25 @@ serve(async (req) => {
 
     // Check rate limit using service role client
     const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Topic generation is part of the Premium simulado flow. Enforce the
+    // entitlement here as well as at the client/database boundary, since this
+    // Edge Function can also be called directly.
+    const { data: hasPremiumAccess, error: entitlementError } = await supabaseService
+      .rpc("is_user_premium", { _user_id: user.id });
+    if (entitlementError || typeof hasPremiumAccess !== "boolean") {
+      console.error("[generate-essay-topic] Entitlement unavailable", entitlementError?.code ?? "invalid response");
+      return new Response(JSON.stringify({ error: "NÃ£o foi possÃ­vel verificar o acesso Premium", code: "ENTITLEMENT_UNAVAILABLE" }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!hasPremiumAccess) {
+      return new Response(JSON.stringify({ error: "Acesso Premium necessÃ¡rio", code: "PREMIUM_REQUIRED" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     
     let rateLimit;
     try {

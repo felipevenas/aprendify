@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getPlanLabel, getPlanVisual, PLAN_CATALOG } from "./catalog.ts";
+import { getAccountPlanVisual, getPlanLabel, getPlanVisual, PLAN_CATALOG } from "./catalog.ts";
 
 test("mantém os nomes comerciais dos planos da landing", () => {
   assert.equal(PLAN_CATALOG.basic.label, "Básico");
@@ -35,4 +35,19 @@ test("mantém a conta gratuita sem anel Premium", () => {
 
 test("usa Básico como fallback seguro para plano desconhecido sem premium", () => {
   assert.equal(getPlanLabel("unknown"), "Básico");
+});
+
+test("rotula o acesso do trial como Completo grátis, sem sugerir assinatura anual", () => {
+  const visual = getAccountPlanVisual(null, true, "active", false);
+
+  assert.equal(visual.label, "Teste grátis do Completo");
+  assert.equal(visual.billingLabel, "Acesso gratuito por 3 dias");
+  assert.equal(visual.isPremium, true);
+});
+
+test("assinatura paga prevalece sobre um status de trial transitório", () => {
+  const visual = getAccountPlanVisual("annual", true, "active", true);
+
+  assert.equal(visual.label, "Completo");
+  assert.equal(visual.billingLabel, "Plano anual");
 });

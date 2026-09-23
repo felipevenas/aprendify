@@ -15,6 +15,7 @@ import { RouteContent } from "@/components/RouteContent";
 import { MotionConfig } from "framer-motion";
 import { OnboardingGate } from "@/features/onboarding/components/OnboardingGate";
 import { usePresenceHeartbeat } from "@/features/friends/hooks/usePresenceHeartbeat";
+import { TrialAccessBanner } from "@/features/subscription/components/TrialAccessBanner";
 
 const SuspenseFallback = () => <PageContentSkeleton />;
 
@@ -79,6 +80,7 @@ const AppLayout = () => {
             <BackgroundPreloaderInit />
             <NavbarLayoutContext.Provider value={true}>
               {showNavbar && <Navbar isLayoutRoot />}
+              <TrialAccessBanner />
               <RouteContent>
               <Suspense fallback={<SuspenseFallback />}>
                 <Routes>
