@@ -389,7 +389,7 @@ const NavbarContent = () => {
           <Link
             to="/dashboard"
             aria-label="Aprendify: ir para o painel"
-            className="absolute left-1/2 flex -translate-x-1/2 cursor-pointer items-center gap-1.5 md:hidden"
+            className="absolute left-[50vw] flex -translate-x-1/2 cursor-pointer items-center gap-1.5 md:hidden"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-md">
               <BookOpen className="h-4 w-4 text-primary-foreground" aria-hidden="true" />
