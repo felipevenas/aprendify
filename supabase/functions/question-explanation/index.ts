@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { consumeRateLimit, rateLimitHeaders } from "../_shared/rate-limit.ts";
 
 /**
  * Edge function para gerar explicações de questões do ENEM usando Groq API
@@ -10,6 +11,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Expose-Headers": "Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset",
 };
 
 // Rate limit configuration - more generous for premium users
@@ -101,32 +103,23 @@ serve(async (req) => {
     // Check rate limit using service role client
     const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
     
-    const { data: rateLimitAllowed, error: rateLimitError } = await supabaseService
-      .rpc("check_rate_limit", {
-        _user_id: user.id,
-        _function_name: "question-explanation",
-        _max_calls: RATE_LIMIT_MAX_CALLS,
-        _window_minutes: RATE_LIMIT_WINDOW_MINUTES,
+    let rateLimit;
+    try {
+      rateLimit = await consumeRateLimit(supabaseService, req, user.id, "question-explanation", RATE_LIMIT_MAX_CALLS, RATE_LIMIT_WINDOW_MINUTES);
+    } catch (error) {
+      console.error("[question-explanation] Rate limit unavailable:", error instanceof Error ? error.name : "unknown");
+      return new Response(JSON.stringify({ error: "Controle de uso temporariamente indisponível", code: "RATE_LIMIT_UNAVAILABLE" }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-
-    if (rateLimitError) {
-      console.error("[question-explanation] Rate limit check error:", rateLimitError);
-      return new Response(
-        JSON.stringify({ error: "Controle de uso temporariamente indisponível" }),
-        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    } else if (!rateLimitAllowed) {
-      console.log("[question-explanation] Rate limit exceeded for user:", user.id);
-      return new Response(
-        JSON.stringify({ 
-          error: "Limite de explicações atingido. Tente novamente em 1 hora.",
-          rateLimited: true 
-        }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    }
+    if (!rateLimit.allowed) {
+      return new Response(JSON.stringify({ error: "Limite de explicações atingido. Tente novamente em 1 hora.", code: "RATE_LIMITED", rateLimited: true }), {
+        status: 429,
+        headers: { ...corsHeaders, ...rateLimitHeaders(rateLimit), "Content-Type": "application/json" },
+      });
     }
 
-    // Parse do body da requisição
     const payload = await req.json();
     const question = payload?.question as QuestionExplanationRequest["question"] | undefined;
 
