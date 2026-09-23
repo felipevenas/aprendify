@@ -378,7 +378,7 @@ const NavbarContent = () => {
               </SheetContent>
             </Sheet>
 
-            <Link to="/dashboard" className="flex cursor-pointer items-center gap-1.5">
+            <Link to="/dashboard" className="hidden cursor-pointer items-center gap-1.5 md:flex">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-md">
                 <BookOpen className="h-4 w-4 text-primary-foreground" />
               </div>
@@ -386,23 +386,39 @@ const NavbarContent = () => {
             </Link>
           </div>
 
-          <div className="ml-auto flex items-center gap-1.5 sm:gap-2 md:gap-3">
-            {!streakLoading && streakData && (
-              <StreakIndicator
-                currentStreak={streakData.currentStreak}
-                questionsToday={streakData.questionsToday}
-                streakCompletedToday={streakData.streakCompletedToday}
-                longestStreak={streakData.longestStreak}
-              />
-            )}
+          <Link
+            to="/dashboard"
+            aria-label="Aprendify: ir para o painel"
+            className="absolute left-[50vw] flex -translate-x-1/2 cursor-pointer items-center gap-1.5 md:hidden"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-md">
+              <BookOpen className="h-4 w-4 text-primary-foreground" aria-hidden="true" />
+            </div>
+            <span className="text-md whitespace-nowrap font-bold text-gradient">Aprendify</span>
+          </Link>
 
-            <NotificationBell />
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-2 md:gap-3">
+            <div className="hidden md:block">
+              {!streakLoading && streakData && (
+                <StreakIndicator
+                  currentStreak={streakData.currentStreak}
+                  questionsToday={streakData.questionsToday}
+                  streakCompletedToday={streakData.streakCompletedToday}
+                  longestStreak={streakData.longestStreak}
+                />
+              )}
+
+            </div>
+            <div className="hidden md:block">
+              <NotificationBell />
+            </div>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="flex h-9 items-center gap-1.5 rounded-full pl-1 pr-2.5 transition-colors duration-300 hover:bg-primary/10 sm:h-10 sm:gap-2 sm:pr-3 md:pr-4"
+                  aria-label={`Abrir perfil de ${userName}`}
+                  className="flex h-11 w-11 items-center justify-center rounded-full p-0 transition-colors duration-300 hover:bg-primary/10 sm:h-11 sm:w-auto sm:gap-2 sm:pl-1 sm:pr-3 md:h-10 md:pr-4"
                 >
                   <PlanAvatar
                     userName={userName}

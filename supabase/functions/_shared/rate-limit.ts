@@ -16,6 +16,11 @@ function firstValidAddress(value: string | null): string | null {
 }
 
 async function clientKey(req: Request): Promise<string | null> {
+  // This hash is currently an auxiliary per-user scope in consume_rate_limit,
+  // not a shared cross-account IP quota. Do not treat forwarded headers as a
+  // trusted global identity until the Edge proxy contract and NAT-friendly cap
+  // are verified; otherwise callers could spoof or legitimate users could be
+  // throttled together.
   const address = firstValidAddress(
     req.headers.get("cf-connecting-ip") ??
       req.headers.get("x-real-ip") ??
@@ -67,13 +72,20 @@ export async function consumeRateLimit(
     throw new ApiError(503, "RATE_LIMIT_UNAVAILABLE", "Controle de uso temporariamente indisponível");
   }
 
-  return {
-    allowed: row.allowed,
-    remaining: Number(row.remaining ?? 0),
-    limit: Number(row.limit_value ?? maxCalls),
-    retryAfterSeconds: Number(row.retry_after_seconds ?? 0),
-    resetAt: String(row.reset_at ?? new Date().toISOString()),
-  };
+  const remaining = Number(row.remaining);
+  const limit = Number(row.limit_value);
+  const retryAfterSeconds = Number(row.retry_after_seconds);
+  const resetAt = typeof row.reset_at === "string" ? row.reset_at : "";
+  if (
+    !Number.isInteger(remaining) || remaining < 0 ||
+    !Number.isInteger(limit) || limit < 1 ||
+    !Number.isInteger(retryAfterSeconds) || retryAfterSeconds < 0 ||
+    !Number.isFinite(Date.parse(resetAt))
+  ) {
+    throw new ApiError(503, "RATE_LIMIT_UNAVAILABLE", "Rate limit temporarily unavailable");
+  }
+
+  return { allowed: row.allowed, remaining, limit, retryAfterSeconds, resetAt };
 }
 
 export async function consumeAnonymousRateLimit(
