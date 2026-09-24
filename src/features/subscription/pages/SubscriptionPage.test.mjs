@@ -27,3 +27,9 @@ test("a ativação do trial passa pela confirmação do servidor e oferece estad
   assert.match(source, /canActivateTrial\(trialStatus, isSubscribed, isAuthenticated\)/);
   assert.match(source, /Ativar teste grátis por 3 dias/);
 });
+
+test("conta elegível com assinatura histórica ainda recebe o trial", () => {
+  assert.match(source, /: !isPremium && !isSubscribed \?/);
+  assert.match(source, /O Stripe registra uma assinatura em período de teste/);
+  assert.doesNotMatch(source, /O teste não inicia uma assinatura/);
+});

@@ -15,6 +15,7 @@ import {
   type PlanKey,
 } from "../_shared/catalog.ts";
 import { isAllowedPaymentReturnUrl, paymentReturnUrl } from "../_shared/redirects.ts";
+import { checkoutFailure } from "./checkout-errors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -76,14 +77,17 @@ function resolveItems(body: Record<string, unknown>, catalog: ReturnType<typeof 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
 
+  let stage = "authenticate";
   try {
     const { user, serviceClient } = await authenticateRequest(req, corsHeaders);
     if (!user.email) throw new ApiError(422, "CHECKOUT_ACCOUNT_INVALID", "Conta não elegível para checkout");
 
+    stage = "rate_limit";
     const limit = await consumeRateLimit(serviceClient, req, user.id, "create-checkout", 5, 60);
     if (!limit.allowed) return jsonResponse({ error: "Limite de solicitações atingido", code: "RATE_LIMITED", rateLimited: true }, 429, corsHeaders, rateLimitHeaders(limit));
     const requestHeaders = { ...corsHeaders, ...rateLimitHeaders(limit) };
 
+    stage = "validate";
     const body = await readJsonObject(req, 16 * 1024);
     const catalog = stripeCatalog();
     const { plan, lineItems, includeOrderBump } = resolveItems(body, catalog);
@@ -103,7 +107,8 @@ serve(async (req) => {
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new ApiError(503, "PAYMENT_UNAVAILABLE", "Pagamento temporariamente indisponível");
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil", timeout: 10_000 });
+    stage = "customers";
     const customers = await stripe.customers.list({ email: user.email, limit: 10 });
     const customer = customers.data.find((candidate) =>
       candidate.metadata?.aprendify_trial_only !== "true" &&
@@ -124,6 +129,7 @@ serve(async (req) => {
     };
 
     if (couponCode) {
+      stage = "coupon_lookup";
       const { data: creatorCoupon, error } = await serviceClient
         .from("creator_coupons")
         .select("id, coupon_code")
@@ -131,6 +137,7 @@ serve(async (req) => {
         .eq("is_active", true)
         .maybeSingle();
       if (error) throw new ApiError(503, "COUPON_LOOKUP_UNAVAILABLE", "Cupom temporariamente indisponível");
+      stage = "promotion_codes";
       const promotionCodes = await stripe.promotionCodes.list({ code: couponCode, active: true, limit: 1 });
       if (promotionCodes.data[0]) sessionConfig.discounts = [{ promotion_code: promotionCodes.data[0].id }];
       if (creatorCoupon) {
@@ -143,10 +150,11 @@ serve(async (req) => {
       if (!promotionCodes.data[0]) sessionConfig.allow_promotion_codes = true;
     }
 
+    stage = "session";
     const session = await stripe.checkout.sessions.create(sessionConfig);
     if (!session.url) throw new ApiError(503, "CHECKOUT_UNAVAILABLE", "Checkout temporariamente indisponível");
-    return new Response(JSON.stringify({ url: session.url }), { status: 200, headers: requestHeaders });
+    return jsonResponse({ url: session.url }, 200, requestHeaders);
   } catch (error) {
-    return errorResponse(error, corsHeaders, "CHECKOUT_UNAVAILABLE", "Não foi possível iniciar o checkout");
+    return errorResponse(checkoutFailure(error, stage), corsHeaders);
   }
 });

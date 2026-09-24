@@ -5,6 +5,8 @@ import test from "node:test";
 const root = new URL("../../", import.meta.url);
 const initialMigration = await readFile(new URL("migrations/20260923111500_add_new_user_free_trial.sql", root), "utf8");
 const optInMigration = await readFile(new URL("migrations/20260923124500_opt_in_stripe_free_trial.sql", root), "utf8");
+const replayMigration = await readFile(new URL("migrations/20260924013000_idempotencia_ativacao_trial.sql", root), "utf8");
+const eligibilityRepair = await readFile(new URL("migrations/20260924013100_recuperar_elegibilidade_trial.sql", root), "utf8");
 const subscriptionFunction = await readFile(new URL("functions/check-subscription/index.ts", root), "utf8");
 const authorizeModule = await readFile(new URL("functions/_shared/authorize.ts", root), "utf8");
 
@@ -14,6 +16,13 @@ test("trial is eligible only for accounts created after migration and is private
   assert.doesNotMatch(initialMigration, /INSERT INTO public\.free_trial_entitlements[\s\S]{0,250}SELECT id FROM auth\.users/i);
   assert.match(initialMigration, /ENABLE ROW LEVEL SECURITY/);
   assert.match(initialMigration, /REVOKE ALL ON public\.free_trial_entitlements FROM PUBLIC, anon, authenticated/);
+});
+
+test("missed release cohort receives eligibility without activating a trial", () => {
+  assert.match(eligibilityRepair, /u\.created_at >= timestamptz '2026-09-23 22:24:52\+00'/);
+  assert.match(eligibilityRepair, /ON CONFLICT \(user_id\) DO NOTHING/);
+  assert.match(eligibilityRepair, /s\.status = 'authorized'[\s\S]*?s\.end_date > now\(\)/);
+  assert.doesNotMatch(eligibilityRepair, /SET\s+started_at|INSERT INTO public\.subscriptions/i);
 });
 
 test("the old activation RPC is a service-only no-op during rollout", () => {
@@ -51,6 +60,14 @@ test("checkout reservations are locked, idempotent and exclude paid accounts", (
   assert.match(optInMigration, /activate_free_trial_from_stripe/);
   assert.match(optInMigration, /_trial_ends_at <> _trial_started_at \+ interval '72 hours'/);
   assert.match(optInMigration, /GRANT EXECUTE ON FUNCTION public\.activate_free_trial_from_stripe/);
+});
+
+test("a confirmed trial replay remains idempotent after a later paid subscription", () => {
+  const replayCheck = replayMigration.indexOf("IF _trial.started_at IS NOT NULL THEN");
+  const paidCheck = replayMigration.indexOf("IF EXISTS (", replayCheck);
+  assert.ok(replayCheck > 0 && paidCheck > replayCheck);
+  assert.match(replayMigration, /_trial\.trial_stripe_subscription_id = _stripe_subscription_id/);
+  assert.match(replayMigration, /GRANT EXECUTE ON FUNCTION public\.activate_free_trial_from_stripe[\s\S]*?TO service_role/);
 });
 
 test("shared premium gates fail closed when entitlement is unavailable", async () => {
