@@ -7,15 +7,12 @@ import {
   consumeRateLimit,
 } from "../_shared/rate-limit.ts";
 import {
-  requireOrderBumpPrice,
-  requirePlanPrice,
   REDACAO_ADD_ON_CODE,
-  resolvePlanFromConfiguredPrice,
   stripeCatalog,
-  type PlanKey,
 } from "../_shared/catalog.ts";
 import { isAllowedPaymentReturnUrl, paymentReturnUrl } from "../_shared/redirects.ts";
 import { checkoutFailure } from "./checkout-errors.ts";
+import { resolveItems } from "./checkout-items.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,56 +20,6 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Expose-Headers": "Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset",
 };
-
-function invalid(message: string): never {
-  throw new ApiError(400, "INVALID_CHECKOUT_REQUEST", message);
-}
-
-function resolveItems(body: Record<string, unknown>, catalog: ReturnType<typeof stripeCatalog>) {
-  const requestedPlan = body.plan === undefined
-    ? null
-    : body.plan === "starter" || body.plan === "annual" ? body.plan as PlanKey : null;
-  const legacyPlan = body.priceId === undefined ? null : resolvePlanFromConfiguredPrice(catalog, body.priceId);
-  if (body.plan !== undefined && !requestedPlan) invalid("Plano inválido");
-  if (body.priceId !== undefined && !legacyPlan) invalid("Plano inválido");
-  if (requestedPlan && legacyPlan && requestedPlan !== legacyPlan) invalid("Planos conflitantes");
-
-  let plan: PlanKey | null = requestedPlan ?? legacyPlan;
-  let includeBump = body.orderBump === true;
-  if (body.orderBump !== undefined && body.orderBump !== true && body.orderBump !== false) invalid("Order bump inválido");
-  if (body.includeOrderBump !== undefined && typeof body.includeOrderBump !== "boolean") invalid("Order bump inválido");
-  if (body.includeOrderBump === true) includeBump = true;
-  if (body.orderBumpPriceId !== undefined) {
-    // The old client sends this symbolic key. A raw Stripe price is never accepted.
-    if (body.orderBumpPriceId !== REDACAO_ADD_ON_CODE) invalid("Order bump inválido");
-    includeBump = true;
-  }
-  if (body.quantity !== undefined && (body.quantity !== 1 || !Number.isInteger(body.quantity))) invalid("Quantidade inválida");
-
-  if (body.items !== undefined) {
-    if (!Array.isArray(body.items) || body.items.length < 1 || body.items.length > 2) invalid("Itens inválidos");
-    for (const raw of body.items) {
-      if (!raw || typeof raw !== "object") invalid("Itens inválidos");
-      const item = raw as Record<string, unknown>;
-      if (item.quantity !== 1 || !Number.isInteger(item.quantity)) invalid("Quantidade inválida");
-      const itemId = item.id ?? item.plan ?? item.priceId ?? item.price;
-      if (itemId === REDACAO_ADD_ON_CODE) {
-        includeBump = true;
-        continue;
-      }
-      const itemPlan = itemId === "starter" || itemId === "annual"
-        ? itemId as PlanKey
-        : resolvePlanFromConfiguredPrice(catalog, itemId);
-      if (!itemPlan || (plan && plan !== itemPlan)) invalid("Item não permitido");
-      plan = itemPlan;
-    }
-  }
-
-  if (!plan) invalid("Plano obrigatório");
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price: requirePlanPrice(catalog, plan), quantity: 1 }];
-  if (includeBump) lineItems.push({ price: requireOrderBumpPrice(catalog), quantity: 1 });
-  return { plan, lineItems, includeOrderBump };
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
@@ -87,16 +34,20 @@ serve(async (req) => {
     if (!limit.allowed) return jsonResponse({ error: "Limite de solicitações atingido", code: "RATE_LIMITED", rateLimited: true }, 429, corsHeaders, rateLimitHeaders(limit));
     const requestHeaders = { ...corsHeaders, ...rateLimitHeaders(limit) };
 
-    stage = "validate";
+    stage = "read_body";
     const body = await readJsonObject(req, 16 * 1024);
+    stage = "catalog";
     const catalog = stripeCatalog();
+    stage = "resolve_items";
     const { plan, lineItems, includeOrderBump } = resolveItems(body, catalog);
 
+    stage = "return_urls";
     for (const key of ["successUrl", "cancelUrl"] as const) {
       if (body[key] !== undefined && !isAllowedPaymentReturnUrl(body[key])) {
         throw new ApiError(400, "INVALID_RETURN_URL", "URL de retorno inválida");
       }
     }
+    stage = "coupon_validation";
     if (body.couponCode !== undefined && typeof body.couponCode !== "string") {
       throw new ApiError(400, "INVALID_COUPON", "Cupom inválido");
     }
@@ -105,6 +56,7 @@ serve(async (req) => {
       throw new ApiError(400, "INVALID_COUPON", "Cupom inválido");
     }
 
+    stage = "stripe_init";
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new ApiError(503, "PAYMENT_UNAVAILABLE", "Pagamento temporariamente indisponível");
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil", timeout: 10_000 });

@@ -63,3 +63,23 @@ test("classifies an invalid Stripe promotion code without exposing provider text
     console.error = original;
   }
 });
+
+test("registra apenas detalhe permitido de TypeError sem expor mensagem arbitrária", () => {
+  const original = console.error;
+  let logged;
+  console.error = (...args) => { logged = args; };
+  try {
+    checkoutFailure(new TypeError("Cannot read properties of undefined (reading 'annual')"), "resolve_items");
+    assert.equal(logged[1].name, "TypeError");
+    assert.equal(logged[1].runtimeDetail, "Cannot read properties of undefined (reading 'annual')");
+
+    checkoutFailure(new TypeError("secret customer email"), "resolve_items");
+    assert.equal(logged[1].runtimeDetail, null);
+    assert.doesNotMatch(JSON.stringify(logged), /secret customer email/);
+
+    checkoutFailure(new ReferenceError("Deno is not defined"), "resolve_items");
+    assert.equal(logged[1].runtimeDetail, "Deno is not defined");
+  } finally {
+    console.error = original;
+  }
+});
