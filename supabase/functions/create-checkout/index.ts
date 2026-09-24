@@ -105,7 +105,10 @@ serve(async (req) => {
     if (!stripeKey) throw new ApiError(503, "PAYMENT_UNAVAILABLE", "Pagamento temporariamente indisponível");
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 10 });
-    const customer = customers.data.find((candidate) => !candidate.metadata?.user_id || candidate.metadata.user_id === user.id);
+    const customer = customers.data.find((candidate) =>
+      candidate.metadata?.aprendify_trial_only !== "true" &&
+      (!candidate.metadata?.user_id || candidate.metadata.user_id === user.id)
+    );
 
     const addOnMetadata = includeOrderBump ? REDACAO_ADD_ON_CODE : "none";
     const sessionMetadata = { user_id: user.id, plan, add_on: addOnMetadata };

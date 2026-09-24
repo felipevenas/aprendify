@@ -685,7 +685,7 @@ const Auth = () => {
           >
             <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
             <p>
-              Novas contas recebem 3 dias grátis do Completo. O período começa no primeiro acesso após a confirmação do e-mail, sem cartão e sem cobrança automática.
+              Contas novas elegíveis podem ativar 3 dias grátis do Completo depois de criar a conta. Você escolhe quando começar, pela tela Minha Assinatura. Sem cartão e sem cobrança automática.
             </p>
           </div>
 

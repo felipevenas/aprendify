@@ -3,41 +3,38 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const root = new URL("../../", import.meta.url);
-const migration = await readFile(new URL("migrations/20260923111500_add_new_user_free_trial.sql", root), "utf8");
+const initialMigration = await readFile(new URL("migrations/20260923111500_add_new_user_free_trial.sql", root), "utf8");
+const optInMigration = await readFile(new URL("migrations/20260923124500_opt_in_stripe_free_trial.sql", root), "utf8");
 const subscriptionFunction = await readFile(new URL("functions/check-subscription/index.ts", root), "utf8");
 const authorizeModule = await readFile(new URL("functions/_shared/authorize.ts", root), "utf8");
-const attemptMigration = await readFile(new URL("migrations/20260923111500_add_new_user_free_trial.sql", root), "utf8");
 
-test("trial elegível apenas para contas criadas após a migration, sem escrita pelo cliente", () => {
-  assert.match(migration, /AFTER INSERT ON auth\.users/);
-  assert.match(migration, /INSERT INTO public\.free_trial_entitlements\(user_id\)/);
-  assert.doesNotMatch(migration, /INSERT INTO public\.free_trial_entitlements[\s\S]{0,250}SELECT id FROM auth\.users/i);
-  assert.match(migration, /ENABLE ROW LEVEL SECURITY/);
-  assert.match(migration, /REVOKE ALL ON public\.free_trial_entitlements FROM PUBLIC, anon, authenticated/);
+test("trial is eligible only for accounts created after migration and is private", () => {
+  assert.match(initialMigration, /AFTER INSERT ON auth\.users/);
+  assert.match(initialMigration, /INSERT INTO public\.free_trial_entitlements\(user_id\)/);
+  assert.doesNotMatch(initialMigration, /INSERT INTO public\.free_trial_entitlements[\s\S]{0,250}SELECT id FROM auth\.users/i);
+  assert.match(initialMigration, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(initialMigration, /REVOKE ALL ON public\.free_trial_entitlements FROM PUBLIC, anon, authenticated/);
 });
 
-test("ativação exige service role e e-mail confirmado; a repetição preserva o fim original", () => {
-  assert.match(migration, /FUNCTION public\.start_free_trial\(_user_id uuid\)/);
-  assert.match(migration, /auth\.role\(\) IS DISTINCT FROM 'service_role'/);
-  assert.match(migration, /email_confirmed_at IS NOT NULL OR confirmed_at IS NOT NULL/);
-  assert.match(migration, /started_at IS NULL[\s\S]*?RETURNING ends_at INTO _ends_at/);
-  assert.match(migration, /_now \+ interval '72 hours'/);
-  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.start_free_trial\(uuid\) TO service_role/);
+test("the old activation RPC is a service-only no-op during rollout", () => {
+  assert.match(optInMigration, /CREATE OR REPLACE FUNCTION public\.start_free_trial\(_user_id uuid\)/);
+  assert.match(optInMigration, /RETURN NULL;/);
+  assert.match(optInMigration, /GRANT EXECUTE ON FUNCTION public\.start_free_trial\(uuid\) TO service_role/);
+  assert.doesNotMatch(subscriptionFunction, /rpc\("start_free_trial"/);
 });
 
-test("entitlement preserva assinatura paga e aplica Completo durante o trial ativo", () => {
-  assert.match(migration, /s\.status = 'authorized'[\s\S]*?s\.end_date > now\(\)/);
-  assert.match(migration, /_premium := _paid OR _trial_active/);
-  assert.match(migration, /ELSIF _trial_active THEN[\s\S]*?_tier := 'complete'[\s\S]*?_essay_limit := 12/);
-  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.is_user_premium/);
-  assert.match(migration, /e\.has_premium_access/);
-  assert.match(migration, /public\.is_user_premium\(_user_id\)/);
-  assert.match(migration, /FROM public\.get_user_entitlement\(_user_id\) e/);
+test("entitlement preserves paid subscription and grants Complete while trial is active", () => {
+  assert.match(initialMigration, /s\.status = 'authorized'[\s\S]*?s\.end_date > now\(\)/);
+  assert.match(initialMigration, /_premium := _paid OR _trial_active/);
+  assert.match(initialMigration, /ELSIF _trial_active THEN[\s\S]*?_tier := 'complete'[\s\S]*?_essay_limit := 12/);
+  assert.match(initialMigration, /CREATE OR REPLACE FUNCTION public\.is_user_premium/);
+  assert.match(initialMigration, /e\.has_premium_access/);
+  assert.match(initialMigration, /public\.is_user_premium\(_user_id\)/);
+  assert.match(initialMigration, /FROM public\.get_user_entitlement\(_user_id\) e/);
 });
 
-test("check-subscription inicia após confirmação e publica o contrato acordado", () => {
-  assert.match(subscriptionFunction, /auth\.user\.email_confirmed_at \|\| auth\.user\.confirmed_at/);
-  assert.match(subscriptionFunction, /rpc\("start_free_trial"/);
+test("check-subscription only reads entitlement state and keeps its response contract", () => {
+  assert.doesNotMatch(subscriptionFunction, /rpc\("start_free_trial"/);
   assert.match(subscriptionFunction, /rpc\("get_user_entitlement"/);
   assert.match(subscriptionFunction, /subscribed: entitlement\.subscribed/);
   assert.match(subscriptionFunction, /has_premium_access: entitlement\.has_premium_access/);
@@ -47,7 +44,16 @@ test("check-subscription inicia após confirmação e publica o contrato acordad
   assert.match(subscriptionFunction, /monthly_essay_limit: entitlement\.monthly_essay_limit/);
 });
 
-test("gates premium compartilhados falham fechados quando entitlement não está disponível", async () => {
+test("checkout reservations are locked, idempotent and exclude paid accounts", () => {
+  assert.match(optInMigration, /FROM public\.free_trial_entitlements[\s\S]*?FOR UPDATE/);
+  assert.match(optInMigration, /trial_checkout_idempotency_key = gen_random_uuid\(\)/);
+  assert.match(optInMigration, /s\.status = 'authorized'[\s\S]*?s\.end_date > _now/);
+  assert.match(optInMigration, /activate_free_trial_from_stripe/);
+  assert.match(optInMigration, /_trial_ends_at <> _trial_started_at \+ interval '72 hours'/);
+  assert.match(optInMigration, /GRANT EXECUTE ON FUNCTION public\.activate_free_trial_from_stripe/);
+});
+
+test("shared premium gates fail closed when entitlement is unavailable", async () => {
   assert.match(authorizeModule, /export async function hasPremiumAccess/);
   assert.match(authorizeModule, /ENTITLEMENT_UNAVAILABLE/);
   for (const filename of ["generate-study-schedule", "analyze-simulado", "ai-study-suggestion"]) {
@@ -55,6 +61,5 @@ test("gates premium compartilhados falham fechados quando entitlement não está
     assert.match(source, /hasPremiumAccess/);
     assert.match(source, /PREMIUM_REQUIRED/);
   }
-  assert.match(attemptMigration, /_is_premium := public\.is_user_premium\(_user_id\)/);
-  assert.match(attemptMigration, /public\.get_user_entitlement\(_user_id\) e/);
+  assert.match(initialMigration, /_is_premium := public\.is_user_premium\(_user_id\)/);
 });

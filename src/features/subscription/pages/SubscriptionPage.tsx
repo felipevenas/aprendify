@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { usePremium } from "@/hooks/usePremium";
@@ -26,6 +26,8 @@ import { ptBR } from "date-fns/locale";
 import { PageLoader } from "@/components/ui/page-loader";
 import { getPlanLabel as getCatalogPlanLabel } from "../catalog";
 import { formatTrialDeadline } from "../trialPresentation";
+import { canActivateTrial, readTrialReturn } from "../trialCheckout";
+import { confirmTrialCheckout, createTrialCheckoutSession } from "../services/trialCheckoutService";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,13 +58,69 @@ interface SubscriptionPageProps {
 
 export default function Subscription({ embedded = false }: SubscriptionPageProps) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const prefersReducedMotion = useReducedMotion();
-  const { isPremium, isLoading: isPremiumLoading, trialStatus, trialEndsAt, isSubscribed } = usePremium();
+  const { isPremium, isLoading: isPremiumLoading, trialStatus, trialEndsAt, isSubscribed, refreshPremiumStatus } = usePremium();
   const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [subscriptionError, setSubscriptionError] = useState(false);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isTrialCheckoutLoading, setIsTrialCheckoutLoading] = useState(false);
+  const [trialCheckoutError, setTrialCheckoutError] = useState<string | null>(null);
+  const [trialConfirmationState, setTrialConfirmationState] = useState<"idle" | "confirming" | "error" | "success" | "cancelled">("idle");
+  const [pendingTrialSessionId, setPendingTrialSessionId] = useState<string | null>(null);
+  const [confirmedTrialEndsAt, setConfirmedTrialEndsAt] = useState<string | null>(null);
+  const [confirmationAttempt, setConfirmationAttempt] = useState(0);
+  const attemptedTrialConfirmation = useRef<string | null>(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+
+  useEffect(() => {
+    const returned = readTrialReturn(searchParams);
+    if (returned.sessionId) {
+      setPendingTrialSessionId(returned.sessionId);
+      setTrialConfirmationState("confirming");
+      return;
+    }
+    if (returned.cancelled) {
+      setTrialConfirmationState("cancelled");
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("trial");
+      setSearchParams(nextParams, { replace: true });
+    } else {
+      return;
+    }
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!pendingTrialSessionId) return;
+    const attemptKey = `${pendingTrialSessionId}:${confirmationAttempt}`;
+    if (attemptedTrialConfirmation.current === attemptKey) return;
+    attemptedTrialConfirmation.current = attemptKey;
+    let active = true;
+    setTrialConfirmationState("confirming");
+
+    void confirmTrialCheckout(pendingTrialSessionId).then((confirmed) => {
+      if (!active) return;
+      setConfirmedTrialEndsAt(confirmed.trial_ends_at);
+      setTrialConfirmationState("success");
+      setPendingTrialSessionId(null);
+      setSearchParams((currentParams) => {
+        const nextParams = new URLSearchParams(currentParams);
+        if (nextParams.get("trial_session") === pendingTrialSessionId) {
+          nextParams.delete("trial_session");
+        }
+        return nextParams;
+      }, { replace: true });
+      refreshPremiumStatus();
+    }).catch(() => {
+      if (!active) return;
+      attemptedTrialConfirmation.current = null;
+      setTrialConfirmationState("error");
+    });
+
+    return () => { active = false; };
+  }, [confirmationAttempt, pendingTrialSessionId, refreshPremiumStatus, setSearchParams]);
 
   const subscriptionViewState = subscriptionError
     ? "error"
@@ -80,9 +138,11 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        setIsAuthenticated(false);
         navigate("/auth");
         return;
       }
+      setIsAuthenticated(true);
 
       const { data, error } = await supabase
         .from("subscriptions")
@@ -103,6 +163,28 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
   useEffect(() => {
     void fetchSubscription();
   }, [fetchSubscription]);
+
+  const beginTrialCheckout = async () => {
+    setIsTrialCheckoutLoading(true);
+    setTrialCheckoutError(null);
+    try {
+      const { url } = await createTrialCheckoutSession();
+      window.location.assign(url);
+    } catch (error) {
+      setTrialCheckoutError(error instanceof Error ? error.message : "Não foi possível iniciar o teste. Tente novamente.");
+      setIsTrialCheckoutLoading(false);
+    }
+  };
+
+  const retryTrialConfirmation = () => {
+    attemptedTrialConfirmation.current = null;
+    setTrialConfirmationState("confirming");
+    setConfirmationAttempt((attempt) => attempt + 1);
+  };
+
+  const canOfferTrial = canActivateTrial(trialStatus, isSubscribed, isAuthenticated)
+    && !pendingTrialSessionId
+    && !["confirming", "error", "success"].includes(trialConfirmationState);
 
   const openCustomerPortal = async (mode: "manage" | "cancel" = "manage") => {
     setIsPortalLoading(true);
@@ -218,6 +300,36 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: prefersReducedMotion ? 0 : 0.18, ease: "easeOut" }}
             >
+            {trialConfirmationState !== "idle" && (
+              <Card
+                role={trialConfirmationState === "error" ? "alert" : "status"}
+                aria-live={trialConfirmationState === "error" ? "assertive" : "polite"}
+                className={`mb-5 ${trialConfirmationState === "success" ? "border-green-500/30 bg-green-500/[0.04]" : trialConfirmationState === "error" ? "border-destructive/30" : "border-primary/20"}`}
+              >
+                <CardContent className="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="font-semibold">
+                      {trialConfirmationState === "confirming" ? "Confirmando seu teste grátis" : null}
+                      {trialConfirmationState === "error" ? "Não foi possível confirmar o teste" : null}
+                      {trialConfirmationState === "success" ? "Teste grátis do Completo ativado" : null}
+                      {trialConfirmationState === "cancelled" ? "Você não ativou o teste" : null}
+                    </h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {trialConfirmationState === "confirming" ? "Estamos validando sua confirmação com segurança. Seu acesso só muda depois que o servidor confirmar." : null}
+                      {trialConfirmationState === "error" ? "A confirmação ainda não foi recebida. Você pode tentar novamente; não inicie outro checkout enquanto verificamos." : null}
+                      {trialConfirmationState === "success" ? `Acesso grátis por 3 dias, até ${formatTrialDeadline(confirmedTrialEndsAt) ?? "a data confirmada pelo Stripe"}. Sem cobrança automática.` : null}
+                      {trialConfirmationState === "cancelled" ? "Você não ativou o teste. Não houve cobrança." : null}
+                    </p>
+                  </div>
+                  {trialConfirmationState === "confirming" && <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" aria-label="Confirmando" />}
+                  {trialConfirmationState === "error" && (
+                    <Button type="button" variant="outline" onClick={retryTrialConfirmation}>
+                      Tentar confirmar novamente
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
             {subscriptionError ? (
               <Card role="alert" className="border-destructive/30">
                 <CardContent className="space-y-4 p-6">
@@ -286,6 +398,24 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
                       Ver Página de Ofertas & Combos
                     </Button>
                   </div>
+                  {canOfferTrial && (
+                    <section className="mx-auto mt-7 max-w-xl rounded-xl border border-primary/20 bg-primary/[0.035] p-5 text-left" aria-labelledby="trial-offer-heading">
+                      <h3 id="trial-offer-heading" className="font-semibold text-foreground">Experimente o Completo por 3 dias</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">Confirme o teste no Stripe para ativar seu acesso. Não é necessário cadastrar cartão e não há cobrança automática.</p>
+                      {trialCheckoutError && <p id="trial-checkout-error" className="mt-3 text-sm text-destructive" role="alert">{trialCheckoutError}</p>}
+                      <Button
+                        type="button"
+                        size="lg"
+                        className="mt-4 w-full sm:w-auto"
+                        onClick={() => void beginTrialCheckout()}
+                        disabled={isTrialCheckoutLoading}
+                        aria-describedby={trialCheckoutError ? "trial-checkout-error" : undefined}
+                      >
+                        {isTrialCheckoutLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+                        {isTrialCheckoutLoading ? "Abrindo confirmação segura…" : "Ativar teste grátis por 3 dias"}
+                      </Button>
+                    </section>
+                  )}
                 </CardContent>
               </Card>
             ) : (

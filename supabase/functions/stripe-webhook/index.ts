@@ -2,11 +2,13 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { ApiError, errorResponse, jsonResponse } from "../_shared/api.ts";
 import {
+  requirePlanPrice,
   REDACAO_ADD_ON_CODE,
   resolvePlanFromConfiguredPrice,
   stripeCatalog,
 } from "../_shared/catalog.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { STRIPE_TRIAL_OFFER, validateTrialCheckoutSnapshot } from "../_shared/trial.ts";
 
 type BackendClient = ReturnType<typeof createClient>;
 
@@ -127,12 +129,50 @@ async function processSubscription(
   return String(data);
 }
 
+async function activateTrialFromCheckout(
+  supabase: BackendClient,
+  stripe: Stripe,
+  session: Stripe.Checkout.Session,
+): Promise<void> {
+  const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
+  const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
+  const userId = session.metadata?.user_id;
+  if (!subscriptionId || !customerId || !userId || session.metadata?.trial_offer !== STRIPE_TRIAL_OFFER) {
+    throw new ApiError(422, "TRIAL_CONFIRMATION_FAILED", "Não foi possível confirmar o período de teste");
+  }
+  const [subscription, customer] = await Promise.all([
+    stripe.subscriptions.retrieve(subscriptionId),
+    stripe.customers.retrieve(customerId),
+  ]);
+  if ("deleted" in customer) throw new ApiError(422, "TRIAL_CONFIRMATION_FAILED", "Não foi possível confirmar o período de teste");
+  const verified = validateTrialCheckoutSnapshot({
+    session,
+    subscription,
+    customer,
+    userId,
+    expectedPriceId: requirePlanPrice(stripeCatalog(), "annual"),
+  });
+  const { data, error } = await supabase.rpc("activate_free_trial_from_stripe", {
+    _user_id: userId,
+    _checkout_session_id: session.id,
+    _stripe_customer_id: verified.customerId,
+    _stripe_subscription_id: verified.subscriptionId,
+    _trial_started_at: verified.startedAt,
+    _trial_ends_at: verified.endsAt,
+  });
+  if (error || data !== true) throw new ApiError(503, "TRIAL_ACTIVATION_UNAVAILABLE", "Não foi possível ativar o teste temporariamente");
+}
+
 async function processEvent(supabase: BackendClient, stripe: Stripe, event: Stripe.Event): Promise<void> {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
       if (session.mode !== "subscription" || !session.subscription) return;
       const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+      if (session.metadata?.trial_offer === STRIPE_TRIAL_OFFER || subscription.metadata?.trial_offer === STRIPE_TRIAL_OFFER) {
+        await activateTrialFromCheckout(supabase, stripe, session);
+        return;
+      }
       const userId = requiredUserId(session.metadata?.user_id ? session.metadata : subscription.metadata);
       const subscriptionDbId = await processSubscription(supabase, event.id, event.created, subscription, userId);
       await grantRedacaoAddOnCredits(supabase, event.id, userId, session, subscription);
@@ -143,11 +183,15 @@ async function processEvent(supabase: BackendClient, stripe: Stripe, event: Stri
     case "customer.subscription.created":
     case "customer.subscription.updated": {
       const subscription = event.data.object as Stripe.Subscription;
+      // Stripe's trial subscription is tracked only by the private trial
+      // entitlement; it must never become a paid subscription projection.
+      if (subscription.metadata?.trial_offer === STRIPE_TRIAL_OFFER) return;
       await processSubscription(supabase, event.id, event.created, subscription, requiredUserId(subscription.metadata));
       return;
     }
     case "customer.subscription.deleted": {
       const subscription = event.data.object as Stripe.Subscription;
+      if (subscription.metadata?.trial_offer === STRIPE_TRIAL_OFFER) return;
       const { data, error } = await supabase.rpc("record_subscription_status_event", {
         _event_id: event.id,
         _event_created: event.created,
@@ -162,12 +206,15 @@ async function processEvent(supabase: BackendClient, stripe: Stripe, event: Stri
       const invoice = event.data.object as Stripe.Invoice;
       if (!invoice.subscription) return;
       const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+      if (subscription.metadata?.trial_offer === STRIPE_TRIAL_OFFER) return;
       await processSubscription(supabase, event.id, event.created, subscription, requiredUserId(subscription.metadata));
       return;
     }
     case "invoice.payment_failed": {
       const invoice = event.data.object as Stripe.Invoice;
       if (!invoice.subscription) return;
+      const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+      if (subscription.metadata?.trial_offer === STRIPE_TRIAL_OFFER) return;
       const { data, error } = await supabase.rpc("record_subscription_status_event", {
         _event_id: event.id,
         _event_created: event.created,

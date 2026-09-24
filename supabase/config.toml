@@ -57,6 +57,12 @@ verify_jwt = false
 [functions.create-checkout]
 verify_jwt = false
 
+[functions.create-trial-checkout]
+verify_jwt = false
+
+[functions.confirm-trial-checkout]
+verify_jwt = false
+
 [functions.check-subscription]
 verify_jwt = false
 

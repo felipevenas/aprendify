@@ -15,3 +15,15 @@ test("transição do estado da assinatura é curta e respeita movimento reduzido
   assert.match(source, /initial=\{prefersReducedMotion \? false : \{ opacity: 0, y: 8 \}\}/);
   assert.match(source, /duration: prefersReducedMotion \? 0 : 0\.18/);
 });
+
+test("a ativação do trial passa pela confirmação do servidor e oferece estados acessíveis", () => {
+  assert.match(source, /createTrialCheckoutSession\(\)/);
+  assert.match(source, /confirmTrialCheckout\(pendingTrialSessionId\)/);
+  assert.match(source, /refreshPremiumStatus\(\)/);
+  assert.match(source, /trialConfirmationState === "confirming"/);
+  assert.match(source, /trialConfirmationState === "error"/);
+  assert.match(source, /trialConfirmationState === "success"/);
+  assert.match(source, /Você não ativou o teste\. Não houve cobrança\./);
+  assert.match(source, /canActivateTrial\(trialStatus, isSubscribed, isAuthenticated\)/);
+  assert.match(source, /Ativar teste grátis por 3 dias/);
+});
