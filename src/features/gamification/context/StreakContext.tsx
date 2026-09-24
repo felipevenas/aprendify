@@ -16,6 +16,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
+import { loadOrCreateStreakRow } from './streakRepository';
 
 // Constantes do sistema de streak
 const REQUIRED_DAILY_QUESTIONS = 5;
@@ -102,43 +103,28 @@ export const StreakProvider: React.FC<StreakProviderProps> = ({ children }) => {
       if (!user) {
         setLoading(false);
         setUserId(null);
+        setStreakData(null);
         return;
       }
 
       setUserId(user.id);
 
       // Busca ou cria registro de streak
-      const streakResponse = await supabase
-        .from('user_streaks')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-      let { data } = streakResponse;
-      const { error } = streakResponse;
+      const data = await loadOrCreateStreakRow(
+        () => supabase.from('user_streaks').select('*').eq('user_id', user.id).maybeSingle(),
+        () => supabase.from('user_streaks').upsert(
+          { user_id: user.id },
+          { onConflict: 'user_id', ignoreDuplicates: true },
+        ),
+      );
 
-      if (error && error.code === 'PGRST116') {
-        // Registro não existe, cria um novo
-        const { data: newData, error: insertError } = await supabase
-          .from('user_streaks')
-          .insert({ user_id: user.id })
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        data = newData;
-      } else if (error) {
-        throw error;
-      }
-
-      if (data) {
-        setStreakData({
-          currentStreak: data.current_streak,
-          longestStreak: data.longest_streak,
-          questionsToday: data.questions_today,
-          streakCompletedToday: data.streak_completed_today,
-          lastActivityDate: data.last_activity_date,
-        });
-      }
+      setStreakData({
+        currentStreak: data.current_streak,
+        longestStreak: data.longest_streak,
+        questionsToday: data.questions_today,
+        streakCompletedToday: data.streak_completed_today,
+        lastActivityDate: data.last_activity_date,
+      });
     } catch (error) {
       console.error('Erro ao buscar dados de streak:', error);
     } finally {
@@ -159,9 +145,10 @@ export const StreakProvider: React.FC<StreakProviderProps> = ({ children }) => {
         .from('user_streaks')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error || !data) return;
+      if (error) throw error;
+      if (!data) return;
 
       const lastActivity = data.last_activity_date;
 
@@ -222,25 +209,13 @@ export const StreakProvider: React.FC<StreakProviderProps> = ({ children }) => {
       const today = getTodayDate();
 
       // Busca dados atuais
-      const { data, error } = await supabase
-        .from('user_streaks')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error && error.code === 'PGRST116') {
-        // Cria registro se não existir
-        await supabase
-          .from('user_streaks')
-          .insert({
-            user_id: user.id,
-            questions_today: 1,
-            last_activity_date: today,
-          });
-        return;
-      }
-
-      if (error || !data) return;
+      const data = await loadOrCreateStreakRow(
+        () => supabase.from('user_streaks').select('*').eq('user_id', user.id).maybeSingle(),
+        () => supabase.from('user_streaks').upsert(
+          { user_id: user.id },
+          { onConflict: 'user_id', ignoreDuplicates: true },
+        ),
+      );
 
       // Se já completou hoje, apenas incrementa contador
       if (data.streak_completed_today && wasToday(data.last_activity_date)) {

@@ -7,14 +7,12 @@ import {
   consumeRateLimit,
 } from "../_shared/rate-limit.ts";
 import {
-  requireOrderBumpPrice,
-  requirePlanPrice,
   REDACAO_ADD_ON_CODE,
-  resolvePlanFromConfiguredPrice,
   stripeCatalog,
-  type PlanKey,
 } from "../_shared/catalog.ts";
 import { isAllowedPaymentReturnUrl, paymentReturnUrl } from "../_shared/redirects.ts";
+import { checkoutFailure } from "./checkout-errors.ts";
+import { resolveItems } from "./checkout-items.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,76 +21,33 @@ const corsHeaders = {
   "Access-Control-Expose-Headers": "Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset",
 };
 
-function invalid(message: string): never {
-  throw new ApiError(400, "INVALID_CHECKOUT_REQUEST", message);
-}
-
-function resolveItems(body: Record<string, unknown>, catalog: ReturnType<typeof stripeCatalog>) {
-  const requestedPlan = body.plan === undefined
-    ? null
-    : body.plan === "starter" || body.plan === "annual" ? body.plan as PlanKey : null;
-  const legacyPlan = body.priceId === undefined ? null : resolvePlanFromConfiguredPrice(catalog, body.priceId);
-  if (body.plan !== undefined && !requestedPlan) invalid("Plano inválido");
-  if (body.priceId !== undefined && !legacyPlan) invalid("Plano inválido");
-  if (requestedPlan && legacyPlan && requestedPlan !== legacyPlan) invalid("Planos conflitantes");
-
-  let plan: PlanKey | null = requestedPlan ?? legacyPlan;
-  let includeBump = body.orderBump === true;
-  if (body.orderBump !== undefined && body.orderBump !== true && body.orderBump !== false) invalid("Order bump inválido");
-  if (body.includeOrderBump !== undefined && typeof body.includeOrderBump !== "boolean") invalid("Order bump inválido");
-  if (body.includeOrderBump === true) includeBump = true;
-  if (body.orderBumpPriceId !== undefined) {
-    // The old client sends this symbolic key. A raw Stripe price is never accepted.
-    if (body.orderBumpPriceId !== REDACAO_ADD_ON_CODE) invalid("Order bump inválido");
-    includeBump = true;
-  }
-  if (body.quantity !== undefined && (body.quantity !== 1 || !Number.isInteger(body.quantity))) invalid("Quantidade inválida");
-
-  if (body.items !== undefined) {
-    if (!Array.isArray(body.items) || body.items.length < 1 || body.items.length > 2) invalid("Itens inválidos");
-    for (const raw of body.items) {
-      if (!raw || typeof raw !== "object") invalid("Itens inválidos");
-      const item = raw as Record<string, unknown>;
-      if (item.quantity !== 1 || !Number.isInteger(item.quantity)) invalid("Quantidade inválida");
-      const itemId = item.id ?? item.plan ?? item.priceId ?? item.price;
-      if (itemId === REDACAO_ADD_ON_CODE) {
-        includeBump = true;
-        continue;
-      }
-      const itemPlan = itemId === "starter" || itemId === "annual"
-        ? itemId as PlanKey
-        : resolvePlanFromConfiguredPrice(catalog, itemId);
-      if (!itemPlan || (plan && plan !== itemPlan)) invalid("Item não permitido");
-      plan = itemPlan;
-    }
-  }
-
-  if (!plan) invalid("Plano obrigatório");
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price: requirePlanPrice(catalog, plan), quantity: 1 }];
-  if (includeBump) lineItems.push({ price: requireOrderBumpPrice(catalog), quantity: 1 });
-  return { plan, lineItems, includeOrderBump };
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
 
+  let stage = "authenticate";
   try {
     const { user, serviceClient } = await authenticateRequest(req, corsHeaders);
     if (!user.email) throw new ApiError(422, "CHECKOUT_ACCOUNT_INVALID", "Conta não elegível para checkout");
 
+    stage = "rate_limit";
     const limit = await consumeRateLimit(serviceClient, req, user.id, "create-checkout", 5, 60);
     if (!limit.allowed) return jsonResponse({ error: "Limite de solicitações atingido", code: "RATE_LIMITED", rateLimited: true }, 429, corsHeaders, rateLimitHeaders(limit));
     const requestHeaders = { ...corsHeaders, ...rateLimitHeaders(limit) };
 
+    stage = "read_body";
     const body = await readJsonObject(req, 16 * 1024);
+    stage = "catalog";
     const catalog = stripeCatalog();
+    stage = "resolve_items";
     const { plan, lineItems, includeOrderBump } = resolveItems(body, catalog);
 
+    stage = "return_urls";
     for (const key of ["successUrl", "cancelUrl"] as const) {
       if (body[key] !== undefined && !isAllowedPaymentReturnUrl(body[key])) {
         throw new ApiError(400, "INVALID_RETURN_URL", "URL de retorno inválida");
       }
     }
+    stage = "coupon_validation";
     if (body.couponCode !== undefined && typeof body.couponCode !== "string") {
       throw new ApiError(400, "INVALID_COUPON", "Cupom inválido");
     }
@@ -101,9 +56,11 @@ serve(async (req) => {
       throw new ApiError(400, "INVALID_COUPON", "Cupom inválido");
     }
 
+    stage = "stripe_init";
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new ApiError(503, "PAYMENT_UNAVAILABLE", "Pagamento temporariamente indisponível");
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil", timeout: 10_000 });
+    stage = "customers";
     const customers = await stripe.customers.list({ email: user.email, limit: 10 });
     const customer = customers.data.find((candidate) =>
       candidate.metadata?.aprendify_trial_only !== "true" &&
@@ -124,6 +81,7 @@ serve(async (req) => {
     };
 
     if (couponCode) {
+      stage = "coupon_lookup";
       const { data: creatorCoupon, error } = await serviceClient
         .from("creator_coupons")
         .select("id, coupon_code")
@@ -131,6 +89,7 @@ serve(async (req) => {
         .eq("is_active", true)
         .maybeSingle();
       if (error) throw new ApiError(503, "COUPON_LOOKUP_UNAVAILABLE", "Cupom temporariamente indisponível");
+      stage = "promotion_codes";
       const promotionCodes = await stripe.promotionCodes.list({ code: couponCode, active: true, limit: 1 });
       if (promotionCodes.data[0]) sessionConfig.discounts = [{ promotion_code: promotionCodes.data[0].id }];
       if (creatorCoupon) {
@@ -143,10 +102,11 @@ serve(async (req) => {
       if (!promotionCodes.data[0]) sessionConfig.allow_promotion_codes = true;
     }
 
+    stage = "session";
     const session = await stripe.checkout.sessions.create(sessionConfig);
     if (!session.url) throw new ApiError(503, "CHECKOUT_UNAVAILABLE", "Checkout temporariamente indisponível");
-    return new Response(JSON.stringify({ url: session.url }), { status: 200, headers: requestHeaders });
+    return jsonResponse({ url: session.url }, 200, requestHeaders);
   } catch (error) {
-    return errorResponse(error, corsHeaders, "CHECKOUT_UNAVAILABLE", "Não foi possível iniciar o checkout");
+    return errorResponse(checkoutFailure(error, stage), corsHeaders);
   }
 });

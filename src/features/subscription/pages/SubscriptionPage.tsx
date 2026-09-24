@@ -128,7 +128,7 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
       ? "trial-active"
       : trialStatus === "expired" && !isSubscribed
         ? "trial-expired"
-        : !isPremium && !subscription
+        : !isPremium && !isSubscribed
           ? "free"
           : "subscription";
 
@@ -357,7 +357,7 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
                     <p className="text-sm text-muted-foreground">Seu acesso de teste termina em</p>
                     <p className="mt-1 font-semibold text-foreground">{formatTrialDeadline(trialEndsAt) ?? "A data de encerramento será atualizada em instantes."}</p>
                   </div>
-                  <p className="text-sm text-muted-foreground">O teste não inicia uma assinatura nem gera cobrança automática. Se quiser continuar depois, escolha um plano mensal ou anual.</p>
+                  <p className="text-sm text-muted-foreground">O Stripe registra uma assinatura em período de teste, sem cobrança durante os 3 dias. Sem forma de pagamento cadastrada, ela é cancelada ao terminar. Para continuar depois, escolha um plano mensal ou anual.</p>
                   <Button size="lg" onClick={() => navigate("/planos")}>
                     Conhecer os planos
                   </Button>
@@ -379,7 +379,7 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
                   </Button>
                 </CardContent>
               </Card>
-            ) : !isPremium && !subscription ? (
+            ) : !isPremium && !isSubscribed ? (
               <Card className="border-2 border-primary/20 shadow-lg">
                 <CardContent className="p-8 text-center">
                   <div className="inline-flex p-3 rounded-2xl bg-primary/10 text-primary mb-4">
