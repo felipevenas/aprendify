@@ -20,16 +20,8 @@ serve(async (req) => {
     const limit = await consumeRateLimit(auth.serviceClient, req, auth.user.id, "check-subscription", 200, 60);
     if (!limit.allowed) return jsonResponse({ error: "Muitas solicitações. Tente novamente em breve.", code: "RATE_LIMITED", rateLimited: true }, 429, corsHeaders, rateLimitHeaders(limit));
 
-    // Trial activation is only allowed after email confirmation. The RPC also
-    // verifies this against auth.users and uses the database clock, so this
-    // check only avoids an unnecessary call for unconfirmed sessions.
-    if (auth.user.email_confirmed_at || auth.user.confirmed_at) {
-      const { error: activationError } = await auth.serviceClient.rpc("start_free_trial", { _user_id: auth.user.id });
-      if (activationError) throw new Error("trial activation unavailable");
-    }
-
-    // Stripe remains the paid source of truth; trial state is stored separately
-    // and combined by one database entitlement function.
+    // Trial access is opt-in and only activated after a server-side Stripe
+    // Checkout confirmation. This endpoint remains read-only for entitlements.
     const [{ data: entitlementRows, error }, { data: redacaoCredits, error: creditsError }] = await Promise.all([
       auth.serviceClient.rpc("get_user_entitlement", { _user_id: auth.user.id }),
       auth.serviceClient.rpc("get_essay_addon_credit_balance", { _user_id: auth.user.id }),
