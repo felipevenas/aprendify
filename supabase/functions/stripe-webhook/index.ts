@@ -9,6 +9,7 @@ import {
 } from "../_shared/catalog.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { STRIPE_TRIAL_OFFER, validateTrialCheckoutSnapshot } from "../_shared/trial.ts";
+import { webhookFailureDiagnostic, webhookStripeOptions, type WebhookFailureStage } from "../_shared/webhook-runtime.ts";
 
 type BackendClient = ReturnType<typeof createClient>;
 
@@ -235,6 +236,7 @@ serve(async (req) => {
   if (req.method !== "POST") return jsonResponse({ code: "METHOD_NOT_ALLOWED", error: "Método não permitido" }, 405, { ...corsHeaders, Allow: "POST, OPTIONS" });
 
   let eventId: string | null = null;
+  let stage: WebhookFailureStage = "configuration";
   try {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
@@ -246,7 +248,8 @@ serve(async (req) => {
       throw new ApiError(413, "WEBHOOK_PAYLOAD_TOO_LARGE", "Payload excede o limite permitido");
     }
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(stripeKey, webhookStripeOptions);
+    stage = "signature";
     let event: Stripe.Event;
     try {
       event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
@@ -258,6 +261,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
+    stage = "inbox_claim";
     const { data: claimData, error: claimError } = await supabase.rpc("claim_stripe_webhook_event", {
       _event_id: event.id,
       _event_type: event.type,
@@ -272,21 +276,27 @@ serve(async (req) => {
     }
     eventId = event.id;
 
+    stage = "process_event";
     logStep(`processing ${event.type}`);
     await processEvent(supabase, stripe, event);
+    stage = "complete_event";
     const { error: completeError } = await supabase.rpc("complete_stripe_webhook_event", { _event_id: event.id });
     if (completeError) throw new Error("Webhook completion persistence failed");
     return jsonResponse({ received: true }, 200, corsHeaders);
   } catch (error) {
+    const errorCode = error instanceof ApiError ? error.code : "PROCESSING_FAILED";
+    console.error("[STRIPE-WEBHOOK] failure", webhookFailureDiagnostic(stage, errorCode));
     if (eventId) {
+      stage = "failure_recording";
       try {
         const supabase = createClient(
           Deno.env.get("SUPABASE_URL") ?? "",
           Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
           { auth: { persistSession: false, autoRefreshToken: false } },
         );
-        await supabase.rpc("fail_stripe_webhook_event", { _event_id: eventId, _error_code: error instanceof ApiError ? error.code : "PROCESSING_FAILED" });
+        await supabase.rpc("fail_stripe_webhook_event", { _event_id: eventId, _error_code: errorCode });
       } catch {
+        console.error("[STRIPE-WEBHOOK] failure", webhookFailureDiagnostic(stage, "INBOX_FAILURE_RECORDING_FAILED"));
         // The original 5xx remains the retry signal if failure recording also fails.
       }
     }
