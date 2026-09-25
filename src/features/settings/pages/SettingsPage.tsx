@@ -34,6 +34,7 @@ import { PageLoader } from "@/components/ui/page-loader";
 import { GitHubStudyHeatmap } from "@/features/gamification/components/GitHubStudyHeatmap";
 import { usePremiumContext } from "@/contexts/PremiumContext";
 import { getAccountPlanVisual } from "@/features/subscription/catalog";
+import { getExpiredSessionRedirect } from "@/features/auth/services/authRedirect";
 import { getProfileTab, type ProfileTab } from "../profileTabs";
 
 const StatisticsPanel = lazy(() => import("@/features/statistics/pages/StatisticsPage"));
@@ -94,7 +95,7 @@ const Settings = () => {
     const checkAuth = async () => {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) {
-        navigate("/auth");
+        navigate(getExpiredSessionRedirect(searchParams));
         return;
       }
 
@@ -114,7 +115,7 @@ const Settings = () => {
     };
 
     void checkAuth();
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
   const firstName = useMemo(() => fullName.trim().split(/\s+/)[0] || "Estudante", [fullName]);
 

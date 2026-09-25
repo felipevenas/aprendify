@@ -16,6 +16,11 @@ import { useWindowSize } from "@/hooks/useWindowSize";
 import { MotionConfig } from "framer-motion";
 import { getSafeAuthMessage } from "../services/authMessages";
 import { validatePassword, usernameSchema } from "../services/authValidation";
+import {
+  getPostAuthRedirect,
+  getPostAuthRedirectParams,
+  POST_AUTH_REDIRECT_STORAGE_KEY,
+} from "../services/authRedirect";
 import { useTheme } from "next-themes";
 
 /**
@@ -179,16 +184,7 @@ const Auth = () => {
 
   // Verificar se há parâmetro de sucesso na URL (após cadastro)
   const registrationSuccess = searchParams.get("registered") === "true";
-  const requestedPlan = searchParams.get("plano");
-  const requestedBump = searchParams.get("bump");
-  const requestedCoupon = searchParams.get("cupom");
-  const checkoutParams = new URLSearchParams();
-  if (requestedPlan === "starter" || requestedPlan === "annual") checkoutParams.set("plano", requestedPlan);
-  if (requestedBump === "redacao") checkoutParams.set("bump", "redacao");
-  if (requestedCoupon) checkoutParams.set("cupom", requestedCoupon);
-  const checkoutRedirect = searchParams.get("redirect") === "/planos" && (requestedPlan === "starter" || requestedPlan === "annual")
-    ? `/planos?${checkoutParams.toString()}`
-    : "/dashboard";
+  const checkoutRedirect = getPostAuthRedirect(searchParams);
 
   // Validação de senha
   const passwordValidation = useMemo(() => validatePassword(password), [password]);
@@ -400,12 +396,7 @@ const Auth = () => {
         setTimeout(() => {
           setShowSuccessAnimation(false);
           const returnParams = new URLSearchParams({ registered: "true" });
-          if (checkoutRedirect !== "/dashboard") {
-            returnParams.set("redirect", "/planos");
-            returnParams.set("plano", requestedPlan as string);
-            if (requestedBump === "redacao") returnParams.set("bump", "redacao");
-            if (requestedCoupon) returnParams.set("cupom", requestedCoupon);
-          }
+          getPostAuthRedirectParams(searchParams).forEach((value, key) => returnParams.set(key, value));
           navigate(`/auth?${returnParams.toString()}`);
           setIsLogin(true);
           // Limpar campos do formulário
@@ -436,11 +427,20 @@ const Auth = () => {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
+      try {
+        if (checkoutRedirect === "/dashboard") {
+          window.sessionStorage.removeItem(POST_AUTH_REDIRECT_STORAGE_KEY);
+        } else {
+          window.sessionStorage.setItem(POST_AUTH_REDIRECT_STORAGE_KEY, checkoutRedirect);
+        }
+      } catch {
+        // OAuth login can continue; only the post-login continuation is unavailable.
+      }
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           // Usa a URL de callback padrão do Supabase que redireciona para o site após autenticação
-          redirectTo: `${window.location.origin}${checkoutRedirect}`,
+          redirectTo: `${window.location.origin}/dashboard`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -450,6 +450,11 @@ const Auth = () => {
 
       if (error) throw error;
     } catch (error: unknown) {
+      try {
+        window.sessionStorage.removeItem(POST_AUTH_REDIRECT_STORAGE_KEY);
+      } catch {
+        // Ignore storage restrictions while reporting the authentication error.
+      }
       const safeMessage = getSafeAuthMessage("oauth", error);
       setAuthMessage(safeMessage);
       toast.error(safeMessage);

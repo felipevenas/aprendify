@@ -26,7 +26,8 @@ import { ptBR } from "date-fns/locale";
 import { PageLoader } from "@/components/ui/page-loader";
 import { getPlanLabel as getCatalogPlanLabel } from "../catalog";
 import { formatTrialDeadline } from "../trialPresentation";
-import { canActivateTrial, readTrialReturn } from "../trialCheckout";
+import { canActivateTrial, canShowFreeSubscription, readTrialReturn } from "../trialCheckout";
+import { getExpiredSessionRedirect } from "@/features/auth/services/authRedirect";
 import { confirmTrialCheckout, createTrialCheckoutSession } from "../services/trialCheckoutService";
 import {
   AlertDialog,
@@ -60,7 +61,15 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const prefersReducedMotion = useReducedMotion();
-  const { isPremium, isLoading: isPremiumLoading, trialStatus, trialEndsAt, isSubscribed, refreshPremiumStatus } = usePremium();
+  const {
+    isPremium,
+    isLoading: isPremiumLoading,
+    trialStatus,
+    trialEndsAt,
+    isSubscribed,
+    entitlementStatus,
+    refreshPremiumStatus,
+  } = usePremium();
   const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [subscriptionError, setSubscriptionError] = useState(false);
@@ -71,13 +80,29 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
   const [trialConfirmationState, setTrialConfirmationState] = useState<"idle" | "confirming" | "error" | "success" | "cancelled">("idle");
   const [pendingTrialSessionId, setPendingTrialSessionId] = useState<string | null>(null);
   const [confirmedTrialEndsAt, setConfirmedTrialEndsAt] = useState<string | null>(null);
+  const [trialCheckoutConfirmedAtServer, setTrialCheckoutConfirmedAtServer] = useState(false);
+  const [awaitingTrialEntitlement, setAwaitingTrialEntitlement] = useState(false);
   const [confirmationAttempt, setConfirmationAttempt] = useState(0);
   const attemptedTrialConfirmation = useRef<string | null>(null);
+  const handledTrialReturnSession = useRef<string | null>(null);
+  const completedTrialReturnSession = useRef<string | null>(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const returnedTrialSessionId = readTrialReturn(searchParams).sessionId;
+  const visiblePendingTrialSessionId = pendingTrialSessionId ?? (
+    completedTrialReturnSession.current === returnedTrialSessionId ? null : returnedTrialSessionId
+  );
 
   useEffect(() => {
     const returned = readTrialReturn(searchParams);
     if (returned.sessionId) {
+      if (completedTrialReturnSession.current === returned.sessionId) return;
+      if (handledTrialReturnSession.current !== returned.sessionId) {
+        handledTrialReturnSession.current = returned.sessionId;
+        completedTrialReturnSession.current = null;
+        setTrialCheckoutConfirmedAtServer(false);
+        setAwaitingTrialEntitlement(false);
+        setConfirmedTrialEndsAt(null);
+      }
       setPendingTrialSessionId(returned.sessionId);
       setTrialConfirmationState("confirming");
       return;
@@ -92,6 +117,21 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
     }
   }, [searchParams, setSearchParams]);
 
+  const finishTrialConfirmation = useCallback((sessionId: string, endsAt: string | null) => {
+    completedTrialReturnSession.current = sessionId;
+    setConfirmedTrialEndsAt(endsAt);
+    setAwaitingTrialEntitlement(false);
+    setTrialConfirmationState("success");
+    setPendingTrialSessionId(null);
+    setSearchParams((currentParams) => {
+      const nextParams = new URLSearchParams(currentParams);
+      if (nextParams.get("trial_session") === sessionId) {
+        nextParams.delete("trial_session");
+      }
+      return nextParams;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   useEffect(() => {
     if (!pendingTrialSessionId) return;
     const attemptKey = `${pendingTrialSessionId}:${confirmationAttempt}`;
@@ -103,34 +143,60 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
     void confirmTrialCheckout(pendingTrialSessionId).then((confirmed) => {
       if (!active) return;
       setConfirmedTrialEndsAt(confirmed.trial_ends_at);
-      setTrialConfirmationState("success");
-      setPendingTrialSessionId(null);
-      setSearchParams((currentParams) => {
-        const nextParams = new URLSearchParams(currentParams);
-        if (nextParams.get("trial_session") === pendingTrialSessionId) {
-          nextParams.delete("trial_session");
-        }
-        return nextParams;
-      }, { replace: true });
+      setTrialCheckoutConfirmedAtServer(true);
+      setAwaitingTrialEntitlement(true);
       refreshPremiumStatus();
     }).catch(() => {
       if (!active) return;
       attemptedTrialConfirmation.current = null;
+      setAwaitingTrialEntitlement(false);
       setTrialConfirmationState("error");
     });
 
     return () => { active = false; };
-  }, [confirmationAttempt, pendingTrialSessionId, refreshPremiumStatus, setSearchParams]);
+  }, [confirmationAttempt, pendingTrialSessionId, refreshPremiumStatus]);
 
-  const subscriptionViewState = subscriptionError
-    ? "error"
-    : trialStatus === "active" && !isSubscribed
-      ? "trial-active"
-      : trialStatus === "expired" && !isSubscribed
-        ? "trial-expired"
-        : !isPremium && !isSubscribed
-          ? "free"
-          : "subscription";
+  useEffect(() => {
+    if (!pendingTrialSessionId) return;
+    const confirmationIsRecoverable = awaitingTrialEntitlement || trialConfirmationState === "error";
+    if (!confirmationIsRecoverable || entitlementStatus !== "ready" || trialStatus !== "active" || isSubscribed) return;
+
+    finishTrialConfirmation(pendingTrialSessionId, trialEndsAt ?? confirmedTrialEndsAt);
+  }, [
+    awaitingTrialEntitlement,
+    confirmedTrialEndsAt,
+    entitlementStatus,
+    finishTrialConfirmation,
+    isSubscribed,
+    pendingTrialSessionId,
+    trialConfirmationState,
+    trialEndsAt,
+    trialStatus,
+  ]);
+
+  useEffect(() => {
+    if (!pendingTrialSessionId || !awaitingTrialEntitlement) return;
+    const timeout = window.setTimeout(() => {
+      setAwaitingTrialEntitlement(false);
+      attemptedTrialConfirmation.current = null;
+      setTrialConfirmationState("error");
+    }, 8_000);
+    return () => window.clearTimeout(timeout);
+  }, [awaitingTrialEntitlement, confirmationAttempt, pendingTrialSessionId]);
+
+  const subscriptionViewState = visiblePendingTrialSessionId
+    ? "trial-pending"
+    : entitlementStatus !== "ready"
+      ? `entitlement-${entitlementStatus}`
+      : subscriptionError
+        ? "error"
+        : trialStatus === "active" && !isSubscribed
+          ? "trial-active"
+          : trialStatus === "expired" && !isSubscribed
+            ? "trial-expired"
+            : !isPremium && !isSubscribed
+              ? "free"
+              : "subscription";
 
   const fetchSubscription = useCallback(async () => {
     setIsLoading(true);
@@ -139,7 +205,7 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setIsAuthenticated(false);
-        navigate("/auth");
+        navigate(getExpiredSessionRedirect(searchParams));
         return;
       }
       setIsAuthenticated(true);
@@ -158,7 +224,7 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
     } finally {
       setIsLoading(false);
     }
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
   useEffect(() => {
     void fetchSubscription();
@@ -178,12 +244,21 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
 
   const retryTrialConfirmation = () => {
     attemptedTrialConfirmation.current = null;
+    setAwaitingTrialEntitlement(false);
     setTrialConfirmationState("confirming");
     setConfirmationAttempt((attempt) => attempt + 1);
   };
 
-  const canOfferTrial = canActivateTrial(trialStatus, isSubscribed, isAuthenticated)
-    && !pendingTrialSessionId
+  const hasPendingTrialConfirmation = Boolean(visiblePendingTrialSessionId)
+    || ["confirming", "error", "success"].includes(trialConfirmationState);
+  const canDisplayFreeSubscription = canShowFreeSubscription(
+    entitlementStatus === "ready",
+    hasPendingTrialConfirmation,
+    isPremium,
+    isSubscribed,
+  );
+  const canOfferTrial = canActivateTrial(trialStatus, isSubscribed, isAuthenticated, entitlementStatus === "ready")
+    && !visiblePendingTrialSessionId
     && !["confirming", "error", "success"].includes(trialConfirmationState);
 
   const openCustomerPortal = async (mode: "manage" | "cancel" = "manage") => {
@@ -300,37 +375,65 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: prefersReducedMotion ? 0 : 0.18, ease: "easeOut" }}
             >
-            {trialConfirmationState !== "idle" && (
-              <Card
-                role={trialConfirmationState === "error" ? "alert" : "status"}
-                aria-live={trialConfirmationState === "error" ? "assertive" : "polite"}
-                className={`mb-5 ${trialConfirmationState === "success" ? "border-green-500/30 bg-green-500/[0.04]" : trialConfirmationState === "error" ? "border-destructive/30" : "border-primary/20"}`}
-              >
-                <CardContent className="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h2 className="font-semibold">
-                      {trialConfirmationState === "confirming" ? "Confirmando seu teste grátis" : null}
-                      {trialConfirmationState === "error" ? "Não foi possível confirmar o teste" : null}
-                      {trialConfirmationState === "success" ? "Teste grátis do Completo ativado" : null}
-                      {trialConfirmationState === "cancelled" ? "Você não ativou o teste" : null}
-                    </h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {trialConfirmationState === "confirming" ? "Estamos validando sua confirmação com segurança. Seu acesso só muda depois que o servidor confirmar." : null}
-                      {trialConfirmationState === "error" ? "A confirmação ainda não foi recebida. Você pode tentar novamente; não inicie outro checkout enquanto verificamos." : null}
-                      {trialConfirmationState === "success" ? `Acesso grátis por 3 dias, até ${formatTrialDeadline(confirmedTrialEndsAt) ?? "a data confirmada pelo Stripe"}. Sem cobrança automática.` : null}
-                      {trialConfirmationState === "cancelled" ? "Você não ativou o teste. Não houve cobrança." : null}
-                    </p>
-                  </div>
-                  {trialConfirmationState === "confirming" && <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" aria-label="Confirmando" />}
-                  {trialConfirmationState === "error" && (
-                    <Button type="button" variant="outline" onClick={retryTrialConfirmation}>
-                      Tentar confirmar novamente
-                    </Button>
-                  )}
+            {trialConfirmationState === "cancelled" && (
+              <Card role="status" aria-live="polite" className="mb-5 border-primary/20">
+                <CardContent className="p-5">
+                  <h2 className="font-semibold">Voc&ecirc; n&atilde;o ativou o teste</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">Nenhuma cobran&ccedil;a foi feita. Se sua conta ainda for eleg&iacute;vel, voc&ecirc; poder&aacute; iniciar uma nova tentativa abaixo.</p>
                 </CardContent>
               </Card>
             )}
-            {subscriptionError ? (
+            {visiblePendingTrialSessionId ? (
+              <Card
+                role={trialConfirmationState === "error" ? "alert" : "status"}
+                aria-live={trialConfirmationState === "error" ? "assertive" : "polite"}
+                className={trialConfirmationState === "error" ? "border-destructive/30" : "border-primary/20"}
+              >
+                <CardContent className="flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="font-semibold">
+                      {trialConfirmationState === "error"
+                        ? <>Seu teste continua em verifica&ccedil;&atilde;o</>
+                        : <>Estamos verificando a ativa&ccedil;&atilde;o do seu teste</>}
+                    </h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {trialCheckoutConfirmedAtServer ? (
+                        <>O Stripe confirmou o checkout e estamos sincronizando seu acesso. Seu teste n&atilde;o foi perdido; tente verificar esta mesma sess&atilde;o novamente. N&atilde;o inicie outro checkout. Sem cobran&ccedil;a autom&aacute;tica.</>
+                      ) : (
+                        <>Ainda n&atilde;o recebemos a confirma&ccedil;&atilde;o final. Seu pedido continua preservado nesta p&aacute;gina; tente verificar esta mesma sess&atilde;o novamente. N&atilde;o inicie outro checkout. Sem cobran&ccedil;a autom&aacute;tica.</>
+                      )}
+                    </p>
+                  </div>
+                  {trialConfirmationState === "error" ? (
+                    <Button type="button" variant="outline" className="w-full shrink-0 sm:w-auto" onClick={retryTrialConfirmation}>
+                      Verificar novamente
+                    </Button>
+                  ) : (
+                    <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" aria-label="Verificando a ativacao" />
+                  )}
+                </CardContent>
+              </Card>
+            ) : entitlementStatus !== "ready" ? (
+              <Card role={entitlementStatus === "unavailable" ? "alert" : "status"} aria-live={entitlementStatus === "unavailable" ? "assertive" : "polite"} className="border-destructive/30">
+                <CardContent className="space-y-4 p-6">
+                  <div>
+                    <h2 className="font-semibold">N&atilde;o foi poss&iacute;vel verificar seu acesso</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">Seu teste n&atilde;o foi marcado como indispon&iacute;vel. Vamos consultar o servidor antes de mostrar ofertas ou alterar seu acesso.</p>
+                  </div>
+                  <Button type="button" onClick={refreshPremiumStatus} disabled={entitlementStatus === "loading"}>
+                    {entitlementStatus === "loading" && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+                    Tentar verificar novamente
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : trialConfirmationState === "success" && trialStatus !== "active" ? (
+              <Card role="status" aria-live="polite" className="border-primary/20">
+                <CardContent className="space-y-2 p-5">
+                  <h2 className="font-semibold">Checkout confirmado; atualizando seu acesso</h2>
+                  <p className="text-sm text-muted-foreground">Ainda estamos aguardando a confirma&ccedil;&atilde;o do acesso pelo servidor. Seu teste foi preservado, sem cobran&ccedil;a autom&aacute;tica.</p>
+                </CardContent>
+              </Card>
+            ) : subscriptionError ? (
               <Card role="alert" className="border-destructive/30">
                 <CardContent className="space-y-4 p-6">
                   <div>
@@ -344,11 +447,11 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
                 </CardContent>
               </Card>
             ) : trialStatus === "active" && !isSubscribed ? (
-              <Card className="border-primary/30 bg-primary/[0.04] shadow-sm">
+              <Card role="status" aria-live="polite" className="border-primary/30 bg-primary/[0.04] shadow-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Crown className="h-5 w-5 text-primary" />
-                    Teste grátis do plano Completo
+                    {trialConfirmationState === "success" ? "Teste grátis do Completo ativado" : "Teste grátis do plano Completo"}
                   </CardTitle>
                   <CardDescription>Você tem acesso aos recursos do Completo sem cobrança e sem cadastrar cartão.</CardDescription>
                 </CardHeader>
@@ -379,7 +482,7 @@ export default function Subscription({ embedded = false }: SubscriptionPageProps
                   </Button>
                 </CardContent>
               </Card>
-            ) : !isPremium && !isSubscribed ? (
+            ) : canDisplayFreeSubscription ? (
               <Card className="border-2 border-primary/20 shadow-lg">
                 <CardContent className="p-8 text-center">
                   <div className="inline-flex p-3 rounded-2xl bg-primary/10 text-primary mb-4">

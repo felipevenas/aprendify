@@ -4,32 +4,37 @@ import test from "node:test";
 
 const source = readFileSync(new URL("./SubscriptionPage.tsx", import.meta.url), "utf8");
 
-test("assinatura mantém um CTA principal e remove a oferta do modal rápido", () => {
-  assert.doesNotMatch(source, /Ver no Modal Rápido|PremiumModal|showPlansModal/);
-  assert.match(source, /onClick=\{\(\) => navigate\("\/planos"\)\}/);
+test("subscription page keeps one primary CTA and removes the quick modal offer", () => {
+  assert.doesNotMatch(source, /Ver no Modal R.{1,2}pido|PremiumModal|showPlansModal/);
+  assert.ok(source.includes('navigate("/planos")'));
 });
 
-test("transição do estado da assinatura é curta e respeita movimento reduzido", () => {
-  assert.match(source, /useReducedMotion/);
-  assert.match(source, /key=\{subscriptionViewState\}/);
-  assert.match(source, /initial=\{prefersReducedMotion \? false : \{ opacity: 0, y: 8 \}\}/);
-  assert.match(source, /duration: prefersReducedMotion \? 0 : 0\.18/);
+test("subscription transition is short and respects reduced motion", () => {
+  assert.ok(source.includes("useReducedMotion"));
+  assert.ok(source.includes("key={subscriptionViewState}"));
+  assert.ok(source.includes("initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}"));
+  assert.ok(source.includes("duration: prefersReducedMotion ? 0 : 0.18"));
 });
 
-test("a ativação do trial passa pela confirmação do servidor e oferece estados acessíveis", () => {
-  assert.match(source, /createTrialCheckoutSession\(\)/);
-  assert.match(source, /confirmTrialCheckout\(pendingTrialSessionId\)/);
-  assert.match(source, /refreshPremiumStatus\(\)/);
-  assert.match(source, /trialConfirmationState === "confirming"/);
-  assert.match(source, /trialConfirmationState === "error"/);
-  assert.match(source, /trialConfirmationState === "success"/);
-  assert.match(source, /Você não ativou o teste\. Não houve cobrança\./);
-  assert.match(source, /canActivateTrial\(trialStatus, isSubscribed, isAuthenticated\)/);
-  assert.match(source, /Ativar teste grátis por 3 dias/);
+test("trial confirmation keeps the same session until authoritative access is active", () => {
+  assert.ok(source.includes("createTrialCheckoutSession()"));
+  assert.ok(source.includes("confirmTrialCheckout(pendingTrialSessionId)"));
+  assert.ok(source.includes("refreshPremiumStatus()"));
+  assert.ok(source.includes("finishTrialConfirmation(pendingTrialSessionId, trialEndsAt ?? confirmedTrialEndsAt)"));
+  assert.ok(source.includes("trialCheckoutConfirmedAtServer"));
+  assert.ok(source.includes("Verificar novamente"));
+  assert.ok(source.includes('trialStatus !== "active" || isSubscribed'));
+  assert.ok(source.includes('canActivateTrial(trialStatus, isSubscribed, isAuthenticated, entitlementStatus === "ready")'));
+  assert.ok(source.includes("canShowFreeSubscription("));
+  assert.ok(source.includes('entitlementStatus !== "ready"'));
+  assert.ok(source.includes("getExpiredSessionRedirect(searchParams)"));
+  assert.ok(source.includes("Ativar teste gr"));
+  assert.ok(source.includes("Sem cobran&ccedil;a autom&aacute;tica"));
+  assert.ok(source.includes('aria-live={trialConfirmationState === "error" ? "assertive" : "polite"}'));
 });
 
-test("conta elegível com assinatura histórica ainda recebe o trial", () => {
-  assert.match(source, /: !isPremium && !isSubscribed \?/);
-  assert.match(source, /O Stripe registra uma assinatura em período de teste/);
-  assert.doesNotMatch(source, /O teste não inicia uma assinatura/);
+test("existing subscribers still use their subscription view", () => {
+  assert.ok(source.includes(": canDisplayFreeSubscription ?"));
+  assert.ok(source.includes("O Stripe registra uma assinatura em per"));
+  assert.doesNotMatch(source, /O teste n.{1,2}o inicia uma assinatura/);
 });
