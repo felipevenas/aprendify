@@ -1,5 +1,5 @@
-import { lazy, Suspense } from "react";
-import { Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { StreakProvider } from "@/contexts/StreakContext";
 import { PremiumProvider } from "@/contexts/PremiumContext";
 import { HelpTooltipsProvider } from "@/contexts/HelpTooltipsContext";
@@ -16,6 +16,10 @@ import { MotionConfig } from "framer-motion";
 import { OnboardingGate } from "@/features/onboarding/components/OnboardingGate";
 import { usePresenceHeartbeat } from "@/features/friends/hooks/usePresenceHeartbeat";
 import { TrialAccessBanner } from "@/features/subscription/components/TrialAccessBanner";
+import {
+  getSafePostAuthRedirectTarget,
+  POST_AUTH_REDIRECT_STORAGE_KEY,
+} from "@/features/auth/services/authRedirect";
 
 const SuspenseFallback = () => <PageContentSkeleton />;
 
@@ -63,12 +67,28 @@ const NotFound = lazy(pageLoaders.NotFound);
 const AppLayout = () => {
   usePresenceHeartbeat();
   const location = useLocation();
+  const navigate = useNavigate();
   const isSimuladoRunning =
     location.pathname.startsWith("/simulados/") &&
     !location.pathname.endsWith("/resultado") &&
     location.pathname.split("/").length === 3;
   const isSalesRoute = location.pathname === "/planos" || location.pathname === "/oferta";
   const showNavbar = !isSimuladoRunning && !isSalesRoute;
+
+  useEffect(() => {
+    if (location.pathname !== "/dashboard") return;
+
+    let pendingTarget: string | null = null;
+    try {
+      pendingTarget = window.sessionStorage.getItem(POST_AUTH_REDIRECT_STORAGE_KEY);
+      window.sessionStorage.removeItem(POST_AUTH_REDIRECT_STORAGE_KEY);
+    } catch {
+      return;
+    }
+
+    const safeTarget = getSafePostAuthRedirectTarget(pendingTarget);
+    if (safeTarget !== "/dashboard") navigate(safeTarget, { replace: true });
+  }, [location.pathname, navigate]);
 
   return (
     <MotionConfig reducedMotion="user">
