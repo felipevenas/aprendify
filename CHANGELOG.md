@@ -10,6 +10,7 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 - **Entitlement Premium no servidor:** trial e assinatura paga usam uma fonte única de autorização; limites de flashcards e gravação de simulados são aplicados no banco, além das funções de IA premium.
 
 ### Corrigido
+- **Ativação do trial via Stripe:** o primeiro recebimento de cada webhook assume o evento imediatamente; consultas da confirmação ao Stripe têm tempo limite e logs seguros por etapa para investigar falhas temporárias.
 - **Retorno do teste grátis:** mantém a mesma sessão Stripe até o servidor confirmar o acesso, oferece recuperação visível após falhas e preserva o destino de retorno após autenticação, inclusive com Google.
 - **Divulgação do trial e assinatura:** aviso dos 3 dias grátis apresentado antes das opções de autenticação, inclusive Google; banner do trial esclarece que não há cartão ou cobrança automática; removida a ação secundária de modal rápido e adicionada transição acessível na aba de assinatura.
 - **Diagnóstico de checkout:** respostas 503 reconhecidas exibem um código técnico permitido para facilitar a identificação da configuração indisponível, sem mostrar detalhes arbitrários do servidor.
