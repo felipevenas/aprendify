@@ -6,6 +6,7 @@ const root = new URL("../../", import.meta.url);
 const initialMigration = await readFile(new URL("migrations/20260923111500_add_new_user_free_trial.sql", root), "utf8");
 const optInMigration = await readFile(new URL("migrations/20260923124500_opt_in_stripe_free_trial.sql", root), "utf8");
 const replayMigration = await readFile(new URL("migrations/20260924013000_idempotencia_ativacao_trial.sql", root), "utf8");
+const webhookClaimRepair = await readFile(new URL("migrations/20260925010000_corrigir_claim_webhook_stripe.sql", root), "utf8");
 const eligibilityRepair = await readFile(new URL("migrations/20260924013100_recuperar_elegibilidade_trial.sql", root), "utf8");
 const subscriptionFunction = await readFile(new URL("functions/check-subscription/index.ts", root), "utf8");
 const authorizeModule = await readFile(new URL("functions/_shared/authorize.ts", root), "utf8");
@@ -68,6 +69,18 @@ test("a confirmed trial replay remains idempotent after a later paid subscriptio
   assert.ok(replayCheck > 0 && paidCheck > replayCheck);
   assert.match(replayMigration, /_trial\.trial_stripe_subscription_id = _stripe_subscription_id/);
   assert.match(replayMigration, /GRANT EXECUTE ON FUNCTION public\.activate_free_trial_from_stripe[\s\S]*?TO service_role/);
+});
+
+test("a newly inserted webhook event is claimed before its fresh lease is checked", () => {
+  const inserted = webhookClaimRepair.indexOf("RETURNING event_id INTO _inserted_event_id");
+  const firstClaim = webhookClaimRepair.indexOf("IF _inserted_event_id IS NOT NULL THEN", inserted);
+  const leaseCheck = webhookClaimRepair.indexOf("_row.locked_until > now()", firstClaim);
+  assert.ok(inserted >= 0 && firstClaim > inserted && leaseCheck > firstClaim);
+  assert.match(webhookClaimRepair, /IF _inserted_event_id IS NOT NULL THEN\s+RETURN QUERY SELECT true, false, 'processing'::text/);
+  assert.match(webhookClaimRepair, /WHERE event_id = _event_id FOR UPDATE/);
+  assert.match(webhookClaimRepair, /_row.status = 'processed'/);
+  assert.match(webhookClaimRepair, /attempts = _row.attempts \+ 1/);
+  assert.match(webhookClaimRepair, /TO service_role/);
 });
 
 test("shared premium gates fail closed when entitlement is unavailable", async () => {
