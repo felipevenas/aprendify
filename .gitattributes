@@ -1,0 +1,19 @@
+# Normalize text files to LF and UTF-8 on commit.
+* text=auto eol=lf
+
+# Keep binary assets untouched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.pdf binary
+*.lockb binary
+
+# Markdown files are documentation and should keep LF.
+*.md text eol=lf
