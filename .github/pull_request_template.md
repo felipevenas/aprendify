@@ -1,34 +1,47 @@
-# Descrição do Pull Request
+# Pull Request
 
-Por favor, inclua um resumo das alterações feitas e quais problemas foram resolvidos.
+## Description
 
----
+Describe the change and the problem it solves. Link the related issue when applicable.
 
-## Tipo de Alteração
+## Type of change
 
-- [ ] 🚀 Nova funcionalidade (feature)
-- [ ] 🐞 Correção de bug (bug fix)
-- [ ] 🔧 Refatoração de código (sem alteração de funcionalidade)
-- [ ] 📝 Documentação (docs)
-- [ ] 🎨 Estilo / Design / UI (layout, CSS, etc.)
-- [ ] ⚙️ Outro (especifique):
+- [ ] 🚀 New feature
+- [ ] 🐞 Bug fix
+- [ ] 🔧 Refactor (no behavior change)
+- [ ] 📝 Documentation
+- [ ] 🎨 Style / design / UI
+- [ ] 🗄️ Database migration or RLS policy
+- [ ] ⚙️ Other (describe):
 
-## Como foi testado?
+## How was it tested?
 
-Por favor, descreva os testes que você executou para verificar suas alterações. Forneça instruções para que possamos reproduzir.
+Describe the commands and scenarios you ran so a reviewer can reproduce them.
 
-- [ ] **Build de Produção:** Executado `npm run build` com sucesso.
-- [ ] **Visualização Local:** Testado no navegador via `npm run dev`.
-- [ ] Outros testes executados:
+- [ ] `npm run lint`
+- [ ] `npm run typecheck`
+- [ ] `npm run test:unit`
+- [ ] `npm test`
+- [ ] `npm run build`
+- [ ] Manual browser test with `npm run dev`
+- [ ] Database/Edge Function test against a development Supabase project
+- [ ] Other:
 
-## Evidência Visual (Screenshots / Vídeos)
+## Visual evidence
 
-*Se aplicável, adicione imagens ou GIFs demonstrando a mudança de interface.*
+Add screenshots or recordings for UI changes. Include mobile and desktop widths and both light and dark themes when relevant.
 
 ## Checklist
 
-- [ ] Meu código segue as diretrizes de estilo deste projeto.
-- [ ] Eu fiz uma auto-revisão do meu próprio código.
-- [ ] Comentei partes do meu código que podem ser difíceis de entender.
-- [ ] Atualizei o arquivo `CHANGELOG.md` com as minhas modificações.
-- [ ] Minhas alterações não geraram novos warnings ou erros no console.
+- [ ] My change follows the project architecture and contribution guidelines.
+- [ ] I performed a self-review of my code.
+- [ ] I added or updated tests for the changed behavior, or explained why a test is not practical.
+- [ ] I updated `CHANGELOG.md` for user-visible changes.
+- [ ] I did not include secrets, `.env` files, tokens, or personal data.
+- [ ] Database changes use a new forward migration and include RLS/index review.
+- [ ] My changes do not introduce new console warnings or errors.
+- [ ] I checked keyboard navigation and responsive behavior for UI changes.
+
+## Known limitations / follow-ups
+
+List anything intentionally left out of this pull request.

@@ -1,114 +1,131 @@
 # Changelog
 
-Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
+All notable changes to this project are documented in this file.
 
-## Não lançado
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-### Adicionado
-- **Repertórios socioculturais:** biblioteca privada para criar e salvar referências, com geração assistida por IA, seleção de temas de redações salvas ou opção de tema manual, exemplos de aplicação, temas relacionados e nichos.
-- **Teste grátis do Completo:** novas contas ganham 72 horas de acesso Premium, iniciado após a confirmação de e-mail no primeiro acesso, sem cartão ou cobrança automática. A expiração é controlada pelo servidor e direciona para os planos.
-- **Entitlement Premium no servidor:** trial e assinatura paga usam uma fonte única de autorização; limites de flashcards e gravação de simulados são aplicados no banco, além das funções de IA premium.
+## Unreleased
 
-### Corrigido
-- **Ativação do trial via Stripe:** o primeiro recebimento de cada webhook assume o evento imediatamente; consultas da confirmação ao Stripe têm tempo limite e logs seguros por etapa para investigar falhas temporárias.
-- **Retorno do teste grátis:** mantém a mesma sessão Stripe até o servidor confirmar o acesso, oferece recuperação visível após falhas e preserva o destino de retorno após autenticação, inclusive com Google.
-- **Divulgação do trial e assinatura:** aviso dos 3 dias grátis apresentado antes das opções de autenticação, inclusive Google; banner do trial esclarece que não há cartão ou cobrança automática; removida a ação secundária de modal rápido e adicionada transição acessível na aba de assinatura.
-- **Diagnóstico de checkout:** respostas 503 reconhecidas exibem um código técnico permitido para facilitar a identificação da configuração indisponível, sem mostrar detalhes arbitrários do servidor.
-- **Explicação de questões:** removida a notificação duplicada quando o erro já está visível no painel, com espaçamento ajustado.
-- **Proteção das funções de IA com Groq:** padronizada a aplicação do rate-limit atômico nas 11 funções presentes nesta branch, com resposta `429`, cabeçalhos de uso e falha fechada quando o controle de quota está indisponível.
-- **Navbar responsiva e menu da conta:** sino disponível também em telas mobile; toggle de tema no menu da conta em mobile e na barra em desktop; sequência de estudos junto ao perfil e ações do dropdown sem rótulos de seção.
-- **Validação das funções:** adicionados testes do helper de rate-limit e verificação estática para impedir regressões de cobertura nas funções Groq.
+### Added
 
-## [0.4.0] - 15-07-2026
+- **Sociocultural repertoires:** private library for creating and saving references, with AI-assisted generation, selection of saved essay topics or a manual topic, application examples, related themes, and niches.
+- **Free Completo trial:** new accounts receive 72 hours of Premium access, starting after e-mail confirmation on first access, with server-controlled expiration that redirects to the plans page.
+- **Server-side Premium entitlement:** trial and paid subscription use a single authorization source; flashcard limits and mock exam persistence are enforced in the database in addition to the Premium AI functions.
 
-### Alterações
+### Fixed
 
-#### 🚀 Adicionado
-- **Sistema de Responsividade para Monitores Ultrawide e Grandes (27+")**:
-  - Criado o componente `Navbar.tsx` que adapta automaticamente a interface conforme o tamanho da tela:
-    - **Desktop (≥1024px)**: Renderiza a Sidebar Fixa à esquerda e a Topbar minimalista acima do conteúdo principal.
-    - **Mobile (≤1023px)**: Oculta a Sidebar e exibe apenas a Topbar com o menu hambúrguer.
-  - Ajustado o layout da Sidebar para não colidir com a Topbar no desktop.
-  - Centralizado o conteúdo principal da aplicação para ocupar a área útil restante da tela.
-- **Cronômetro Pomodoro Global & Widget Flutuante Expansível**:
-  - Implementado o gerenciamento de estado global para o timer Pomodoro, sincronizado em todas as telas da aplicação.
-  - Desenvolvido o widget flutuante `FloatingPomodoro` que acompanha o usuário nas páginas fora do Dashboard.
-  - Adicionada opacidade dinâmica reativa baseada no progresso do tempo e interação do mouse.
-  - Criado o modo de foco em Tela Cheia (fullscreen) com controles completos de pomodoro e opção de Foco Extremo (fundo 100% preto para menor distração).
-  - Adicionado botão de maximizar o cronômetro diretamente a partir do card do painel de estudos (Dashboard).
-  - Persistência sob F5 integrada com o `localStorage` do navegador.
-- **Melhoria no Menu de Ajuda**:
-  - Removido o botão flutuante de ajuda (?) do canto inferior direito e integrado ao dropdown de menu do perfil da Navbar, aparecendo dinamicamente nas páginas com suporte a tutoriais.
-  
-#### 🔧 Modificado
-- **Correção de Layout no Dashboard**:
-  - Adicionada a classe `app-layout-container` em `CreatorDashboard.tsx` para garantir que o painel ocupe a altura total da tela, centralizando o conteúdo acima da barra de navegação inferior.
-- **Ajustes de Margens**:
-  - Ajustadas as margens do conteúdo principal em `CreatorDashboard.tsx` para `py-6 lg:py-10` para melhorar o espaçamento.
-- **Responsividade na Revisão de Erros**:
-  - Adicionada a classe `app-layout-container` no contêiner principal da página `ReviewErrors.tsx`, corrigindo a colisão de layout com a Sidebar fixa de desktop e melhorando a diagramação em dispositivos móveis.
-  - Refatorados o cabeçalho, filtros e itens do card para empilhamento flexível e botões em largura completa no mobile.
-  - Adicionado o componente padrão de **Paginação** (shadcn/ui) configurado para exibir 5 erros por página com reset dinâmico no filtro de disciplina.
+- **Trial activation through Stripe:** the first receipt of each webhook claims the event immediately; confirmation queries to Stripe have timeouts and safe per-stage logs for investigating temporary failures.
+- **Free trial return flow:** keeps the same Stripe session until the server confirms access, offers visible recovery after failures, and preserves the return destination after authentication, including with Google.
+- **Trial and subscription disclosure:** the 3-day free trial notice is shown before authentication options, including Google; the trial banner clarifies billing behavior; the secondary quick-modal action was removed and an accessible transition was added to the subscription tab.
+- **Checkout diagnostics:** recognized `503` responses display an allowed technical code to help identify unavailable configuration without exposing arbitrary server details.
+- **Question explanations:** removed the duplicate notification when the error is already visible in the panel, with adjusted spacing.
+- **Groq AI function protection:** standardized atomic rate limiting across the 11 functions in this branch, with `429` responses, usage headers, and fail-closed behavior when quota control is unavailable.
+- **Responsive navbar and account menu:** notification bell available on mobile; theme toggle in the mobile account menu and desktop bar; study streak next to the profile; dropdown actions without section labels.
+- **Function validation:** added tests for the rate-limit helper and static verification to prevent coverage regressions in the Groq functions.
 
-#### 🐛 Corrigido
-- **Remoção de Notificações Duplicadas**:
-  - Corrigido o problema de duplicação de notificações de "Resposta registrada!" em `Questions.tsx`.
-- **Estatísticas e Desempenho por Área no Dashboard**:
-  - Corrigido o bug da coluna inexistente `subject_id` na tabela `question_attempts` alterando a consulta e mapeamento de dados do Dashboard para usar `discipline` e a utilidade `getSubjectByDiscipline`.
+### Documentation
 
-## [0.3.0] - 28-06-2026
+- Standardized `README.md` and governance documents in English, fixed UTF-8/mojibake issues, added `CODE_OF_CONDUCT.md`, `.env.example`, and `.gitattributes`, and refreshed the issue and pull request templates.
 
-### Alterações
+## [0.4.0] - 2026-07-15
 
-#### 🚀 Adicionado
-- **Tour de Tooltips Dinâmico por Tela**: Criado um sistema de ajuda contextualizado que se adapta à página ativa do usuário. Os tooltips são carregados sob demanda com base na rota ativa utilizando o hook `useLocation` em `HelpTooltipsContext.tsx`.
-- **Identificação de Elementos de Destaque**: Adicionados atributos de tour (`data-tour`) cirurgicamente nas páginas `Schedule.tsx`, `Questions.tsx`, `Tasks.tsx`, `Notes.tsx`, `Statistics.tsx`, `Simulados.tsx`, `Flashcards.tsx` e `Essays.tsx` para guiar os balões interativos.
+### Changed
 
-#### 🔧 Modificado
-- **Responsividade em Desktops e Monitores Grandes (27")**: Ajustado o posicionamento do contêiner de estudos principal (`main`) no `index.css` para centralizar-se na área útil restante da tela ao lado da sidebar fixa, e alinhada a topbar em `Navbar.tsx` para uma apresentação premium.
-- **Ocultação Inteligente do Botão de Ajuda**: Atualizado o componente `HelpButton.tsx` para se ocultar automaticamente em páginas que não possuem tours cadastrados (ex: Configurações, Assinaturas), evitando interações vazias do usuário.
-- **Remoção de Simulados da Sidebar**: Ocultado temporariamente o link da seção "Simulados" do menu de navegação lateral fixa e mobile em `Navbar.tsx` para ajustes posteriores.
-- **Responsividade e Layout do Painel do Criador**: Adicionada a classe `.app-layout-container` no contêiner raiz de `CreatorDashboard.tsx` para corrigir a quebra de layout sob a sidebar fixa no desktop.
-- **Melhorias de Margens e Layout**: Ajustado o padding do `main` em `CreatorDashboard.tsx` para `py-6 lg:py-10` e adicionado distanciamento (`mb-6`) entre os cards de gráficos e tabelas para um visual mais limpo e equilibrado.
-- **Carregamento Padrão no Painel do Criador**: Integrado o componente unificado `<PageLoader>` no lugar da tela de carregamento ad-hoc anterior em `CreatorDashboard.tsx`.
-- **Remoção de Notificação Toast no Banco de Questões**: Retirada a notificação toast repetitiva de "Resposta registrada!" ao enviar alternativas resolvidas em `Questions.tsx`.
-- **Preços dos Planos de Assinatura e Price IDs**: Atualizados os valores dos planos de assinatura em `PremiumModal.tsx` e `Landing.tsx` para refletir o plano Mensal por **R$ 9,90/mês** e o plano Anual por **R$ 95,04/ano** (equivalente a R$ 7,92/mês com 20% de desconto). Novos IDs de preços gerados via Stripe API (`price_1TnQt8BbpjcYJ0FGlA6eJbV6` e `price_1TnQtEBbpjcYJ0FGZ2GQbLKC`) integrados ao checkout.
+#### Added
 
-#### 🐛 Corrigido
-- **Bypass do Limite de 10 Questões Diárias**: Corrigida a falha em `Questions.tsx` que burlava a barreira gratuita permitindo que usuários sem assinatura premium recarregassem ou alternassem a página para obter novas questões. O `useEffect` de montagem agora bloqueia as requisições se o limite do usuário gratuito for ultrapassado.
-- **Redirecionamento Incorreto de Ver Planos**: Consertado o botão "Ver planos disponíveis" em `Subscription.tsx` que redirecionava o usuário erroneamente de volta ao Dashboard. Agora ele exibe instantaneamente o `PremiumModal` com as opções do Stripe sobre a própria tela de assinaturas.
+- **Responsiveness for ultrawide and large monitors (27"+):**
+  - Created the `Navbar.tsx` component to adapt the interface automatically to screen size:
+    - **Desktop (≥1024px):** renders the fixed sidebar on the left and a minimal top bar above the main content.
+    - **Mobile (≤1023px):** hides the sidebar and shows only the top bar with a hamburger menu.
+  - Adjusted the sidebar layout so it does not collide with the top bar on desktop.
+  - Centered the main application content in the remaining usable screen area.
+- **Global Pomodoro timer and expandable floating widget:**
+  - Implemented global state management for the Pomodoro timer, synchronized across all application screens.
+  - Developed the `FloatingPomodoro` widget that follows the user on pages outside the Dashboard.
+  - Added dynamic, reactive opacity based on time progress and mouse interaction.
+  - Created a fullscreen focus mode with complete Pomodoro controls and an Extreme Focus option (100% black background for fewer distractions).
+  - Added a button to maximize the timer directly from the study panel card (Dashboard).
+  - Persistence across F5 reloads integrated with browser `localStorage`.
+- **Help menu improvements:**
+  - Removed the floating help button (?) from the bottom-right corner and integrated it into the Navbar profile dropdown, appearing dynamically on pages with tutorial support.
 
-## [0.2.0] - 27-06-2026
+#### Modified
 
-### Alterações
+- **Dashboard layout fix:**
+  - Added the `app-layout-container` class to `CreatorDashboard.tsx` to ensure the panel occupies the full screen height, centering content above the bottom navigation bar.
+- **Margin adjustments:**
+  - Adjusted main content margins in `CreatorDashboard.tsx` to `py-6 lg:py-10` to improve spacing.
+- **Error review responsiveness:**
+  - Added the `app-layout-container` class to the main page container in `ReviewErrors.tsx`, fixing layout collisions with the fixed desktop sidebar and improving the mobile layout.
+  - Refactored the header, filters, and card items for flexible stacking and full-width buttons on mobile.
+  - Added the standard **Pagination** component (shadcn/ui) configured to display 5 errors per page with dynamic reset when the subject filter changes.
 
-#### 🚀 Adicionado
-- **Gamificação e Desafios Semanais**: Adicionadas tabelas e sistema de conquistas, leaderboard e progressos de desafios semanais no Supabase.
-- **Painel Geral Focado no ENEM**: Criado o novo dashboard central (`Dashboard.tsx`) com widgets utilitários para o ENEM (Pomodoro integrado com Web Audio, Contagem Regressiva viva e painéis analíticos/motivacionais de desempenho por áreas do conhecimento).
-- **Layout de Sidebar Clássica**: Adicionado componente de Sidebar fixa no desktop na lateral esquerda contendo links organizados por categorias e rodapé com perfil do usuário.
-- **Preservação de Layout Anterior**: Cópia do dashboard antigo em `DashboardOld.tsx` para backup histórico (dead code).
-- **Agentes de IA**: Criados arquivos de configuração de agentes na pasta `.agents/` para UI/UX, Supabase, React, QA, Git, Performance e Segurança adaptados ao Antigravity.
-- **Padrão de Pull Request**: Criado o template de Pull Request em `.github/pull_request_template.md`.
-- **Governança do Repositório**: Adicionados arquivos de governança para o repositório, incluindo `LICENSE` (licença proprietária), `CONTRIBUTING.md` (diretrizes para Trunk-Based Development) e `SECURITY.md` (política de reporte de vulnerabilidades).
-- **Configuração de Formatação**: Criado o arquivo `.editorconfig` na raiz do projeto.
-- **Templates de Issues**: Criados templates para relatos de bugs (`bug_report.md`) e sugestões de melhorias (`feature_request.md`) sob a pasta `.github/issue_template/`.
+#### Fixed
 
-#### 🔧 Modificado
-- **Otimização de Performance e Cache**: Configurado `QueryClient` global no `App.tsx` com `staleTime` de 5 minutos, poupando consultas ao Supabase na alternância de abas. Desativado preloader obsoleto de IndexedDB e fila de requisições de rede HTTP ao `api.enem.dev` no `useBackgroundPreloader.ts`.
-- **Mitigação de Vulnerabilidades RLS no Supabase**: Criada migração SQL `20260627212400_restrict_gamification_rls.sql` para remover permissões de escrita direta (`FOR ALL`) nas tabelas `leaderboard_stats` e `user_challenge_progress`, protegendo o ranking contra fraudes.
-- **Auditoria de Dependências (AppSec)**: Atualizadas 18 dependências com vulnerabilidades críticas/altas via `npm audit fix` (incluindo falhas críticas de injeção em PDFs no `jspdf` e bypass de XSS no `dompurify`).
-- **Foco de Posicionamento no ENEM**: Atualizado o `README.md` destacando a plataforma como ecossistema de estudos moldado especificamente para o ENEM, detalhando seus recursos.
-- **Responsividade Mobile-First**: Corrigido o esmagamento das colunas da grade semanal no mobile em `WeeklyAgendaView.tsx` através da adição de scroll horizontal sincronizado com largura mínima responsiva de `750px`.
-- **Navegação Adaptativa**: Componente `Navbar.tsx` modificado para atuar como Topbar minimalista no desktop (ao lado da Sidebar) e manter o menu hambúrguer compacto no mobile, renderizando os mesmos links.
-- **CSS Estrutural**: Ajustadas as margens e paddings no `index.css` usando seletores inteligentes `:has` para adequar de forma responsiva todas as telas autenticadas ao novo design com a Sidebar no desktop.
-- **Cabeçalhos e Botões**: Padronizados cabeçalhos com o padrão de Badge de recurso + Ícone, removendo botões de voltar redundantes de todas as páginas principais e administrativas.
+- **Duplicate notification removal:**
+  - Fixed the duplicate "Resposta registrada!" notification in `Questions.tsx`.
+- **Dashboard statistics and performance by area:**
+  - Fixed the bug caused by the nonexistent `subject_id` column in the `question_attempts` table by changing the Dashboard query and data mapping to use `discipline` and the `getSubjectByDiscipline` utility.
 
-## [0.1.0] - 26-06-2026
+## [0.3.0] - 2026-06-28
 
-### Alterações
+### Changed
 
-#### 🚀 Adicionado
-- Estrutura inicial do projeto React com Vite, TypeScript, Tailwind CSS e shadcn/ui.
-- Integração básica de tabelas no Supabase (`profiles`, `subjects`, `schedule_items`, `tasks`) com políticas de Row Level Security (RLS) habilitadas.
-- Roteamento inicial e telas de Auth (Login/Cadastro), Dashboard, Cronograma, Tarefas e Matérias.
-- Criado o arquivo `CHANGELOG.md` para rastreamento de alterações.
+#### Added
+
+- **Dynamic per-screen tooltip tour:** created a contextual help system that adapts to the user's active page. Tooltips are loaded on demand based on the active route using the `useLocation` hook in `HelpTooltipsContext.tsx`.
+- **Highlight element identification:** added tour attributes (`data-tour`) to the `Schedule.tsx`, `Questions.tsx`, `Tasks.tsx`, `Notes.tsx`, `Statistics.tsx`, `Simulados.tsx`, `Flashcards.tsx`, and `Essays.tsx` pages to guide interactive balloons.
+
+#### Modified
+
+- **Responsiveness on desktops and large monitors (27"):** adjusted the positioning of the main study container (`main`) in `index.css` to center it in the remaining usable area next to the fixed sidebar, and aligned the top bar in `Navbar.tsx` for a premium presentation.
+- **Smart help button hiding:** updated the `HelpButton.tsx` component to hide automatically on pages without registered tours (for example, Settings and Subscriptions), avoiding empty interactions.
+- **Removal of Simulados from the sidebar:** temporarily hid the "Simulados" section link from the fixed and mobile side navigation in `Navbar.tsx` for later adjustments.
+- **Creator panel responsiveness and layout:** added the `.app-layout-container` class to the root container of `CreatorDashboard.tsx` to fix layout breakage under the fixed sidebar on desktop.
+- **Margin and layout improvements:** adjusted the `main` padding in `CreatorDashboard.tsx` to `py-6 lg:py-10` and added spacing (`mb-6`) between chart and table cards for a cleaner, more balanced visual.
+- **Standard loading state in the Creator panel:** integrated the unified `<PageLoader>` component in place of the previous ad-hoc loading screen in `CreatorDashboard.tsx`.
+- **Toast notification removal in the question bank:** removed the repetitive "Resposta registrada!" toast when submitting solved alternatives in `Questions.tsx`.
+- **Subscription plan prices and price IDs:** updated plan prices in `PremiumModal.tsx` and `Landing.tsx` to reflect the Monthly plan at **R$ 9.90/month** and the Annual plan at **R$ 95.04/year** (equivalent to R$ 7.92/month with a 20% discount). New price IDs generated through the Stripe API were integrated into checkout.
+
+#### Fixed
+
+- **Ten-question daily limit bypass:** fixed the flaw in `Questions.tsx` that bypassed the free barrier and allowed non-Premium users to reload or switch pages to obtain new questions. The mount `useEffect` now blocks requests when the free-user limit has been exceeded.
+- **Incorrect "View plans" redirect:** fixed the "Ver planos disponíveis" button in `Subscription.tsx`, which incorrectly redirected the user back to the Dashboard. It now opens the `PremiumModal` with Stripe options directly on the subscription screen.
+
+## [0.2.0] - 2026-06-27
+
+### Changed
+
+#### Added
+
+- **Gamification and weekly challenges:** added tables and a system for achievements, leaderboard, and weekly challenge progress in Supabase.
+- **ENEM-focused general dashboard:** created the new central dashboard (`Dashboard.tsx`) with utility widgets for ENEM (Pomodoro integrated with Web Audio, live countdown, and analytical/motivational performance panels by knowledge area).
+- **Classic sidebar layout:** added a fixed desktop sidebar on the left with links organized by category and a footer with the user profile.
+- **Previous layout preservation:** copied the old dashboard to `DashboardOld.tsx` for historical backup (dead code).
+- **AI agents:** created agent configuration files in the `.agents/` folder for UI/UX, Supabase, React, QA, Git, Performance, and Security adapted to Antigravity.
+- **Pull request standard:** created the pull request template at `.github/pull_request_template.md`.
+- **Repository governance:** added governance files for the repository, including `LICENSE` (proprietary license), `CONTRIBUTING.md` (Trunk-Based Development guidelines), and `SECURITY.md` (vulnerability reporting policy).
+- **Formatting configuration:** created the `.editorconfig` file at the project root.
+- **Issue templates:** created templates for bug reports (`bug_report.md`) and improvement suggestions (`feature_request.md`) under `.github/issue_template/`.
+
+#### Modified
+
+- **Performance and cache optimization:** configured a global `QueryClient` in `App.tsx` with a 5-minute `staleTime`, reducing Supabase queries when switching tabs. Disabled the obsolete IndexedDB preloader and the HTTP request queue to `api.enem.dev` in `useBackgroundPreloader.ts`.
+- **Supabase RLS vulnerability mitigation:** created the SQL migration `20260627212400_restrict_gamification_rls.sql` to remove direct write permissions (`FOR ALL`) from the `leaderboard_stats` and `user_challenge_progress` tables, protecting the ranking against fraud.
+- **Dependency audit (AppSec):** updated 18 dependencies with critical/high vulnerabilities through `npm audit fix` (including critical PDF injection flaws in `jspdf` and XSS bypass in `dompurify`).
+- **ENEM positioning focus:** updated `README.md` to highlight the platform as a study ecosystem shaped specifically for ENEM, detailing its features.
+- **Mobile-first responsiveness:** fixed the crushing of weekly grid columns on mobile in `WeeklyAgendaView.tsx` by adding horizontal scrolling synchronized with a responsive minimum width of `750px`.
+- **Adaptive navigation:** modified the `Navbar.tsx` component to act as a minimal top bar on desktop (next to the sidebar) and keep a compact hamburger menu on mobile, rendering the same links.
+- **Structural CSS:** adjusted margins and paddings in `index.css` using smart `:has` selectors to responsively adapt all authenticated screens to the new sidebar design on desktop.
+- **Headers and buttons:** standardized headers with the feature badge + icon pattern, removing redundant back buttons from all main and administrative pages.
+
+## [0.1.0] - 2026-06-26
+
+### Changed
+
+#### Added
+
+- Initial React project structure with Vite, TypeScript, Tailwind CSS, and shadcn/ui.
+- Basic Supabase table integration (`profiles`, `subjects`, `schedule_items`, `tasks`) with Row Level Security (RLS) policies enabled.
+- Initial routing and Auth (Login/Signup), Dashboard, Schedule, Tasks, and Subjects screens.
+- Created the `CHANGELOG.md` file for change tracking.
